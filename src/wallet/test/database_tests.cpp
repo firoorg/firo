@@ -1683,7 +1683,6 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     source->Flush(true);
     backup.reset();
     source.reset();
-#ifdef WIN32
     bitdb.Flush(true);
     {
         LOCK(bitdb.cs_db);
@@ -1695,7 +1694,6 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
         BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
         bitdb.mapDb.clear();
     }
-#endif
     bitdb.Close();
     bitdb.Reset();
 
@@ -1847,6 +1845,7 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_sync_failure_preserves_source)
             value,
             "source-remains-authoritative");
     }
+    BOOST_REQUIRE(source->PeriodicFlush());
 #endif
 }
 
@@ -1933,6 +1932,7 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
             value,
             "source-remains-authoritative");
     }
+    BOOST_REQUIRE(source->PeriodicFlush());
 #endif
 #ifdef WIN32
     BOOST_CHECK_THROW(
@@ -2147,9 +2147,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
             ReadRawRecords(*batch) ==
             expected);
     }
-#ifdef WIN32
     BOOST_REQUIRE(backup->PeriodicFlush());
-#endif
 
     {
         CWalletDB walletDatabase(*migrated);
@@ -2525,9 +2523,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
             error);
     BOOST_REQUIRE_MESSAGE(backup, error);
     checkState(*backup);
-#ifdef WIN32
     BOOST_REQUIRE(backup->PeriodicFlush());
-#endif
 }
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
@@ -2696,7 +2692,6 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
                 FindMigrationPaths(
                     ".firo-wallet-sqlite-migration-")
                     .empty());
-#ifdef WIN32
             backup.reset();
             source.reset();
             bitdb.Flush(false);
@@ -2710,7 +2705,6 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
                 BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
                 bitdb.mapDb.clear();
             }
-#endif
         }
     }
 }
@@ -2943,7 +2937,6 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_unloadable_spark_state)
                 FindMigrationPaths(
                     ".firo-wallet-sqlite-migration-")
                     .empty());
-#ifdef WIN32
             backup.reset();
             source.reset();
             bitdb.Flush(false);
@@ -2957,7 +2950,6 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_unloadable_spark_state)
                 BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
                 bitdb.mapDb.clear();
             }
-#endif
         }
     }
 }
@@ -3117,7 +3109,6 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
             .empty());
-#ifdef WIN32
     empty.reset();
     corrupt.reset();
     bitdb.Flush(false);
@@ -3132,7 +3123,6 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
         BOOST_REQUIRE(bitdb.migrationLogPins.count(emptyFilename) == 1);
         bitdb.mapDb.clear();
     }
-#endif
 }
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
@@ -3449,6 +3439,67 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backu
 }
 #endif
 
+BOOST_AUTO_TEST_CASE(wallet_database_migration_honors_shutdown)
+{
+    ShutdownRequestReset shutdownReset;
+    const std::string filename{"migration_cancelled_source.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    options.require_format = DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    auto source = MakeWalletDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    std::vector<RawRecord> expected;
+    {
+        auto batch = source->MakeBatch({DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(std::string("cancelled"), std::string("preserved")));
+        expected = ReadRawRecords(*batch);
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(filename, error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    const fs::path sourcePath = GetDataDir() / filename;
+    const std::string contents = ReadFile(sourcePath);
+
+    StartShutdown();
+    std::string backupPath;
+    BOOST_CHECK(!MigrateWalletDatabaseToSQLite(*source, backupPath, error));
+    BOOST_CHECK_MESSAGE(error.find("cancelled") != std::string::npos, error);
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_REQUIRE(!backupPath.empty());
+    BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
+    BOOST_CHECK_EQUAL(ReadFile(sourcePath), contents);
+    source.reset();
+#ifdef WIN32
+    BOOST_REQUIRE_MESSAGE(ResetExpectedSQLiteQuarantine(), error);
+#endif
+    BOOST_CHECK(FindMigrationPaths(".firo-wallet-sqlite-migration-").empty());
+
+    options.require_create = false;
+    options.require_existing = true;
+    options.recover = false;
+    auto backup = MakeWalletDatabase(fs::path(backupPath).filename().string(), options, status, error);
+    BOOST_REQUIRE_MESSAGE(backup, error);
+    {
+        auto batch = backup->MakeBatch({DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        BOOST_CHECK(ReadRawRecords(*batch) == expected);
+    }
+    backup.reset();
+    bitdb.Flush(false);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+        for (const auto& database : bitdb.mapDb) {
+            BOOST_REQUIRE(database.second == nullptr);
+        }
+        bitdb.mapDb.clear();
+    }
+}
+
 BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
 {
     ShutdownRequestReset shutdownReset;
@@ -3624,6 +3675,28 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
         candidate->CompleteCreation(error) ==
         DatabaseCreationResult::COMPLETE);
     BOOST_REQUIRE(error.empty());
+
+    StartShutdown();
+    const auto cancelled = PublishSQLiteMigrationCandidate(*candidate, *berkeley, error);
+#ifdef WIN32
+    BOOST_CHECK(cancelled == SQLiteMigrationPublishResult::INDETERMINATE);
+#else
+    BOOST_CHECK(cancelled == SQLiteMigrationPublishResult::FAILED);
+#endif
+    BOOST_CHECK_MESSAGE(error.find("shutdown was requested") != std::string::npos, error);
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_EQUAL(ReadFile(sourcePath), sourceContents);
+    BOOST_CHECK_EQUAL(ReadFile(berkeley->MigrationBackupPath()), backupContents);
+    candidate.reset();
+#ifdef WIN32
+    BOOST_REQUIRE_MESSAGE(ResetExpectedSQLiteQuarantine(), error);
+#else
+    fRequestShutdown.store(false);
+#endif
+    BOOST_CHECK(!fs::exists(GetDataDir() / candidateFilename));
+    candidate = MakeWalletDatabase(candidateFilename, candidateOptions, status, error);
+    BOOST_REQUIRE_MESSAGE(candidate, error);
+    BOOST_REQUIRE(candidate->CompleteCreation(error) == DatabaseCreationResult::COMPLETE);
 
     BOOST_REQUIRE(
         PublishSQLiteMigrationCandidate(
@@ -10554,6 +10627,55 @@ BOOST_FIXTURE_TEST_CASE(
 
     {
         ShutdownRequestReset shutdownReset;
+        const std::string filename{"sqlite_encryption_concurrent.dat"};
+        auto walletAndKey = createPlainWallet(filename);
+        CWallet& wallet = *walletAndKey.first;
+        CWallet::EncryptionStatus firstStatus, secondStatus;
+        std::promise<void> start;
+        const std::shared_future<void> ready = start.get_future().share();
+        auto first = std::async(std::launch::async, [&] {
+            ready.wait();
+            return wallet.EncryptWallet(passphrase, &firstStatus);
+        });
+        auto second = std::async(std::launch::async, [&] {
+            ready.wait();
+            return wallet.EncryptWallet(newPassphrase, &secondStatus);
+        });
+        start.set_value();
+        const bool firstSucceeded = first.get();
+        const bool secondSucceeded = second.get();
+        BOOST_REQUIRE(firstSucceeded != secondSucceeded);
+        BOOST_CHECK((firstSucceeded ? firstStatus : secondStatus) ==
+                    CWallet::EncryptionStatus::ENCRYPTION_STARTED);
+        BOOST_CHECK((firstSucceeded ? secondStatus : firstStatus) ==
+                    CWallet::EncryptionStatus::ALREADY_ENCRYPTED);
+        BOOST_CHECK(!ShutdownRequested());
+        walletAndKey.first.reset();
+        checkEncryptedWallet(filename,
+                             firstSucceeded ? passphrase : newPassphrase,
+                             firstSucceeded ? &newPassphrase : &passphrase);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{"sqlite_encryption_begin_failure.dat"};
+        auto walletAndKey = createPlainWallet(filename);
+        BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(
+            walletAndKey.first->GetDatabase(),
+            std::make_unique<BlockingSQLiteStatementExecutor>(
+                std::set<std::string>{"BEGIN TRANSACTION"})));
+        CWallet::EncryptionStatus status;
+        BOOST_CHECK(!walletAndKey.first->EncryptWallet(passphrase, &status));
+        BOOST_CHECK(status == CWallet::EncryptionStatus::UNCHANGED);
+        BOOST_CHECK(!ShutdownRequested());
+        walletAndKey.first.reset();
+        checkPlainWallet(filename, walletAndKey.second);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
         const std::string filename{
             "sqlite_encryption_commit_failure.dat"};
         auto walletAndKey =
@@ -10565,9 +10687,11 @@ BOOST_FIXTURE_TEST_CASE(
                     BlockingSQLiteStatementExecutor>(
                     std::set<std::string>{
                         "COMMIT TRANSACTION"})));
+        CWallet::EncryptionStatus status;
         BOOST_CHECK(
             !walletAndKey.first->EncryptWallet(
-                passphrase));
+                passphrase, &status));
+        BOOST_CHECK(status == CWallet::EncryptionStatus::ENCRYPTION_STARTED);
         BOOST_CHECK(ShutdownRequested());
         walletAndKey.first.reset();
         checkPlainWallet(
@@ -10608,9 +10732,11 @@ BOOST_FIXTURE_TEST_CASE(
                 walletAndKey.first->GetDatabase(),
                 std::make_unique<
                     CommitThenFailSQLiteStatementExecutor>()));
+        CWallet::EncryptionStatus status;
         BOOST_CHECK(
             !walletAndKey.first->EncryptWallet(
-                passphrase));
+                passphrase, &status));
+        BOOST_CHECK(status == CWallet::EncryptionStatus::ENCRYPTION_STARTED);
         BOOST_CHECK(
             walletAndKey.first->IsCrypted());
         BOOST_CHECK(ShutdownRequested());

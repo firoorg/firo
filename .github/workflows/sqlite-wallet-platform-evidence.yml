@@ -2008,7 +2008,7 @@ jobs:
           trap - ERR
           run_firo_test \
             build-mac-dual/bin/test_firo \
-            wallet_database_factory_preopen_policy,wallet_database_tests
+            wallet_database_factory_preopen_policy,wallet_database_tests,macos_wallet_permissions_tests
 
       - name: Build and test true BDB-only wallets
         run: |

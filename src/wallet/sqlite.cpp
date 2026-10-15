@@ -16,6 +16,9 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/walletdb.h"
+#ifdef __APPLE__
+#include "wallet/macos_wallet_permissions.h"
+#endif
 #ifdef WIN32
 #include "wallet/win32_file_lifecycle.h"
 #endif
@@ -999,6 +1002,9 @@ bool PrivateSQLiteIdentityMatches(
     struct stat descriptor_status{};
     struct stat path_status{};
     return descriptor &&
+#ifdef __APPLE__
+           wallet::macos::HasSafeACL(descriptor.Get(), false) &&
+#endif
            fstat(descriptor.Get(), &descriptor_status) == 0 &&
            lstat(path.string().c_str(), &path_status) == 0 &&
            S_ISREG(descriptor_status.st_mode) &&
@@ -1420,6 +1426,15 @@ bool OpenSQLiteConnection(
     bool* cleanup_allowed = nullptr)
 {
     database = nullptr;
+#ifdef __APPLE__
+    const fs::path parent = path.parent_path().empty() ? fs::path(".") : path.parent_path();
+    if (!wallet::macos::DirectoryACLsSafe(parent)) {
+        error = strprintf(
+            "Refusing SQLite wallet '%s': its directory has an unsafe or unreadable macOS ACL (including inheritance).",
+            path.string());
+        return false;
+    }
+#endif
     const int flags = SQLITE_OPEN_FULLMUTEX |
                       SQLITE_OPEN_NOFOLLOW |
                       SQLITE_OPEN_READWRITE;
@@ -1723,6 +1738,14 @@ bool VerifySQLiteHeaderDescriptor(
         error);
 #else
     identity = {};
+#ifdef __APPLE__
+    if (!wallet::macos::HasSafeACL(descriptor.Get(), false)) {
+        error = strprintf(
+            "Refusing SQLite wallet '%s': its retained file has an unsafe or unreadable macOS ACL.",
+            path.string());
+        return false;
+    }
+#endif
     std::array<unsigned char, 100> header{};
     size_t offset = 0;
     int failure = 0;
@@ -1976,6 +1999,14 @@ bool CheckAuxiliaryFiles(
                 path.string());
             return false;
         }
+#ifdef __APPLE__
+        if (!wallet::macos::PathHasSafeACL(journal_path, false)) {
+            error = strprintf(
+                "Refusing SQLite wallet '%s': its rollback journal has an unsafe or unreadable macOS ACL.",
+                path.string());
+            return false;
+        }
+#endif
     }
 #endif
 
@@ -2184,6 +2215,14 @@ CandidateResult CreateOwnedCandidate(
     static std::atomic<uint64_t> candidate_counter{0};
     const fs::path parent =
         final_path.parent_path().empty() ? fs::path(".") : final_path.parent_path();
+#ifdef __APPLE__
+    if (!wallet::macos::DirectoryACLsSafe(parent)) {
+        error = strprintf(
+            "Refusing SQLite candidate for '%s': its directory has an unsafe or unreadable macOS ACL (including inheritance).",
+            final_path.string());
+        return CandidateResult::FAILED;
+    }
+#endif
     for (int attempt = 0; attempt < 128; ++attempt) {
         const std::string candidate_name = strprintf(
             ".%s.sqlite-%d-%d-%d.tmp",
@@ -2227,6 +2266,11 @@ CandidateResult CreateOwnedCandidate(
             if (fchmod(descriptor, S_IRUSR | S_IWUSR) != 0) {
                 valid = false;
                 saved_errno = errno;
+#ifdef __APPLE__
+            } else if (!wallet::macos::HasSafeACL(descriptor, false)) {
+                valid = false;
+                saved_errno = EACCES;
+#endif
             } else if (ClaimSQLiteFileDescriptor(descriptor) != 0) {
                 valid = false;
                 saved_errno = errno;
@@ -2411,6 +2455,9 @@ bool OwnerControlledMigrationDirectory(
     struct stat descriptor_status{};
     struct stat path_status{};
     const bool controlled =
+#ifdef __APPLE__
+        wallet::macos::HasSafeACL(descriptor, true) &&
+#endif
         fstat(descriptor, &descriptor_status) == 0 &&
         lstat(
             directory.string().c_str(),
@@ -6134,6 +6181,11 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                 verification_error)) {
             return mark_indeterminate(
                 verification_error);
+        }
+
+        if (ShutdownRequested()) {
+            return fail_before_exchange(
+                "shutdown was requested before migration publication");
         }
 
 #ifdef WIN32

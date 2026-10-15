@@ -12,6 +12,10 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
+#ifdef __APPLE__
+#include "wallet/macos_wallet_permissions.h"
+#endif
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -511,6 +515,9 @@ bool PrivateMigrationSourceMatches(
     struct stat descriptor_status{};
     struct stat path_status{};
     return descriptor >= 0 &&
+#ifdef __APPLE__
+           wallet::macos::HasSafeACL(descriptor, false) &&
+#endif
            fstat(descriptor, &descriptor_status) == 0 &&
            lstat(path.string().c_str(), &path_status) == 0 &&
            StatMatchesMigrationIdentity(
@@ -554,6 +561,9 @@ bool OwnerControlledMigrationDirectory(
     struct stat descriptor_status{};
     struct stat path_status{};
     if (descriptor.Get() < 0 ||
+#ifdef __APPLE__
+        !wallet::macos::HasSafeACL(descriptor.Get(), true) ||
+#endif
         fstat(
             descriptor.Get(),
             &descriptor_status) != 0 ||
@@ -592,6 +602,9 @@ bool PrivateMigrationBackupMatches(
     const mode_t permission_mask =
         S_IRWXU | S_IRWXG | S_IRWXO;
     return descriptor >= 0 &&
+#ifdef __APPLE__
+           wallet::macos::HasSafeACL(descriptor, false) &&
+#endif
            fstat(descriptor, &descriptor_status) == 0 &&
            lstat(path.string().c_str(), &path_status) == 0 &&
            StatMatchesMigrationIdentity(

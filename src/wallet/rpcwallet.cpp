@@ -3388,8 +3388,12 @@ UniValue encryptwallet(const JSONRPCRequest& request)
                 "Encrypts the wallet with <passphrase>.");
     }
 
-    if (!pwallet->EncryptWallet(strWalletPass)) {
-        if (pwallet->IsCrypted()) {
+    CWallet::EncryptionStatus encryptionStatus;
+    if (!pwallet->EncryptWallet(strWalletPass, &encryptionStatus)) {
+        if (encryptionStatus == CWallet::EncryptionStatus::ALREADY_ENCRYPTED) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        }
+        if (encryptionStatus == CWallet::EncryptionStatus::ENCRYPTION_STARTED) {
             throw JSONRPCError(
                 RPC_WALLET_ENCRYPTION_FAILED,
                 "Error: Wallet encryption did not complete cleanly, but encrypted wallet data may already have been written. "

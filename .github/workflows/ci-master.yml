@@ -332,8 +332,10 @@ jobs:
       if: matrix.is_mac
       run: |
         set -exo pipefail
+        WALLET_TEST_PARENT=$(mktemp -d)
+        export TMPDIR="$(cd "$WALLET_TEST_PARENT" && pwd -P)"
         build/bin/test_firo \
-          --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
+          --run_test=wallet_database_factory_preopen_policy,wallet_database_tests,macos_wallet_permissions_tests \
           --catch_system_error=no --log_level=message -- DEBUG_LOG_OUT
     - name: Run BDB-only Wallet Database Tests (Mac Release)
       if: matrix.is_mac && matrix.build_type == 'Release'

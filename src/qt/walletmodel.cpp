@@ -621,12 +621,13 @@ WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
     }
 }
 
-bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString &passphrase)
+bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString &passphrase, CWallet::EncryptionStatus* status)
 {
+    if (status) *status = CWallet::EncryptionStatus::UNCHANGED;
     if(encrypted)
     {
         // Encrypt
-        return wallet->EncryptWallet(passphrase);
+        return wallet->EncryptWallet(passphrase, status);
     }
     else
     {

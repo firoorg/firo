@@ -18,6 +18,9 @@ target_sources(test_firo
 target_link_libraries(test_firo firo_wallet)
 if(ENABLE_SQLITE_WALLET)
   target_link_libraries(test_firo SQLite3::SQLite3)
+  if(APPLE)
+    target_sources(test_firo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/macos_wallet_permissions_tests.cpp)
+  endif()
 endif()
 
 # These cases use standalone fixtures and are not discovered by the suite-only
@@ -38,4 +41,8 @@ if(ENABLE_SQLITE_WALLET)
   add_test(NAME sqlite_wallet_encryption_failure_contract
     COMMAND test_firo --run_test=sqlite_wallet_encryption_failure_contract --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
   )
+  add_test(NAME sqlite_wallet_shuffled_lifecycle
+    COMMAND test_firo --run_test=wallet_database_factory_preopen_policy,wallet_database_tests,wallet_mnemonic_encryption_persists,sqlite_wallet_encryption_failure_contract --random=20261014 --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+  )
+  set_property(TEST sqlite_wallet_encryption_failure_contract sqlite_wallet_shuffled_lifecycle PROPERTY TIMEOUT 600)
 endif()

@@ -11,6 +11,10 @@
 #include "wallet/db.h"
 #include "wallet/walletdb.h"
 
+#ifdef __APPLE__
+#include "wallet/macos_wallet_permissions.h"
+#endif
+
 #ifdef USE_SQLITE
 #include "wallet/sqlite.h"
 #endif
@@ -439,6 +443,15 @@ bool ValidateWalletMigrationDirectory(
                 directory.string());
             return false;
         }
+
+#ifdef __APPLE__
+        if (!wallet::macos::PathHasSafeACL(current, true)) {
+            error = strprintf(
+                "Refusing migration directory '%s': '%s' has an unsafe or unreadable macOS ACL.",
+                directory.string(), current.string());
+            return false;
+        }
+#endif
 
         const fs::path parent = current.parent_path();
         if (parent.empty() || parent == current) {

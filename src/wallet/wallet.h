@@ -961,7 +961,9 @@ public:
         const SecureString& strNewWalletPassphrase,
         bool* indeterminate = nullptr,
         bool* databaseError = nullptr);
-    bool EncryptWallet(const SecureString& strWalletPassphrase);
+    enum class EncryptionStatus { UNCHANGED, ALREADY_ENCRYPTED, ENCRYPTION_STARTED };
+    // Reports this invocation's progress, not a later concurrent wallet state.
+    bool EncryptWallet(const SecureString& strWalletPassphrase, EncryptionStatus* status = nullptr);
 
     void RequestUnlock();
     bool WaitForUnlock();

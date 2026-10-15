@@ -131,7 +131,8 @@ void AskPassphraseDialog::accept()
         {
             if(newpass1 == newpass2)
             {
-                if(model->setWalletEncrypted(true, newpass1))
+                CWallet::EncryptionStatus encryptionStatus;
+                if(model->setWalletEncrypted(true, newpass1, &encryptionStatus))
                 {
                     QMessageBox::warning(this, tr("Wallet encrypted"),
                                          "<qt>" +
@@ -148,8 +149,11 @@ void AskPassphraseDialog::accept()
                 }
                 else
                 {
-                    if (model->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE &&
-                        model->getEncryptionStatus() != WalletModel::Unencrypted) {
+                    if (encryptionStatus == CWallet::EncryptionStatus::ALREADY_ENCRYPTED) {
+                        QMessageBox::critical(this, tr("Wallet already encrypted"),
+                                              tr("Another request encrypted this wallet. This request did not change its passphrase."));
+                    } else if (model->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+                               encryptionStatus == CWallet::EncryptionStatus::ENCRYPTION_STARTED) {
                         QMessageBox::critical(
                             this,
                             tr("Wallet encryption incomplete"),
@@ -159,7 +163,7 @@ void AskPassphraseDialog::accept()
                         QApplication::quit();
                     } else {
                         QMessageBox::critical(this, tr("Wallet encryption failed"),
-                                         tr("Wallet encryption failed due to an internal error. Your wallet was not encrypted."));
+                                         tr("Wallet encryption failed due to an internal error. This request did not encrypt your wallet."));
                     }
                 }
                 QDialog::accept(); // Success

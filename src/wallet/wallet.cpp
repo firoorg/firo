@@ -244,6 +244,11 @@ bool CopyMigrationRecords(
     }
 
     while (true) {
+        if (ShutdownRequested()) {
+            error = "Wallet migration cancelled because shutdown was requested.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
         CDataStream key(SER_DISK, CLIENT_VERSION);
         CDataStream value(SER_DISK, CLIENT_VERSION);
         MigrationRecordCleanser cleanser(key, value);
@@ -1659,11 +1664,16 @@ void CWallet::AddToSpends(const uint256& wtxid)
     }
 }
 
-bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
+bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionStatus* status)
 {
+    EncryptionStatus ignoredStatus;
+    EncryptionStatus& result = status ? *status : ignoredStatus;
+    result = EncryptionStatus::UNCHANGED;
     if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
-        if (IsCrypted())
+        if (IsCrypted()) {
+            result = EncryptionStatus::ALREADY_ENCRYPTED;
             return false;
+        }
 
         CKeyingMaterial vMasterKey;
 
@@ -1708,6 +1718,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
                 pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
             }
 
+            result = EncryptionStatus::ENCRYPTION_STARTED;
             if (!EncryptKeys(vMasterKey))
             {
                 if (fFileBacked) {
@@ -1759,8 +1770,10 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     static CCriticalSection cs_encryptWallet;
     LOCK(cs_encryptWallet);
 
-    if (IsCrypted())
+    if (IsCrypted()) {
+        result = EncryptionStatus::ALREADY_ENCRYPTED;
         return false;
+    }
 
     CKeyingMaterial vMasterKey;
 
@@ -1830,6 +1843,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         }
 
         keyMutationStarted = true;
+        result = EncryptionStatus::ENCRYPTION_STARTED;
         if (!EncryptKeys(vMasterKey))
         {
             if (fFileBacked) {
