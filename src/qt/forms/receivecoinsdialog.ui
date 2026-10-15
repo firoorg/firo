@@ -63,6 +63,55 @@
               </widget>
             </item>
             <item>
+              <widget class="QWidget" name="sparkNameActions" native="true">
+               <layout class="QHBoxLayout" name="sparkNameActionsLayout">
+                <property name="leftMargin"><number>0</number></property>
+                <property name="topMargin"><number>0</number></property>
+                <property name="rightMargin"><number>0</number></property>
+                <property name="bottomMargin"><number>0</number></property>
+                <item>
+                 <widget class="QPushButton" name="mySparkNamesButton">
+                  <property name="toolTip">
+                   <string>Choose one of this wallet's Spark Names for the payment request.</string>
+                  </property>
+                  <property name="text">
+                   <string>Use My Spark Name</string>
+                  </property>
+                  <property name="autoDefault">
+                   <bool>false</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="createSparkNameButton">
+                  <property name="toolTip">
+                   <string>Register a new Spark Name.</string>
+                  </property>
+                  <property name="text">
+                   <string>Register Spark Name</string>
+                  </property>
+                  <property name="autoDefault">
+                   <bool>false</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="sparkNameActionsSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </widget>
+            </item>
+            <item>
               <spacer name="horizontalSpacer__">
                 <property name="orientation">
                   <enum>Qt::Horizontal</enum>
@@ -77,56 +126,7 @@
             </item>
           </layout>
         </item>
-        <item row="1" column="0" colspan="2">
-         <widget class="QWidget" name="sparkNameActions" native="true">
-          <layout class="QHBoxLayout" name="sparkNameActionsLayout">
-           <property name="leftMargin"><number>0</number></property>
-           <property name="topMargin"><number>0</number></property>
-           <property name="rightMargin"><number>0</number></property>
-           <property name="bottomMargin"><number>0</number></property>
-           <item>
-            <widget class="QPushButton" name="mySparkNamesButton">
-             <property name="toolTip">
-              <string>Choose one of this wallet's Spark Names for the payment request.</string>
-             </property>
-             <property name="text">
-              <string>Use My Spark Name</string>
-             </property>
-             <property name="autoDefault">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="createSparkNameButton">
-             <property name="toolTip">
-              <string>Register a new Spark Name.</string>
-             </property>
-             <property name="text">
-              <string>Register Spark Name</string>
-             </property>
-             <property name="autoDefault">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="sparkNameActionsSpacer">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="2" column="0">
+        <item row="1" column="0">
          <widget class="QLabel" name="label_2">
           <property name="toolTip">
            <string>An optional label to associate with the new receiving address.</string>
@@ -139,40 +139,47 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="reqLabel">
-          <property name="toolTip">
-           <string>An optional label to associate with the new receiving address.</string>
+        <item row="1" column="1">
+         <layout class="QHBoxLayout" name="labelAmountLayout" stretch="1,0,0">
+          <property name="spacing">
+           <number>12</number>
           </property>
-         </widget>
+          <item>
+           <widget class="QLineEdit" name="reqLabel">
+            <property name="toolTip">
+             <string>An optional label to associate with the new receiving address.</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="toolTip">
+             <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
+            </property>
+            <property name="text">
+             <string>&amp;AMOUNT</string>
+            </property>
+            <property name="buddy">
+             <cstring>reqAmount</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="BitcoinAmountField" name="reqAmount">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label">
-          <property name="toolTip">
-           <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
-          </property>
-          <property name="text">
-           <string>&amp;AMOUNT</string>
-          </property>
-          <property name="buddy">
-           <cstring>reqAmount</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="BitcoinAmountField" name="reqAmount">
-          <property name="minimumSize">
-           <size>
-            <width>80</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
+        <item row="2" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
            <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
@@ -185,14 +192,14 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="2" column="1">
          <widget class="QLineEdit" name="reqMessage">
           <property name="toolTip">
            <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="0" colspan="2">
+        <item row="3" column="0" colspan="2">
          <widget class="QCheckBox" name="reuseAddress">
           <property name="toolTip">
            <string>Reuse one of the previously used receiving addresses. Reusing addresses has security and privacy issues. Do not use this unless re-generating a payment request made before.</string>
@@ -202,7 +209,7 @@
           </property>
          </widget>
         </item>
-        <item row="6" column="0" colspan="2">
+        <item row="4" column="0" colspan="2">
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QPushButton" name="receiveButton">
@@ -313,6 +320,38 @@
             </spacer>
           </item>
           <item>
+           <widget class="QPushButton" name="showRequestButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Show the selected request (does the same as double clicking an entry)</string>
+            </property>
+            <property name="text">
+             <string>Show</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="removeRequestButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Remove the selected entries from the list</string>
+            </property>
+            <property name="text">
+             <string>Remove</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
             <widget class="QComboBox" name="addressTypeHistoryCombobox">
             </widget>
           </item>
@@ -330,55 +369,6 @@
          <bool>true</bool>
         </property>
        </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <item>
-         <widget class="QPushButton" name="showRequestButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="toolTip">
-           <string>Show the selected request (does the same as double clicking an entry)</string>
-          </property>
-          <property name="text">
-           <string>Show</string>
-          </property>
-          <property name="autoDefault">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="removeRequestButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="toolTip">
-           <string>Remove the selected entries from the list</string>
-          </property>
-          <property name="text">
-           <string>Remove</string>
-          </property>
-          <property name="autoDefault">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
       </item>
      </layout>
     </widget>
