@@ -5,6 +5,7 @@
 
 import socket
 import os
+import re
 
 from test_framework.socks5 import Socks5Configuration, Socks5Command, Socks5Server, AddressType
 from test_framework.test_framework import BitcoinTestFramework
@@ -12,8 +13,12 @@ from test_framework.util import (
     PORT_MIN,
     PORT_RANGE,
     start_nodes,
+    start_node,
     assert_equal,
+    p2p_port,
+    rpc_port,
 )
+from test_framework.mininode import wait_until
 from test_framework.netutil import test_ipv6_local
 '''
 Test plan:
@@ -208,6 +213,20 @@ class ProxyTest(BitcoinTestFramework):
                 assert_equal(n3[net]['proxy'], '[%s]:%i' % (self.conf3.addr))
                 assert_equal(n3[net]['proxy_randomize_credentials'], False)
             assert_equal(n3['onion']['reachable'], False)
+
+        self.log.info("Check -listen=0 -torsetup=1 does not bind an inbound onion listener")
+        onion_bind_pattern = re.compile(r"Bound to 127\.0\.0\.1:(?!%d\b)\d+" % p2p_port(4))
+        self.nodes.append(start_node(4, self.options.tmpdir, [
+            '-listen=0',
+            '-listenonion=0',
+            '-torsetup=1',
+            '-port=%d' % p2p_port(4),
+            '-rpcport=%d' % rpc_port(4),
+        ]))
+        node4_debug_log = os.path.join(self.options.tmpdir, "node4", "regtest", "debug.log")
+        assert(wait_until(lambda: os.path.exists(node4_debug_log), timeout=10))
+        with open(node4_debug_log, encoding='utf8') as debug_log:
+            assert(not onion_bind_pattern.search(debug_log.read()))
 
 if __name__ == '__main__':
     ProxyTest().main()
