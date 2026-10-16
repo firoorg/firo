@@ -176,6 +176,7 @@ testScripts = [
     # Firo-specific tests
     'transactions_verification_after_restart.py',
     'getblocktemplate_coinbase.py',
+    'getblocktemplate_retained_jobs.py',
     'consolidation.py',
 
     # Evo Znodes

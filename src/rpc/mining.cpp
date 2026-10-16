@@ -666,9 +666,15 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 5) ||
         fLastTemplateSupportsSegwit != fSupportsSegwit)
     {
+        // As with Bitcoin's former getwork cache, only a new tip makes cached jobs obsolete. After a
+        // mempool-only rebuild they are still valid blocks, and miners keep hashing them until they
+        // next ask for work, so pprpcsb must still find them. Check each job's parent rather than
+        // pindexPrev, which is also null after a failed rebuild while the tip is unchanged.
+        const uint256 tipHash = chainActive.Tip()->GetBlockHash();
+        std::erase_if(mapPPBlockTemplates, [&tipHash](const auto& entry) { return entry.second.hashPrevBlock != tipHash; });
+
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
-        mapPPBlockTemplates.clear();
 
         // Store the pindexBest used before CreateNewBlock, to avoid races
         nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
@@ -896,17 +902,21 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         result.pushKV("coinbase_message", strCoinbaseMessage);
 
     if (pblock->IsProgPow()) {
-        // Reuse a fresh job that was built for the same coinbase (reward address and message).
-        // Retain other jobs for pprpcsb until the template is rebuilt or the cache is full.
+        // Reuse a fresh job only if it matches this block apart from its time. The Merkle root covers the
+        // transactions and the coinbase (reward address and message). A job timed after this block, as
+        // after a clock correction, could be too far in the future to be accepted. Jobs remain available
+        // to pprpcsb until the tip changes or the cache is full.
+        pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
         std::string header;
         for (const auto& entry : mapPPBlockTemplates) {
-            if (entry.second.vtx[0]->GetHash() == pblock->vtx[0]->GetHash() && (pblock->nTime - 30) < entry.second.nTime) {
+            const CBlock& job = entry.second;
+            if (job.hashMerkleRoot == pblock->hashMerkleRoot && job.nVersion == pblock->nVersion &&
+                job.nBits == pblock->nBits && job.nTime <= pblock->nTime && pblock->nTime - job.nTime < 30) {
                 header = entry.first;
                 break;
             }
         }
         if (header.empty()) {
-            pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
             header = pblock->GetProgPowHeaderHash().GetHex();
             if (fRewardAddressSet) {
                 if (mapPPBlockTemplates.size() >= MAX_PP_BLOCK_TEMPLATES) {
