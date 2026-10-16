@@ -1594,7 +1594,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
         return AbsurdFee;
     }
     if (!newTx->tx ||
-        (!versionedSpend && spark::GetSpendInputs(*newTx->tx) != 1) ||
         (versionedSpend && !newTx->tx->IsSparkSpendV2())) {
         return SendCoinsReturn(
             TransactionCreationFailed,

@@ -1338,7 +1338,6 @@ BOOST_AUTO_TEST_CASE(spark_multi_input_v1_and_aliased_group_ids_are_rejected)
         BatchProofContainer* batch;
         ~ResetBatch()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } resetBatch{batch};
@@ -1397,9 +1396,8 @@ BOOST_AUTO_TEST_CASE(spark_multi_input_v1_and_aliased_group_ids_are_rejected)
         BOOST_CHECK_EQUAL(dos, 0);
         BOOST_CHECK_EQUAL(mempoolState.GetRejectReason(), reason);
 
-        for (const bool collectProofs : {false, true}) {
-            batch->init();
-            batch->fCollectProofs = collectProofs;
+        for (const auto mode : {BatchProofContainer::Mode::Disabled, BatchProofContainer::Mode::Deferred}) {
+            batch->init(mode);
             CValidationState blockState;
             CSparkTxInfo blockInfo;
             BOOST_CHECK(!CheckSparkTransaction(
@@ -1415,7 +1413,6 @@ BOOST_AUTO_TEST_CASE(spark_multi_input_v1_and_aliased_group_ids_are_rejected)
             BOOST_CHECK_EQUAL(dos, 100);
             BOOST_CHECK_EQUAL(blockState.GetRejectReason(), reason);
         }
-        batch->fCollectProofs = false;
         batch->init();
 
         BOOST_CHECK(!GenerateBlock({CMutableTransaction(*tx)}));
@@ -1436,7 +1433,6 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
         BatchProofContainer* batch;
         ~ResetBatch()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } resetBatch{batch};
@@ -1502,7 +1498,6 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
     };
 
     for (const auto& [tx, reason] : historicalCases) {
-        batch->fCollectProofs = false;
         batch->init();
         CValidationState blockState;
         CSparkTxInfo blockInfo;
@@ -1534,8 +1529,7 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
     }
 
     for (const CTransaction* tx : {&multiInput, &aliased}) {
-        batch->init();
-        batch->fCollectProofs = true;
+        batch->init(BatchProofContainer::Mode::Deferred);
         CValidationState batchState;
         CSparkTxInfo batchInfo;
         BOOST_REQUIRE(CheckSparkTransaction(
@@ -1550,7 +1544,6 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
         batch->finalize();
         BOOST_CHECK(batch->verify_pending());
         batch->remove(ParseSparkSpend(*tx));
-        batch->fCollectProofs = false;
         batch->init();
     }
 
@@ -1576,7 +1569,6 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
 
     UpdateRegtestSparkActivationHeights(&connectedHeight, &connectedHeight);
     for (const auto& [tx, reason] : historicalCases) {
-        batch->fCollectProofs = false;
         batch->init();
         CValidationState activeState;
         CSparkTxInfo activeInfo;
@@ -1611,7 +1603,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
         BatchProofContainer* batch;
         ~ResetBatch()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } resetBatch{batch};
@@ -1673,7 +1664,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
 
     const int preH1Height = baseHeight + 1;
     {
-        batch->fCollectProofs = false;
         batch->init();
         CValidationState preH1State;
         CSparkTxInfo preH1Info;
@@ -1695,7 +1685,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
          "CheckSparkSpendTransaction: unknown cover-set reference"},
     };
     for (const auto& [tx, reason] : rejectInInterval) {
-        batch->fCollectProofs = false;
         batch->init();
         CValidationState blockState;
         CSparkTxInfo blockInfo;
@@ -1715,7 +1704,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
     }
 
     {
-        batch->fCollectProofs = false;
         batch->init();
         CValidationState aliasedState;
         CSparkTxInfo aliasedInfo;
@@ -1729,8 +1717,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
             true,
             &aliasedInfo));
 
-        batch->init();
-        batch->fCollectProofs = true;
+        batch->init(BatchProofContainer::Mode::Deferred);
         CValidationState batchState;
         CSparkTxInfo batchInfo;
         BOOST_REQUIRE(CheckSparkTransaction(
@@ -1745,7 +1732,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
         batch->finalize();
         BOOST_CHECK(batch->verify_pending());
         batch->remove(ParseSparkSpend(aliased));
-        batch->fCollectProofs = false;
         batch->init();
     }
 
@@ -1759,7 +1745,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validatio
     BOOST_REQUIRE(GenerateBlock({CMutableTransaction(aliased)}));
     BOOST_REQUIRE_EQUAL(chainActive.Height(), intervalHeight);
 
-    batch->fCollectProofs = false;
     batch->init();
     CValidationState postH2State;
     CSparkTxInfo postH2Info;
@@ -3952,7 +3937,6 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
         BatchProofContainer* batch;
         ~ResetBatch()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } resetBatch{batch};
@@ -3962,9 +3946,8 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
         {CTransaction(unknownReference), "CheckSparkSpendTransaction: unknown cover-set reference"},
         {CTransaction(outOfRangeGroup), "CheckSparkSpendTransaction: invalid coin group id"},
     };
-    for (const bool collectProofs : {false, true}) {
-        batch->init();
-        batch->fCollectProofs = collectProofs;
+    for (const auto mode : {BatchProofContainer::Mode::Disabled, BatchProofContainer::Mode::Deferred}) {
+        batch->init(mode);
         for (const auto& [tx, reason] : blockCases) {
             CValidationState blockState;
             CSparkTxInfo blockInfo;

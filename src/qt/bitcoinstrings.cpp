@@ -445,7 +445,6 @@ QT_TRANSLATE_NOOP("firo-core", "Maximum per-connection receive buffer, <n>*1000 
 QT_TRANSLATE_NOOP("firo-core", "Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Need to specify a port with -whitebind: '%s'"),
 QT_TRANSLATE_NOOP("firo-core", "No Spark spend recipients were provided."),
-QT_TRANSLATE_NOOP("firo-core", "No single available Spark coin can fund this Spark V1 spend."),
 QT_TRANSLATE_NOOP("firo-core", "No such coin in set"),
 QT_TRANSLATE_NOOP("firo-core", "Node relay options:"),
 QT_TRANSLATE_NOOP("firo-core", "Not enough fee estimated"),
