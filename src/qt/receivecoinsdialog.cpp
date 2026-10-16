@@ -88,12 +88,12 @@ public:
 
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
-        const int lineHeight = option.fontMetrics.height();
         GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         switch (index.column()) {
         case RecentRequestsTableModel::Date: {
-            // Every request is incoming, so the row needs no direction icon.
+            // Every request is incoming, so the row needs no direction icon. Date and time share one
+            // line so the history shows more requests; a narrow column drops the time rather than clip it.
             QFont dateFont = option.font;
             dateFont.setBold(true);
             painter->setFont(dateFont);
@@ -101,14 +101,15 @@ public:
             const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
             const QString timeText = raw.section(QLatin1Char(' '), -1);
             painter->setPen(QColor(tc.ink));
-            const QRect dateRect(option.rect.left() + 14, option.rect.center().y() - lineHeight,
-                                 option.rect.width() - 20, lineHeight);
+            const QRect dateRect = option.rect.adjusted(14, 0, -6, 0);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
-            painter->setFont(option.font);
-            painter->setPen(QColor(tc.inkFaint));
-            painter->drawText(QRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), lineHeight),
-                              Qt::AlignLeft | Qt::AlignVCenter, timeText);
+            const QRect timeRect = dateRect.adjusted(QFontMetrics(dateFont).horizontalAdvance(dateText) + 8, 0, 0, 0);
+            if (option.fontMetrics.horizontalAdvance(timeText) <= timeRect.width()) {
+                painter->setFont(option.font);
+                painter->setPen(QColor(tc.inkFaint));
+                painter->drawText(timeRect, Qt::AlignLeft | Qt::AlignVCenter, timeText);
+            }
             break;
         }
         case RecentRequestsTableModel::Label: {
@@ -184,6 +185,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
         "QScrollArea#requestFormScroll { background: transparent; border: none; }"));
     requestFormScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     ui->verticalLayout->insertWidget(0, requestFormScroll);
+    // QFormLayout only centres expanding captions on their fields; the AMOUNT caption sharing the
+    // label row is centred by its own row layout.
+    for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label_3})
+        caption->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
@@ -432,7 +437,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setAlternatingRowColors(false);
         tableView->setShowGrid(false);
         tableView->setFrameShape(QFrame::NoFrame);
-        tableView->verticalHeader()->setDefaultSectionSize(2 * QFontMetrics(GUIUtil::brandFont()).height() + 12);
+        tableView->verticalHeader()->setDefaultSectionSize(QFontMetrics(GUIUtil::brandFont()).height() + 16);
         tableView->setItemDelegate(new PaymentRequestCardDelegate(tableView));
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);

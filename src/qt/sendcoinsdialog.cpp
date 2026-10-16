@@ -32,13 +32,32 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
 
+#include <algorithm>
+#include <array>
 #include <functional>
 
 #define SEND_CONFIRM_DELAY   3
+
+namespace {
+
+/** Coin-control caption/value pairs, amounts first so that every column count pairs related values. */
+std::array<std::pair<QLabel*, QLabel*>, 7> coinControlCells(const Ui::SendCoinsDialog* ui)
+{
+    return {{{ui->labelCoinControlAmountText, ui->labelCoinControlAmount},
+             {ui->labelCoinControlFeeText, ui->labelCoinControlFee},
+             {ui->labelCoinControlAfterFeeText, ui->labelCoinControlAfterFee},
+             {ui->labelCoinControlChangeText, ui->labelCoinControlChange},
+             {ui->labelCoinControlQuantityText, ui->labelCoinControlQuantity},
+             {ui->labelCoinControlBytesText, ui->labelCoinControlBytes},
+             {ui->labelCoinControlLowOutputText, ui->labelCoinControlLowOutput}}};
+}
+
+}
 
 /**
  * Build the send form, connect its controls and restore the saved fee settings.
@@ -119,6 +138,14 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlBytes->addAction(clipboardBytesAction);
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
+    // Captions sit above their values like the page's other captions: uppercase, without the colon.
+    // The values' styled padding would otherwise give them a default indent away from the captions.
+    for (const auto& cell : coinControlCells(ui)) {
+        QLabel* caption = cell.first;
+        caption->setText(caption->text().remove(QRegularExpression(QStringLiteral("\\s*[:\\x{FF1A}]\\s*$"))).toUpper());
+        cell.second->setIndent(0);
+    }
+    ui->widgetCoinControl->installEventFilter(this);
 
     ui->balancePill->setAttribute(Qt::WA_StyledBackground, true);
 
@@ -297,25 +324,17 @@ void SendCoinsDialog::applyTheme()
     ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
-    // Include the caption/value gap in the size hint used by QFormLayout's wrapping.
     const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; padding-right: 10px; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
+    // The bottom padding separates each value from the caption row below it.
     const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel { background: transparent; color: $INK; font-weight: 700; padding-bottom: 10px; }"
         "QLabel[dust=\"true\"] { color: $ERROR; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
-    for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
-                            ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
-                            ui->labelCoinControlFeeText, ui->labelCoinControlAfterFeeText,
-                            ui->labelCoinControlChangeText}) {
-        caption->setStyleSheet(ccCaptionStyle);
-    }
-    for (QLabel* value : {ui->labelCoinControlQuantity, ui->labelCoinControlBytes,
-                          ui->labelCoinControlAmount, ui->labelCoinControlLowOutput,
-                          ui->labelCoinControlFee, ui->labelCoinControlAfterFee,
-                          ui->labelCoinControlChange}) {
-        value->setStyleSheet(ccValueStyle);
+    for (const auto& cell : coinControlCells(ui)) {
+        cell.first->setStyleSheet(ccCaptionStyle);
+        cell.second->setStyleSheet(ccValueStyle);
     }
 
     ui->checkBoxCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -337,6 +356,43 @@ void SendCoinsDialog::applyTheme()
     ui->customFee->setStyleSheet(fieldStyle);
     ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; }")));
+}
+
+bool SendCoinsDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    // The card's width and the captions' and values' sizes both decide the column count.
+    if (watched == ui->widgetCoinControl && (event->type() == QEvent::Resize || event->type() == QEvent::LayoutRequest))
+        updateCoinControlColumns();
+    return QDialog::eventFilter(watched, event);
+}
+
+/**
+ * Spread the coin-control summary over four equal columns, or two or one when the card is too
+ * narrow for every caption and value. The summary ignores its own width hint, so it reflows
+ * instead of widening the form.
+ * @pre Called on the GUI thread.
+ */
+void SendCoinsDialog::updateCoinControlColumns()
+{
+    const auto cells = coinControlCells(ui);
+    int cellWidth = 0;
+    for (const auto& cell : cells)
+        cellWidth = std::max({cellWidth, cell.first->minimumSizeHint().width(), cell.second->minimumSizeHint().width()});
+    QGridLayout* grid = ui->gridLayoutCoinControl;
+    int columns = 4;
+    while (columns > 1 && columns * cellWidth + (columns - 1) * grid->horizontalSpacing() > ui->widgetCoinControl->width())
+        columns /= 2;
+    if (columns == coinControlColumns)
+        return;
+    coinControlColumns = columns;
+    for (int i = 0; i < int(cells.size()); ++i) {
+        for (QLabel* label : {cells[i].first, cells[i].second})
+            grid->removeWidget(label);
+        grid->addWidget(cells[i].first, 2 * (i / columns), i % columns);
+        grid->addWidget(cells[i].second, 2 * (i / columns) + 1, i % columns);
+    }
+    for (int column = 0; column < 4; ++column)
+        grid->setColumnStretch(column, column < columns ? 1 : 0);
 }
 
 void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
@@ -1536,6 +1592,7 @@ void SendCoinsDialog::coinControlChangeChecked(int state)
     {
         CoinControlDialog::coinControl->destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->clear();
+        ui->labelCoinControlChangeLabel->hide();
     }
     else
         // use this to re-validate an already entered address
@@ -1600,6 +1657,8 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
             }
         }
     }
+    // The label only takes room beside the address field while it has something to say.
+    ui->labelCoinControlChangeLabel->setVisible(!ui->labelCoinControlChangeLabel->text().isEmpty());
 }
 
 // Coin Control: update labels
