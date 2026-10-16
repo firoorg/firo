@@ -1808,13 +1808,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
             selectedCoins = std::move(estimated.second);
 
-            // V1 construction retains the single-input selection rule.
-            if (!useChaumV2 && selectedCoins.size() != 1) {
-                throw InsufficientFunds(_(
-                    "Spark multi-input spends are temporarily disabled. "
-                    "No single available Spark coin can fund this transaction."));
-            }
-
             bool remainderSubtracted = false;
             fee = estimated.first;
             const CAmount feePerRecipient = recipientsToSubtractFee > 0 ? fee / recipientsToSubtractFee : 0;
