@@ -8,8 +8,9 @@
 #include "quorums_signing.h"
 
 #include "coins.h"
-#include "unordered_lru_cache.h"
+#include "consensus/consensus.h"
 #include "primitives/transaction.h"
+#include "unordered_lru_cache.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -17,9 +18,14 @@
 namespace llmq
 {
 
+struct CInstantSendManagerTestAccess;
+
 class CInstantSendLock
 {
 public:
+    // A valid transaction must fit in a block, and each input serializes to at least 41 bytes.
+    static constexpr size_t MAX_INPUTS{MAX_BLOCK_BASE_SIZE / 41};
+
     std::vector<COutPoint> inputs;
     uint256 txid;
     CBLSLazySignature sig;
@@ -74,7 +80,11 @@ public:
 
 class CInstantSendManager : public CRecoveredSigsListener
 {
+    friend struct CInstantSendManagerTestAccess;
+
 private:
+    static constexpr size_t MAX_PENDING_INSTANTSEND_LOCKS{1024};
+
     CCriticalSection cs;
     CInstantSendDb db;
 
