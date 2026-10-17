@@ -16,7 +16,6 @@
 #include "grootle.h"
 #include "bpplus.h"
 #include "chaum.h"
-#include "claim.h"
 
 namespace spark {
 
@@ -128,6 +127,13 @@ public:
         const std::vector<unsigned char> hash_bind_inner,
         const std::vector<Coin>& out_coins,
         const uint64_t f_
+    );
+    // Binding hash for a claim: commits to the transaction binding hash, identifier and message under a
+    // separate transcript label, so a claim is never a valid authorizing proof for the transaction and vice versa.
+    static Scalar hash_bind_claim(
+        const Scalar& mu,
+        const std::vector<unsigned char>& identifier,
+        const std::vector<unsigned char>& message
     );
 
     ADD_SERIALIZE_METHODS;
