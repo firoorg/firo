@@ -1,4 +1,5 @@
 #include "spend_transaction.h"
+#include "transcript.h"
 
 namespace spark {
 
@@ -654,6 +655,20 @@ const std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes() {
     return set_id_blockHash;
 }
 
+// Hash-to-scalar function for the claim binding
+// It commits to the transaction binding hash, identifier and message under a separate transcript label, so a claim is never a valid authorizing proof for the transaction and vice versa.
+Scalar SpendTransaction::hash_bind_claim(
+    const Scalar& mu,
+    const std::vector<unsigned char>& identifier,
+    const std::vector<unsigned char>& message
+) {
+    Transcript transcript(LABEL_TRANSCRIPT_CLAIM);
+    transcript.add("mu", mu);
+    transcript.add("identifier", identifier);
+    transcript.add("message", message);
+    return transcript.challenge("mu");
+}
+
 // Generate a claim on a given spend transaction.
 //
 // A claim uses the componentwise V2 proof, bound to a transaction identifier and a message.
@@ -671,32 +686,12 @@ void SpendTransaction::proveClaim(
 	const std::vector<unsigned char>& message,
 	ChaumProofV2& claim
 ) {
-	// The number of inputs
-	const std::size_t w = inputs.size();
-
-	// Check that the input coin data corresponds to the prover statement data we'll get from the spend transaction
-	// This ensures we don't try to use incorrect data to build the proof!
-	if (w == 0 || w > MAX_CHAUM_V2_INPUTS || transaction.S1.size() != w || transaction.T.size() != w) {
-		throw std::invalid_argument("Bad claim input coin data!");
-	}
-	for (std::size_t u = 0; u < w; u++) {
-		GroupElement S1 = transaction.params->get_F()*inputs[u].s
-			+ transaction.params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
-			+ full_view_key.get_D();
-		if (S1 != transaction.S1[u]) {
-			throw std::invalid_argument("Bad claim input coin data!");
-		}
-		if (inputs[u].T != transaction.T[u]) {
-			throw std::invalid_argument("Bad claim input coin data!");
-		}
-	}
-
-	// Build the prover witness
+	// Build the prover witness; the prover throws if it does not open the transaction's statement
 	std::vector<Scalar> claim_x, claim_y, claim_z;
-	for (std::size_t u = 0; u < w; u++) {
-		claim_x.emplace_back(inputs[u].s);
+	for (const auto& input : inputs) {
+		claim_x.emplace_back(input.s);
 		claim_y.emplace_back(spend_key.get_r());
-		claim_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
+		claim_z.emplace_back(SparkUtils::hash_ser1(input.s, full_view_key.get_D()).negate());
 	}
 
 	// Compute the binding hash
@@ -715,14 +710,14 @@ void SpendTransaction::proveClaim(
 	);
 
 	// Produce the claim, binding in the identifier and message
-	Claim claim_prover(
+	Chaum chaum(
 		transaction.params->get_F(),
 		transaction.params->get_G(),
 		transaction.params->get_H(),
 		transaction.params->get_U()
 	);
-	claim_prover.prove(
-		mu,
+	chaum.prove_v2(
+		hash_bind_claim(mu, identifier, message),
 		GetChaumV2Context(
 			transaction.out_coins,
 			transaction.f,
@@ -730,8 +725,6 @@ void SpendTransaction::proveClaim(
 			transaction.extension_commitment,
 			transaction.cover_set_ids,
 			transaction.set_id_blockHash),
-		identifier,
-		message,
 		claim_x,
 		claim_y,
 		claim_z,
@@ -771,14 +764,14 @@ bool SpendTransaction::verifyClaim(
 	);
 
 	// Verify the claim, binding in the identifier and message
-	Claim claim_verifier(
+	Chaum chaum(
 		transaction.params->get_F(),
 		transaction.params->get_G(),
 		transaction.params->get_H(),
 		transaction.params->get_U()
 	);
-	return claim_verifier.verify(
-		mu,
+	return chaum.verify_v2(
+		hash_bind_claim(mu, identifier, message),
 		GetChaumV2Context(
 			transaction.out_coins,
 			transaction.f,
@@ -786,8 +779,6 @@ bool SpendTransaction::verifyClaim(
 			transaction.extension_commitment,
 			transaction.cover_set_ids,
 			transaction.set_id_blockHash),
-		identifier,
-		message,
 		transaction.S1,
 		transaction.T,
 		claim
