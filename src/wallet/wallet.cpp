@@ -1256,6 +1256,12 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
         HandleBip47Transaction(wtx);
         HandleSparkTransaction(wtx);
     }
+    else if (fUpdated && sparkWallet && wtx.tx->IsSparkTransaction())
+    {
+        // Coins first seen while unconfirmed keep nHeight < 1. Refresh those
+        // when an existing Spark transaction is updated.
+        sparkWallet->ConfirmCachedMints(&hash);
+    }
 
     // Break debit/credit balance caches:
     wtx.MarkDirty();
@@ -2257,6 +2263,8 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
             }
             pindex = chainActive.Next(pindex);
         }
+        if (sparkWallet)
+            sparkWallet->ConfirmCachedMints();
         ShowProgress(_("Rescanning..."), 100); // hide progress dialog in GUI
     }
     return ret;
