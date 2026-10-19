@@ -649,6 +649,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             "\nResult:\n"
             "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s). Multiple transactions may be created \n"
             "                                    for different address types (transparent, Spark).\n"
+            "For mixed sends, a partial-failure error includes committed_txids. Check these before retrying.\n"
             "\nExamples (Simple format):\n"
             + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
             + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
@@ -775,20 +776,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                         "Transaction creation failed: No transactions returned");
                 }
                 
-                // Commit the transaction
-                CValidationState state;
-                CReserveKey reservekey(pwallet);
                 CWalletTx& wtx = wtxAndFee[0].first;
-                
-                LogPrintf("Committing Spark mint transaction with %zu inputs and %zu outputs\n", 
-                          wtx.tx->vin.size(), wtx.tx->vout.size());
-                
-                if (!pwallet->CommitTransaction(wtx, reservekey, g_connman.get(), state)) {
-                    LogPrintf("Failed to commit transaction: %s\n", state.GetRejectReason());
-                    throw JSONRPCError(RPC_WALLET_ERROR, 
-                        std::string("Error committing transaction: ") + state.GetRejectReason());
-                }
-                
                 return wtx.GetHash().GetHex();
             } catch (const WalletLocked&) {
                 LogPrintf("Exception when sending to Spark address (simple format): wallet is locked\n");
@@ -924,6 +912,8 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 // Use memo if provided, otherwise use comment as memo for Spark addresses
                 data.memo = memo.empty() ? comment : memo;
                 data.v = nAmount;
+                if (nAmount > MAX_MONEY - totalSparkAmount)
+                    throw JSONRPCError(RPC_TYPE_ERROR, "Total Spark amount out of range");
                 sparkRecipients.push_back(std::make_pair(data, subtractFee));
                 totalSparkAmount += nAmount;
                 continue;
@@ -950,6 +940,8 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             
             CScript scriptPubKey = GetScriptForDestination(address.Get());
             CRecipient recipient = {scriptPubKey, nAmount, subtractFee, {}, {}};
+            if (nAmount > MAX_MONEY - totalTransparentAmount)
+                throw JSONRPCError(RPC_TYPE_ERROR, "Total transparent amount out of range");
             transparentRecipients.push_back(recipient);
             totalTransparentAmount += nAmount;
         }
@@ -972,10 +964,27 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient Spark funds");
             }
         }
+        // shortcut: amount preflight cannot ensure both commits; redesign mixed sends before promising atomicity.
+        if (!transparentRecipients.empty() && !sparkRecipients.empty() &&
+            totalSparkAmount > pwallet->GetBalance() - totalTransparentAmount) {
+            throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "Insufficient transparent funds for combined Spark and transparent payments");
+        }
         // ============================================
 
         // Transactions ids that we return at the end
         std::vector<std::string> txids;
+        auto partialSendError = [&txids](int code, const std::string& failure) {
+            if (txids.empty()) return JSONRPCError(code, failure);
+            UniValue committed(UniValue::VARR);
+            for (const std::string& txid : txids)
+                committed.push_back(txid);
+            UniValue error = JSONRPCError(code, strprintf(
+                "Partial send: transaction(s) %s already committed. Do not retry the whole request. %s",
+                committed.write(), failure));
+            error.push_back(Pair("committed_txids", committed));
+            return error;
+        };
 
         // ====== Handle Transactions ======
         // Handle Spark transactions
@@ -988,6 +997,13 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             // Configure coin control to ensure transparent funds
             CCoinControl coinControl;
             coinControl.nCoinType = CoinType::ALL_COINS;  // Use all available coins
+            std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+            auto recordCommittedMints = [&] {
+                for (const auto& pair : wtxAndFee) {
+                    if (pwallet->GetWalletTx(pair.first.GetHash()))
+                        txids.push_back(pair.first.GetHash().GetHex());
+                }
+            };
             
             try {
                 // Check if we have enough transparent balance
@@ -1085,7 +1101,6 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 }
                 
                 // Create a mint transaction using transparent funds
-                std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
                 std::list<CReserveKey> reservekeys;
                 std::string strError;
 
@@ -1107,8 +1122,9 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 
                 if (!strError.empty()) {
                     LogPrintf("Failed to create Spark mint transaction: %s\n", strError);
-                    throw JSONRPCError(RPC_WALLET_ERROR, 
-                        std::string("Failed to create transaction: ") + strError);
+                    recordCommittedMints();
+                    throw partialSendError(RPC_WALLET_ERROR,
+                                           std::string("Failed to create transaction: ") + strError);
                 }
                 
                 if (wtxAndFee.empty()) {
@@ -1117,111 +1133,101 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                         "Transaction creation failed: No transactions returned");
                 }
                 
-                // Commit the transactions
-                for (auto& pair : wtxAndFee) {
-                    CWalletTx& wtx = pair.first;
-                    CAmount fee = pair.second;
-                    
-                    CValidationState state;
-                    CReserveKey reservekey(pwallet);
-                    
-                    LogPrintf("Committing Spark mint transaction with %zu inputs and %zu outputs, fee=%s\n", 
-                              wtx.tx->vin.size(), wtx.tx->vout.size(), FormatMoney(fee));
-                    
-                    if (!pwallet->CommitTransaction(wtx, reservekey, g_connman.get(), state)) {
-                        LogPrintf("Failed to commit transaction: %s\n", state.GetRejectReason());
-                        throw JSONRPCError(RPC_WALLET_ERROR, 
-                            std::string("Error committing transaction: ") + state.GetRejectReason());
-                    }
-                    
-                    txids.push_back(wtx.GetHash().GetHex());
-                }
+                // MintAndStoreSpark already committed these transactions.
+                for (const auto& pair : wtxAndFee)
+                    txids.push_back(pair.first.GetHash().GetHex());
             } catch (const WalletLocked&) {
                 LogPrintf("Exception when sending to Spark address (JSON format): wallet is locked\n");
-                throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Failed to send to Spark address: wallet is locked");
+                recordCommittedMints();
+                throw partialSendError(RPC_WALLET_UNLOCK_NEEDED, "Failed to send to Spark address: wallet is locked");
             } catch (const std::exception &e) {
                 LogPrintf("Exception when sending to Spark address (JSON format): %s\n", e.what());
-                throw JSONRPCError(RPC_WALLET_ERROR, 
-                    std::string("Failed to send to Spark address: ") + e.what());
+                recordCommittedMints();
+                throw partialSendError(RPC_WALLET_ERROR,
+                                       std::string("Failed to send to Spark address: ") + e.what());
             }
         }
 
         // Handle transparent transactions
         if (!transparentRecipients.empty()) {
-            if (pwallet->GetBroadcastTransactions() && !g_connman) {
-                throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-            }
-            
-            CWalletTx wtx;
-            
-            // Add transaction comments collected during address processing
-            // Concatenate unique transparent comments (avoid duplicates)
-            if (!transparentComments.empty()) {
-                std::set<std::string> uniqueComments;
-                for (const std::string& comment : transparentComments) {
-                    if (!comment.empty()) {
-                        uniqueComments.insert(comment);
-                    }
+            try {
+                if (pwallet->GetBroadcastTransactions() && !g_connman) {
+                    throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
                 }
+            
+                CWalletTx wtx;
+            
+                // Add transaction comments collected during address processing
+                // Concatenate unique transparent comments (avoid duplicates)
+                if (!transparentComments.empty()) {
+                    std::set<std::string> uniqueComments;
+                    for (const std::string& comment : transparentComments) {
+                        if (!comment.empty()) {
+                            uniqueComments.insert(comment);
+                        }
+                    }
                 
-                if (!uniqueComments.empty()) {
-                    std::string combinedComment = "";
-                    bool first = true;
-                    for (const std::string& comment : uniqueComments) {
-                        if (!first) combinedComment += "; ";
-                        combinedComment += comment;
-                        first = false;
+                    if (!uniqueComments.empty()) {
+                        std::string combinedComment = "";
+                        bool first = true;
+                        for (const std::string& comment : uniqueComments) {
+                            if (!first) combinedComment += "; ";
+                            combinedComment += comment;
+                            first = false;
+                        }
+                        wtx.mapValue["comment"] = combinedComment;
                     }
-                    wtx.mapValue["comment"] = combinedComment;
+                } else if (!firstComment.empty()) {
+                    wtx.mapValue["comment"] = firstComment;
                 }
-            } else if (!firstComment.empty()) {
-                wtx.mapValue["comment"] = firstComment;
-            }
             
-            if (!transparentCommentsTo.empty()) {
-                std::set<std::string> uniqueCommentsTo;
-                for (const std::string& commentTo : transparentCommentsTo) {
-                    if (!commentTo.empty()) {
-                        uniqueCommentsTo.insert(commentTo);
+                if (!transparentCommentsTo.empty()) {
+                    std::set<std::string> uniqueCommentsTo;
+                    for (const std::string& commentTo : transparentCommentsTo) {
+                        if (!commentTo.empty()) {
+                            uniqueCommentsTo.insert(commentTo);
+                        }
                     }
-                }
                 
-                if (!uniqueCommentsTo.empty()) {
-                    std::string combinedCommentTo = "";
-                    bool first = true;
-                    for (const std::string& commentTo : uniqueCommentsTo) {
-                        if (!first) combinedCommentTo += "; ";
-                        combinedCommentTo += commentTo;
-                        first = false;
+                    if (!uniqueCommentsTo.empty()) {
+                        std::string combinedCommentTo = "";
+                        bool first = true;
+                        for (const std::string& commentTo : uniqueCommentsTo) {
+                            if (!first) combinedCommentTo += "; ";
+                            combinedCommentTo += commentTo;
+                            first = false;
+                        }
+                        wtx.mapValue["to"] = combinedCommentTo;
                     }
-                    wtx.mapValue["to"] = combinedCommentTo;
+                } else if (!firstCommentTo.empty()) {
+                    wtx.mapValue["to"] = firstCommentTo;
                 }
-            } else if (!firstCommentTo.empty()) {
-                wtx.mapValue["to"] = firstCommentTo;
+            
+                CReserveKey keyChange(pwallet);
+                CAmount nFeeRequired = 0;
+                int nChangePosRet = -1;
+                std::string strFailReason;
+            
+                bool fCreated = pwallet->CreateTransaction(transparentRecipients, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+                if (!fCreated)
+                    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+            
+                CValidationState state;
+                if (!pwallet->CommitTransaction(wtx, keyChange, g_connman.get(), state)) {
+                    strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
+                    throw JSONRPCError(RPC_WALLET_ERROR, strFailReason);
+                }
+            
+                txids.push_back(wtx.GetHash().GetHex());
+            } catch (const UniValue& error) {
+                throw partialSendError(error["code"].get_int(), error["message"].get_str());
+            } catch (const std::exception& error) {
+                throw partialSendError(RPC_MISC_ERROR, error.what());
             }
-            
-            CReserveKey keyChange(pwallet);
-            CAmount nFeeRequired = 0;
-            int nChangePosRet = -1;
-            std::string strFailReason;
-            
-            bool fCreated = pwallet->CreateTransaction(transparentRecipients, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
-            if (!fCreated)
-                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
-            
-            CValidationState state;
-            if (!pwallet->CommitTransaction(wtx, keyChange, g_connman.get(), state)) {
-                strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
-                throw JSONRPCError(RPC_WALLET_ERROR, strFailReason);
-            }
-            
-            txids.push_back(wtx.GetHash().GetHex());
         }
         // ============================================
 
-        // Return transactions ids
-        // Note: Transactions on the same type will be one transaction
-        //  to prevent multiple small transactions + small fees
+        // Return all committed transaction IDs.
         if (txids.size() == 1) {
             return UniValue(txids[0]);
         } else {
@@ -1272,6 +1278,7 @@ UniValue sendtransparent(const JSONRPCRequest& request)
             "\nResult:\n"
             "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s). Multiple transactions may be created \n"
             "                                    for different address types (transparent, Spark).\n"
+            "For mixed sends, a partial-failure error includes committed_txids. Check these before retrying.\n"
             "\nExamples (Simple format):\n"
             + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
             + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
@@ -1917,8 +1924,8 @@ UniValue sendmany(const JSONRPCRequest& request)
             "      ,...\n"
             "    ]\n"
             "\nResult:\n"
-            "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-            "                                    the number of addresses.\n"
+            "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s).\n"
+            "For mixed sends, a partial-failure error includes committed_txids. Check these before retrying.\n"
             "\nExamples:\n"
             "\nSend amounts to different address types:\n"
             + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\"") +
