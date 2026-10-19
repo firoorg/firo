@@ -18,6 +18,7 @@ struct CInstantSendManagerTestAccess
         return manager.CheckCanLock(outpoint, false, uint256(), nullptr, Params().GetConsensus());
     }
 };
+} // namespace llmq
 
 BOOST_FIXTURE_TEST_SUITE(quorums_instantsend_tests, TestingSetup)
 
@@ -30,17 +31,13 @@ BOOST_AUTO_TEST_CASE(stem_parent_is_not_treated_as_mined)
     parent.vout[0].nValue = 1;
     parent.vout[0].scriptPubKey = CScript() << OP_TRUE;
 
-    txpools.clear();
     TestMemPoolEntryHelper entry;
     txpools.getStemTxPool().addUnchecked(parent.GetHash(), entry.FromTx(parent));
 
     BOOST_REQUIRE(!mempool.exists(parent.GetHash()));
     BOOST_REQUIRE(txpools.getStemTxPool().exists(parent.GetHash()));
-    BOOST_CHECK(!CInstantSendManagerTestAccess::CheckCanLock(
-        *quorumInstantSendManager, COutPoint(parent.GetHash(), 0)));
-
-    txpools.clear();
+    BOOST_CHECK(!llmq::CInstantSendManagerTestAccess::CheckCanLock(
+        *llmq::quorumInstantSendManager, COutPoint(parent.GetHash(), 0)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-}
