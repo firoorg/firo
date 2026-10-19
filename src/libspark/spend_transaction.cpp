@@ -1,4 +1,5 @@
 #include "spend_transaction.h"
+#include "transcript.h"
 
 namespace spark {
 
@@ -652,6 +653,136 @@ void SpendTransaction::setBlockHashes(const std::map<uint64_t, uint256>& idAndHa
 
 const std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes() {
     return set_id_blockHash;
+}
+
+// Hash-to-scalar function for the claim binding
+// It commits to the transaction binding hash, identifier and message under a separate transcript label, so a claim is never a valid authorizing proof for the transaction and vice versa.
+Scalar SpendTransaction::hash_bind_claim(
+    const Scalar& mu,
+    const std::vector<unsigned char>& identifier,
+    const std::vector<unsigned char>& message
+) {
+    Transcript transcript(LABEL_TRANSCRIPT_CLAIM);
+    transcript.add("mu", mu);
+    transcript.add("identifier", identifier);
+    transcript.add("message", message);
+    return transcript.challenge("mu");
+}
+
+// Generate a claim on a given spend transaction.
+//
+// A claim uses the componentwise V2 proof, bound to a transaction identifier and a message.
+// It supports either transaction version, with at most MAX_CHAUM_V2_INPUTS inputs.
+//
+// To generate the claim, you must provide the same full view and spend keys that were used to generate the spend transaction, as well as the same input coin data.
+// You must also provide an identifier that the verifier can use to uniquely identify the spend transaction when it verifies the claim.
+// You can also provide an arbitrary message to sign, which can be useful to avoid replays or otherwise bind the claim to some particular context.
+void SpendTransaction::proveClaim(
+	const FullViewKey& full_view_key,
+	const SpendKey& spend_key,
+	const SpendTransaction& transaction,
+	const std::vector<InputCoinData>& inputs,
+	const std::vector<unsigned char>& identifier,
+	const std::vector<unsigned char>& message,
+	ChaumProofV2& claim
+) {
+	// Build the prover witness; the prover throws if it does not open the transaction's statement
+	std::vector<Scalar> claim_x, claim_y, claim_z;
+	for (const auto& input : inputs) {
+		claim_x.emplace_back(input.s);
+		claim_y.emplace_back(spend_key.get_r());
+		claim_z.emplace_back(SparkUtils::hash_ser1(input.s, full_view_key.get_D()).negate());
+	}
+
+	// Compute the binding hash
+	Scalar mu = hash_bind(
+		hash_bind_inner(
+			transaction.cover_set_representations,
+			transaction.S1,
+			transaction.C1,
+			transaction.T,
+			transaction.grootle_proofs,
+			transaction.balance_proof,
+			transaction.range_proof
+		),
+		transaction.out_coins,
+		transaction.f + transaction.vout
+	);
+
+	// Produce the claim, binding in the identifier and message
+	Chaum chaum(
+		transaction.params->get_F(),
+		transaction.params->get_G(),
+		transaction.params->get_H(),
+		transaction.params->get_U()
+	);
+	chaum.prove_v2(
+		hash_bind_claim(mu, identifier, message),
+		GetChaumV2Context(
+			transaction.out_coins,
+			transaction.f,
+			transaction.vout,
+			transaction.extension_commitment,
+			transaction.cover_set_ids,
+			transaction.set_id_blockHash),
+		claim_x,
+		claim_y,
+		claim_z,
+		transaction.S1,
+		transaction.T,
+		claim
+	);
+}
+
+// Verify a claim on a given spend transaction.
+//
+// The verifier must have used the identifier to determine its own view of the spend transaction.
+// It must not accept a spend transaction from the prover that it has not checked against its own view of the ledger.
+// The spend transaction must also have been previously verified.
+//
+// Verification proves knowledge of the componentwise spending witness and binds the provided message.
+// It does _not_ say anything else about the spend transaction!
+bool SpendTransaction::verifyClaim(
+	const SpendTransaction& transaction,
+	const std::vector<unsigned char>& identifier,
+	const std::vector<unsigned char>& message,
+	const ChaumProofV2& claim
+) {
+	// Compute the binding hash
+	Scalar mu = hash_bind(
+		hash_bind_inner(
+			transaction.cover_set_representations,
+			transaction.S1,
+			transaction.C1,
+			transaction.T,
+			transaction.grootle_proofs,
+			transaction.balance_proof,
+			transaction.range_proof
+		),
+		transaction.out_coins,
+		transaction.f + transaction.vout
+	);
+
+	// Verify the claim, binding in the identifier and message
+	Chaum chaum(
+		transaction.params->get_F(),
+		transaction.params->get_G(),
+		transaction.params->get_H(),
+		transaction.params->get_U()
+	);
+	return chaum.verify_v2(
+		hash_bind_claim(mu, identifier, message),
+		GetChaumV2Context(
+			transaction.out_coins,
+			transaction.f,
+			transaction.vout,
+			transaction.extension_commitment,
+			transaction.cover_set_ids,
+			transaction.set_id_blockHash),
+		transaction.S1,
+		transaction.T,
+		claim
+	);
 }
 
 }
