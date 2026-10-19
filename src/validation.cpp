@@ -1048,6 +1048,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                          REJECT_INVALID, "tx-txlock-conflict");
     }
 
+    if (llmq::quorumInstantSendManager->IsWaitingForTx(hash)) {
+        pool.removeConflicts(tx);
+        pool.removeProTxConflicts(tx);
+    }
+
     // Check for conflicts with in-memory transactions
     std::set<uint256> setConflicts;
     {

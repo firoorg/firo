@@ -943,7 +943,9 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
                 recentRejects->reset();
             }
 
-            return (recentRejects->contains(inv.hash) && !llmq::quorumInstantSendManager->IsLocked(inv.hash)) ||
+            return (recentRejects->contains(inv.hash) &&
+                    !llmq::quorumInstantSendManager->IsLocked(inv.hash) &&
+                    !llmq::quorumInstantSendManager->IsWaitingForTx(inv.hash)) ||
                    mempool.exists(inv.hash) ||
                    mapOrphanTransactions.count(inv.hash) ||
                    pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 0)) || // Best effort: only try output 0 and 1

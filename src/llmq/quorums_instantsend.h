@@ -99,6 +99,9 @@ private:
     // Incoming and not verified yet
     std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher> pendingInstantSendLocks;
 
+    // Signature-verified locks whose transactions are not known yet.
+    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher> pendingNoTxInstantSendLocks;
+
     // TXs which are neither IS locked nor ChainLocked. We use this to determine for which TXs we need to retry IS locking
     // of child TXs
     struct NonLockedTxInfo {
@@ -123,6 +126,7 @@ public:
     void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock);
 
     bool IsLocked(const uint256& txHash);
+    bool IsWaitingForTx(const uint256& txHash);
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret);
 
     CInstantSendLockPtr GetConflictingLock(const CTransaction& tx);
