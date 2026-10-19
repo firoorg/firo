@@ -65,6 +65,10 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
 
 void CDSNotificationInterface::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock)
 {
+    // A Dandelion stem-phase tx is not public yet: signing its inputs would tell the other quorum members that we
+    // have it. Fluffing it accepts it into the mempool, which syncs it again.
+    if (!pindex && !mempool.exists(tx.GetHash()) && txpools.getStemTxPool().exists(tx.GetHash())) return;
+
     llmq::quorumInstantSendManager->SyncTransaction(tx, pindex, posInBlock);
     llmq::chainLocksHandler->SyncTransaction(tx, pindex, posInBlock);
 }
