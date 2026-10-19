@@ -118,7 +118,7 @@ class DandelionTest(BitcoinTestFramework):
         print("setup_nodes");
         return start_nodes(
             self.num_nodes, self.options.tmpdir, 
-            extra_args=[['-regtest', '-debug', '-whitelist=127.0.0.1']] * self.num_nodes)
+            extra_args=[args + ['-regtest', '-debug', '-whitelist=127.0.0.1'] for args in self.extra_args])
 
     def setup_network(self):
         print("Setting up network for dandelion.")
@@ -195,6 +195,9 @@ class DandelionTest(BitcoinTestFramework):
             # Test 3: Resistance to black holes
             test_node0.message_count['tx'] = 0
             time.sleep(44)
+            # Process expired embargoes before requesting the relayed tx.
+            ping_received = test_node0.sync_with_ping()
+            assert(ping_received)
             # By now tx has been fluffed, so ask for it as a regular tx
             test_node0.send_message(msg_getdata([CInv(1,node0_tx.calc_sha256(True))])) # 1: "Tx"
             time.sleep(1)
