@@ -177,6 +177,7 @@ testScripts = [
     'transactions_verification_after_restart.py',
     'getblocktemplate_coinbase.py',
     'consolidation.py',
+    'wallet_startup_scan_args.py',
 
     # Evo Znodes
     'dip3-deterministicmns.py',
