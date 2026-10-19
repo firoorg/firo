@@ -50,6 +50,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QCalendarWidget>
+#include <QCheckBox>
 #include <QClipboard>
 #include <QColor>
 #include <QComboBox>
@@ -1829,6 +1830,96 @@ void WalletUiTests::emptyRecoverySeed()
             QVERIFY(submitted);
             QCOMPARE(error, Recover::tr("Recovery seed phrase can't be empty."));
         }
+    }
+#endif
+}
+
+/**
+ * Verify a restore accepted on retry uses only the final attempt: no -newwallet left by a failed
+ * attempt to create a wallet, the scan date from the last date picked, and the picked date left as entered.
+ */
+void WalletUiTests::recoveryRetryUsesFinalInput()
+{
+#ifdef ENABLE_WALLET
+    extern std::map<std::string, std::string> mapArgs;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const std::string oldWallet = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    const auto clearRecoverArgs = [] {
+        for (const char* arg : {"-mnemonic", "-newwallet", "-wcdate"})
+            mapArgs.erase(arg);
+    };
+    const auto restore = qScopeGuard([&] {
+        ForceSetArg("-wallet", oldWallet);
+        clearRecoverArgs();
+    });
+    ForceSetArg("-wallet", directory.filePath(QStringLiteral("wallet.dat")).toStdString());
+
+    const QString seed = QStringLiteral("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon "
+                                        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art");
+    const QDate firstDate(2021, 6, 15);
+
+    // The first attempt creates a wallet or recovers from firstDate and fails on mismatched passphrases;
+    // the second recovers from 10-03-2020.
+    for (const bool createFirst : {true, false}) {
+        clearRecoverArgs();
+        int attempts = 0;
+        QString error;
+        QDate dateAfterError;
+        bool timedOut = false;
+        QTimer timer;
+        QTimer::singleShot(5000, &timer, [&] {
+            timedOut = true;
+            if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
+                dialog->reject();
+        });
+        connect(&timer, &QTimer::timeout, [&] {
+            auto* dialog = qobject_cast<Recover*>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            auto* createNew = dialog->findChild<QRadioButton*>("createNew");
+            auto* recoverExisting = dialog->findChild<QRadioButton*>("recoverExisting");
+            auto* words = dialog->findChild<QLineEdit*>("mnemonicWords");
+            auto* date = dialog->findChild<QDateEdit*>("dateInput");
+            auto* usePassphrase = dialog->findChild<QCheckBox*>("usePassphrase");
+            auto* passphrase = dialog->findChild<QLineEdit*>("mnemonicPassPhrase");
+            auto* passphrase2 = dialog->findChild<QLineEdit*>("mnemonicPassPhrase2");
+            auto* message = dialog->findChild<QLabel*>("errorMessage");
+            if (!createNew || !recoverExisting || !words || !date || !usePassphrase || !passphrase || !passphrase2 || !message || attempts == 2) {
+                dialog->reject();
+                return;
+            }
+            if (attempts == 0) {
+                (createFirst ? createNew : recoverExisting)->click();
+                words->setText(seed);
+                date->setDate(firstDate);
+                usePassphrase->click();
+                passphrase->setText(QStringLiteral("one"));
+                passphrase2->setText(QStringLiteral("two"));
+            } else {
+                error = message->text();
+                dateAfterError = date->date();
+                recoverExisting->click();
+                words->setText(seed);
+                date->setDate(QDate(2020, 3, 10));
+                usePassphrase->click();
+            }
+            ++attempts;
+            dialog->accept();
+        });
+        timer.start(0);
+        bool newWallet = false;
+        const bool accepted = Recover::askRecover(newWallet);
+        timer.stop();
+        QVERIFY(!timedOut);
+        QVERIFY(accepted);
+        QCOMPARE(error, Recover::tr("Passphrases don't match."));
+        QVERIFY(!newWallet);
+        QVERIFY(!GetBoolArg("-newwallet", false));
+        QCOMPARE(QString::fromStdString(GetArg("-mnemonic", "")), seed);
+        QCOMPARE(QString::fromStdString(GetArg("-wcdate", "")), QStringLiteral("09-03-2020"));
+        if (!createFirst)
+            QCOMPARE(dateAfterError, firstDate);
     }
 #endif
 }
