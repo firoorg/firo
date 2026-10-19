@@ -820,28 +820,26 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     GenerateBlocks(501);
 
     auto index1 = GenerateBlock({});
-    auto block1 = GetCBlock(index1);
-    PopulateSparkTxInfo(block1, {}, {});
-
     sparkState->AddBlock(index1);
 
     BOOST_CHECK_EQUAL(0, sparkState->GetMints().size());
     BOOST_CHECK_EQUAL(0, sparkState->GetSpends().size());
 
-    // some mints
-    std::vector<CMutableTransaction> txs;
-    auto mint1 = GenerateMints({1 * COIN}, txs)[0];
-    auto mint2 = GenerateMints({2 * COIN}, txs)[0];
+    // AddBlock replays mints stored on the block index; no wallet transaction is needed.
+    const spark::Coin mint1 = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
+    const spark::Coin mint2 = CreateCoin(spark::COIN_TYPE_MINT, 2 * COIN);
 
     auto index2 = GenerateBlock({});
-    auto block2 = GetCBlock(index2);
-    PopulateSparkTxInfo(block2, {pwalletMain->sparkWallet->getCoinFromMeta(mint1), pwalletMain->sparkWallet->getCoinFromMeta(mint2)}, {});
-
-    sparkState->AddMintsToStateAndBlockIndex(index2, &block2);
+    index2->ensurePrivacyData().sparkMintedCoins[1] = {mint1, mint2};
     sparkState->AddBlock(index2);
 
     BOOST_CHECK_EQUAL(2, sparkState->GetMints().size());
     BOOST_CHECK_EQUAL(0, sparkState->GetSpends().size());
+    spark::CSparkState::SparkCoinGroupInfo group;
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(1, group));
+    BOOST_CHECK_EQUAL(2, group.nCoins);
+    BOOST_CHECK(group.firstBlock == index2);
+    BOOST_CHECK(group.lastBlock == index2);
 
     // some serials
     GroupElement lTag1, lTag2;
@@ -849,9 +847,8 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     lTag2.randomize();
 
     auto index3 = GenerateBlock({});
-    auto block3 = GetCBlock(index3);
-    PopulateSparkTxInfo(block3, {}, {{lTag1, 1}, {lTag2, 1}});
-    index3->ensurePrivacyData().spentLTags = block3.sparkTxInfo->spentLTags;
+    index3->ensurePrivacyData().spentLTags.emplace(lTag1, 1);
+    index3->ensurePrivacyData().spentLTags.emplace(lTag2, 1);
 
     sparkState->AddBlock(index3);
 
@@ -859,32 +856,37 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     BOOST_CHECK_EQUAL(2, sparkState->GetSpends().size());
 
     // both mint and lTag
-    auto mint3 = GenerateMints({3 * COIN}, txs)[0];
+    const spark::Coin mint3 = CreateCoin(spark::COIN_TYPE_MINT, 3 * COIN);
 
     GroupElement lTag3;
     lTag3.randomize();
 
     auto index4 = GenerateBlock({});
-    auto block4 = GetCBlock(index4);
-    PopulateSparkTxInfo(block4, {pwalletMain->sparkWallet->getCoinFromMeta(mint3)}, {{lTag3, 1}});
-    sparkState->AddMintsToStateAndBlockIndex(index4, &block4);
-    index4->ensurePrivacyData().spentLTags = block4.sparkTxInfo->spentLTags;
+    auto& privacyData = index4->ensurePrivacyData();
+    privacyData.sparkMintedCoins[1].push_back(mint3);
+    privacyData.spentLTags.emplace(lTag3, 1);
 
     sparkState->AddBlock(index4);
 
     BOOST_CHECK_EQUAL(3, sparkState->GetMints().size());
     BOOST_CHECK_EQUAL(3, sparkState->GetSpends().size());
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(1, group));
+    BOOST_CHECK_EQUAL(3, group.nCoins);
+    BOOST_CHECK(group.lastBlock == index4);
 
     // remove last block
     sparkState->RemoveBlock(index4);
 
     BOOST_CHECK_EQUAL(2, sparkState->GetMints().size());
     BOOST_CHECK_EQUAL(2, sparkState->GetSpends().size());
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(1, group));
+    BOOST_CHECK_EQUAL(2, group.nCoins);
+    BOOST_CHECK(group.lastBlock == index2);
 
     // verify mints and spends on blocks
-    BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mint1)));
-    BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mint2)));
-    BOOST_CHECK(!sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mint3)));
+    BOOST_CHECK(sparkState->HasCoin(mint1));
+    BOOST_CHECK(sparkState->HasCoin(mint2));
+    BOOST_CHECK(!sparkState->HasCoin(mint3));
 
     BOOST_CHECK(sparkState->IsUsedLTag(lTag1));
     BOOST_CHECK(sparkState->IsUsedLTag(lTag2));
