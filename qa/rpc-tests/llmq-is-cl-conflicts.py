@@ -20,6 +20,7 @@ class TestNode(SingleNodeConnCB):
         SingleNodeConnCB.__init__(self)
         self.clsigs = {}
         self.islocks = {}
+        self.tx_requests = {}
 
     def send_clsig(self, clsig):
         hash = uint256_from_str(hash256(clsig.serialize()))
@@ -37,6 +38,8 @@ class TestNode(SingleNodeConnCB):
 
     def on_getdata(self, conn, message):
         for inv in message.inv:
+            if inv.type == 1:
+                self.tx_requests[inv.hash] = self.tx_requests.get(inv.hash, 0) + 1
             if inv.hash in self.clsigs:
                 self.send_message(self.clsigs[inv.hash])
             if inv.hash in self.islocks:
@@ -61,9 +64,56 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         self.nodes[0].generate(800 - self.nodes[0].getblockcount())
         self.wait_for_chainlock_tip_all_nodes()
 
+        self.test_islock_before_tx(False)
+        self.test_islock_before_tx(True)
         self.test_chainlock_overrides_islock(False)
         self.test_chainlock_overrides_islock(True)
         self.test_islock_overrides_nonchainlock()
+
+    def test_islock_before_tx(self, previously_rejected):
+        self.log.info("Testing IS lock before transaction (previously rejected: %s)", previously_rejected)
+        node = self.nodes[0]
+        rawtx = self.create_raw_tx(node, node, 1, 1, 1)['hex']
+        conflicting_rawtx = self.create_raw_tx(node, node, 1, 1, 1)['hex']
+        tx = FromHex(CTransaction(), rawtx)
+        tx.rehash()
+        txid = "%064x" % tx.sha256
+        conflict = FromHex(CTransaction(), conflicting_rawtx)
+        assert_equal([i.prevout.serialize() for i in tx.vin], [i.prevout.serialize() for i in conflict.vin])
+        islock = self.create_islock(rawtx)
+
+        if previously_rejected:
+            conflicting_txid = node.sendrawtransaction(conflicting_rawtx)
+
+        # Advertise the TX, but withhold it until the node asks again after receiving its lock.
+        self.test_node.send_message(msg_inv([CInv(1, tx.sha256)]))
+        assert wait_until(lambda: self.test_node.tx_requests.get(tx.sha256, 0) == 1, timeout=10)
+        if previously_rejected:
+            assert_raises_jsonrpc(-26, "txn-mempool-conflict", node.sendrawtransaction, rawtx)
+            # P2P rejection also populates recentRejects; this internal reject code has no wire reply.
+            self.test_node.send_message(msg_tx(tx))
+            assert self.test_node.sync_with_ping()
+            assert txid not in node.getrawmempool()
+
+        self.test_node.send_islock(islock)
+        # No mocktime advance: recovery must bypass outstanding requests and the two-minute retry delay.
+        assert wait_until(lambda: self.test_node.tx_requests.get(tx.sha256, 0) >= 2, timeout=10)
+        assert txid not in node.getrawmempool()
+        if not previously_rejected:
+            # An incomplete lock must not reject a competing transaction before its own TX is known.
+            conflicting_txid = node.sendrawtransaction(conflicting_rawtx)
+        assert conflicting_txid in node.getrawmempool()
+
+        self.test_node.send_message(msg_tx(tx))
+        self.wait_for_instantlock(txid, node, do_assert=True)
+        assert txid in node.getrawmempool()
+        assert conflicting_txid not in node.getrawmempool()
+
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
+        block = node.generate(1)[0]
+        assert txid in node.getblock(block)['tx']
+        self.wait_for_chainlocked_block_all_nodes(block)
 
     def test_chainlock_overrides_islock(self, test_block_conflict):
         # create three raw TXs, they will conflict with each other
@@ -169,7 +219,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         assert(self.nodes[0].getrawtransaction(rawtx1_txid, True)['confirmations'] > 0)
         assert_raises_jsonrpc(-25, "Missing inputs", self.nodes[0].sendrawtransaction, rawtx2)
 
-        # Send the ISLOCK, which should result in the last 2 blocks to be invalidated, even though the nodes don't know
+        # Send the ISLOCK, which should result in the last 2 blocks to be disconnected, even though the nodes don't know
         # the locked transaction yet
         self.test_node.send_islock(islock)
         sleep(5)
@@ -177,8 +227,16 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         assert(self.nodes[0].getbestblockhash() == good_tip)
         assert(self.nodes[1].getbestblockhash() == good_tip)
 
-        # Send the actual transaction and mine it
+        # Incomplete locks leave the conflicting transaction available until the locked TX arrives.
+        for node in self.nodes:
+            assert rawtx1_txid in node.getrawmempool()
+
         self.nodes[0].sendrawtransaction(rawtx2)
+        set_mocktime(get_mocktime() + 60)
+        set_node_times(self.nodes, get_mocktime())
+        for node in self.nodes:
+            self.wait_for_instantlock(rawtx2_txid, node, do_assert=True)
+        assert_raises_jsonrpc(-26, "tx-txlock-conflict", self.nodes[0].sendrawtransaction, rawtx1)
         self.nodes[0].generate(2)
         self.sync_all()
 
