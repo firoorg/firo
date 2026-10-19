@@ -528,6 +528,9 @@ public:
     spark::CSparkMempoolState sparkState;
 
     std::map<std::string, std::pair<std::string, uint256>> sparkNames;       // used to rule out duplicate names
+
+    std::map<uint256, spark::CSparkAssetTxEffects> sparkAssetTxs;     //!< registry effects of each pending tx
+    spark::CSparkAssetPending sparkAssetPending;                       //!< sum of sparkAssetTxs
     
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;

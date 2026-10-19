@@ -154,6 +154,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
     case TX_SPARKMINT: { FIRO_FALLTHROUGH; }
     case TX_SPARKSMINT: {}
     case TX_SPATSMINT: {}
+    case TX_SPATSBURN: {}
     }
 
     if (keystore.HaveWatchOnly(scriptPubKey)) {

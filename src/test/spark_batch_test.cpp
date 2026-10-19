@@ -6,6 +6,23 @@
 #include "test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
+#include <limits>
+
+namespace spats
+{
+struct SpatsCoverSetTestAccess
+{
+    static SpendTransaction SpendWithCoverSet(uint64_t id, std::size_t size, const GroupElement& tag)
+    {
+        SpendTransaction tx(spark::Params::get_default());
+        tx.cover_set_ids.push_back(id);
+        tx.cover_set_sizes.emplace(id, size);
+        tx.cover_set_representations.emplace(id, std::vector<unsigned char>{1});
+        tx.T.push_back(tag);
+        return tx;
+    }
+};
+}
 
 BOOST_FIXTURE_TEST_SUITE(spark_batch_tests, SparkTestingSetup)
 
@@ -89,6 +106,29 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     // Only removing the offending spend (as a disconnect would) empties the
     // batch and lets verification pass again.
     container->remove(spark::ParseSparkSpend(spendTx));
+    BOOST_CHECK(container->verify_pending());
+}
+
+BOOST_AUTO_TEST_CASE(spats_batch_rejects_short_cover_set)
+{
+    BatchProofContainer* container = BatchProofContainer::get_instance();
+    // Group id is unused on this chain, so the loaded set is empty. The spend
+    // commits to a longer set and to one linking tag, which is how removal finds it.
+    secp_primitives::GroupElement tag;
+    tag.randomize();
+    const uint64_t coverSetId = std::numeric_limits<uint64_t>::max();
+    spats::SpendTransaction spend = spats::SpatsCoverSetTestAccess::SpendWithCoverSet(coverSetId, 4, tag);
+    const uint256 txHash = uint256S("bb");
+
+    container->fCollectProofs = true;
+    container->init();
+    container->add(spend, txHash);
+    container->finalize();
+
+    BOOST_CHECK(!container->verify_pending());
+    BOOST_CHECK(!container->verify_pending());
+
+    container->remove(spend);
     BOOST_CHECK(container->verify_pending());
 }
 

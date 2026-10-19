@@ -19,6 +19,8 @@
 namespace spats
 {
 
+struct SpatsCoverSetTestAccess;
+
 using namespace secp_primitives;
 
 // Note that cover sets are treated as monotonic, meaning they grow over time (up to some implementation-defined limit)
@@ -47,16 +49,19 @@ public:
 
     ~SpendTransaction();
 
-    uint64_t getFee();
+    uint64_t getFee() override;
     const std::vector<GroupElement>& getUsedLTags() const override;
     const std::vector<spark::Coin>& getOutCoins();
     const std::vector<uint64_t>& getCoinGroupIds() override;
 
+    /**
+     * Committed cover-set size for one group id.
+     * @throws std::invalid_argument when the spend does not commit to that id.
+     */
+    std::size_t getCoverSetSize(uint64_t cover_set_id) const;
+
     static bool verify(const spark::Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
     static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
-
-//    /** Digest over (nValue, OP_SPATSMINT||serialized mint) — must match on-chain SPATSMINT vout when binding is active. */
-//    static std::vector<unsigned char> ComputeSpatsMintBindDigest(int64_t nValue, const std::vector<unsigned char>& script_prefix_no_ownership);
 
     static std::vector<unsigned char> hash_bind_inner(
         const std::map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
@@ -132,6 +137,8 @@ public:
     bool isSpats() const override {
         return true;
     }
+
+    friend struct SpatsCoverSetTestAccess;
 
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 

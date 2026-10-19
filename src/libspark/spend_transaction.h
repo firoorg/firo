@@ -19,6 +19,8 @@
 #include "bpplus.h"
 #include "chaum.h"
 
+namespace spats { class SpendTransaction; }
+
 namespace spark {
 
 using namespace secp_primitives;
@@ -63,6 +65,7 @@ static constexpr std::size_t MAX_SPARK_V2_OUTPUTS = 16;
 class BaseSpendTransaction {
 public:
     virtual ~BaseSpendTransaction() = default;
+    virtual uint64_t getFee() = 0;
     virtual void setOutCoins(const std::vector<Coin>& out_coins_) = 0;
     virtual void setCoverSets(const std::unordered_map<uint64_t, CoverSetData>& cover_set_data) = 0;
     virtual void setVout(const uint64_t& vout_) = 0;
@@ -106,7 +109,7 @@ public:
 
     ~SpendTransaction();
 
-    uint64_t getFee();
+    uint64_t getFee() override;
     SpendTransactionVersion getVersion() const { return version; }
     const std::vector<GroupElement>& getUsedLTags() const override;
     const std::vector<Coin>& getOutCoins();
@@ -201,6 +204,8 @@ public:
     const std::map<uint64_t, uint256>& getBlockHashes() override;
 
     void setExtraDataHash(const uint256& extraDataHash_) override {}
+
+    friend class spats::SpendTransaction;
 
 private:
     template <typename Stream, typename Operation, typename T>

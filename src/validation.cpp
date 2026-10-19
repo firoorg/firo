@@ -577,18 +577,30 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
+static bool IsAllowedSparkMintCoinType(unsigned char type)
+{
+    return type == static_cast<unsigned char>(spark::COIN_TYPE_MINT) ||
+        type == static_cast<unsigned char>(spark::COIN_TYPE_MINT_V2);
+}
+
+static bool IsAllowedSparkSpendCoinType(unsigned char type)
+{
+    return type == static_cast<unsigned char>(spark::COIN_TYPE_SPEND) ||
+        type == static_cast<unsigned char>(spark::COIN_TYPE_SPEND_V2);
+}
+
 static bool HasConsistentSparkCoinTypes(const CTransaction& tx)
 {
     for (const auto& txout : tx.vout) {
         const CScript& script = txout.scriptPubKey;
 
         if (script.IsSparkMint() &&
-            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_MINT))) {
+            (script.size() < 2 || !IsAllowedSparkMintCoinType(script[1]))) {
             return false;
         }
 
         if (script.IsSparkSMint() &&
-            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_SPEND))) {
+            (script.size() < 2 || !IsAllowedSparkSpendCoinType(script[1]))) {
             return false;
         }
     }
@@ -702,6 +714,18 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         for (const auto &vout : tx.vout) {
             if (vout.scriptPubKey.IsSparkSMint() && vout.nValue != 0)
                 return state.DoS(100, false, REJECT_INVALID, "bad-spark-smint-nvalue");
+        }
+    }
+
+    // SPATS mint and burn amounts live in the script. nValue must stay zero so
+    // they are not counted as FIRO. The UTXO set drops them because the scripts
+    // are IsUnspendable, not because nValue is zero.
+    if (nTxHeight >= ::Params().GetConsensus().nSpatsStartBlock) {
+        for (const auto &vout : tx.vout) {
+            if (vout.scriptPubKey.IsSpatsMint() && vout.nValue != 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-spats-mint-nvalue");
+            if (vout.scriptPubKey.IsSpatsBurn() && vout.nValue != 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-spats-burn-nvalue");
         }
     }
 
@@ -918,6 +942,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     std::vector<GroupElement> sparkUsedLTags;
 
     CSparkNameTxData sparkNameData;
+    spark::CSparkAssetTxEffects sparkAssetEffects;
 
     {
         LOCK(pool.cs);
@@ -1141,6 +1166,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
         } // LOCK
+
+        if (!spark::CheckSparkAssetTransaction(tx, view, state, chainActive.Height() + 1, false, true,
+                pool.sparkAssetPending, sparkAssetEffects))
+            return false;
 
         {
             // Check for non-standard pay-to-script-hash in inputs
@@ -1487,6 +1516,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             for (const auto& coin : sparkMintCoins) {
                 pool.sparkState.AddMintToMempool(coin, hash);
             }
+            spark::AddSparkAssetTxToMempool(pool, hash, sparkAssetEffects);
 
             // Add memory address index
             if (fAddressIndex) {
@@ -2901,6 +2931,18 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
 
+        // Needs this transaction's inputs, so it runs before UpdateCoins.
+        if (pindex->nHeight >= chainparams.GetConsensus().nSpatsStartBlock && !tx.IsCoinBase()) {
+            spark::CSparkAssetTxEffects assetEffects;
+            if (!spark::CheckSparkAssetTransaction(tx, view, state, pindex->nHeight, isVerifyDB, false,
+                    block.sparkTxInfo->assetPending, assetEffects))
+                return error("ConnectBlock(): spark asset check on %s failed with %s",
+                    txHash.ToString(), FormatStateMessage(state));
+            if (assetEffects.op)
+                block.sparkTxInfo->assetOps.emplace_back(txHash, *assetEffects.op);
+            spark::AddSparkAssetEffects(block.sparkTxInfo->assetPending, assetEffects);
+        }
+
         if (!fJustCheck)
             dbIndexHelper.ConnectTransaction(tx, pindex->nHeight, i, view);
 
@@ -3417,17 +3459,28 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
 
     std::vector<spark::SpendTransaction> sparkTransactionsToRemove;
+    std::vector<spats::SpendTransaction> spatsTransactionsToRemove;
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
             false, false, block.sparkTxInfo.get());
         if(GetBoolArg("-batching", true)) {
             if (tx->IsSparkSpend()) {
-                try {
-                    spark::SpendTransaction spendTransaction = spark::ParseSparkSpend(*tx); //TODO levon
-                    sparkTransactionsToRemove.push_back(spendTransaction);
-                }
-                catch (CBadTxIn &) {
-                    continue;
+                const bool spatsSpend = !tx->vin.empty() && !tx->vin[0].scriptSig.empty() &&
+                    tx->vin[0].scriptSig[0] == OP_SPATSSPEND;
+                if (spatsSpend) {
+                    try {
+                        spatsTransactionsToRemove.push_back(spark::ParseSpatsSpend(*tx));
+                    }
+                    catch (const std::exception&) {
+                        continue;
+                    }
+                } else {
+                    try {
+                        sparkTransactionsToRemove.push_back(spark::ParseSparkSpend(*tx));
+                    }
+                    catch (const CBadTxIn&) {
+                        continue;
+                    }
                 }
             }
         }
@@ -3453,6 +3506,9 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
     for (auto& sparkTransaction : sparkTransactionsToRemove) {
         batchProofContainer->remove(sparkTransaction);
+    }
+    for (auto& spatsTransaction : spatsTransactionsToRemove) {
+        batchProofContainer->remove(spatsTransaction);
     }
 
     // Roll back MTP state

@@ -18,7 +18,34 @@
 
 namespace spark_mintspend { struct spark_mintspend_test; }
 
+class CCoinsViewCache;
+class CTxMemPool;
+
 namespace spark {
+
+/**
+ * Registry effects of transactions checked against the registry but not applied to it yet:
+ * the earlier transactions of a block being connected, or the mempool.
+ */
+struct CSparkAssetPending {
+    std::set<std::string> symbols;          //!< normalized symbols with an operation
+    std::set<std::uint64_t> opAssetTypes;   //!< registered assets with a modify or transfer
+    CAssetState::CirculatingSupplyMap minted;
+    CAssetState::CirculatingSupplyMap burned;
+};
+
+/** Registry effects of one transaction. */
+struct CSparkAssetTxEffects {
+    std::optional<CSparkAssetTxData> op;
+    std::optional<std::uint64_t> opAssetType;   //!< set for modify and transfer
+    CAssetState::CirculatingSupplyMap minted;
+    CAssetState::CirculatingSupplyMap burned;
+
+    bool IsEmpty() const { return !op && minted.empty() && burned.empty(); }
+};
+
+void AddSparkAssetEffects(CSparkAssetPending& pending, const CSparkAssetTxEffects& effects);
+void RemoveSparkAssetEffects(CSparkAssetPending& pending, const CSparkAssetTxEffects& effects);
 
 // Spark transaction info, added to the CBlock to ensure spark mint/spend transactions got their info stored into index
 class CSparkTxInfo {
@@ -35,6 +62,10 @@ public:
 
     // spark names
     std::map<std::string, CSparkNameTxData> sparkNames;
+
+    // spark asset operations in block order, and everything the block does to the registry
+    std::vector<std::pair<uint256, CSparkAssetTxData>> assetOps;
+    CSparkAssetPending assetPending;
 
     // information about transactions in the block is complete
     bool fInfoIsComplete = false;
@@ -55,19 +86,67 @@ unsigned char GetNetworkType();
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);
 void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof, bool* pfMintOnlyWithoutSparkProof = nullptr);
+bool ParseSpatsBurn(const CScript& script, std::pair<Scalar, Scalar>& assetId, CAmount& amount);
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx);
 
 Scalar GetSpatsMintM(const CTransaction& tx);
+
+/**
+ * Bind a SPATSMINT output to the spend that authorizes it.
+ * scriptPrefix is OP_SPATSMINT followed by the serialized mint coin, without the ownership suffix.
+ */
+uint256 GetSpatsMintSpendBindHash(CAmount nValue, const std::vector<unsigned char>& scriptPrefix);
 CAmount GetSparkSpendFee(const CTransaction& tx);
+
+/** The uint64 an asset type or identifier scalar encodes, or nullopt if it is larger. */
+std::optional<std::uint64_t> GetSpatsScalarAsUint64(const Scalar& value);
+
+/**
+ * Asset operation carried at the end of the payload, if any.
+ * @throws std::invalid_argument if the payload has trailing bytes that are not a canonical asset operation
+ */
+std::optional<CSparkAssetTxData> GetSparkAssetTxData(const CTransaction& tx);
+
+/**
+ * Message signed by a Spark admin: the whole transaction with the asset ownership proof cleared.
+ * @pre assetData is the operation at the end of tx.vExtraPayload
+ */
+Scalar GetSpatsAssetOwnershipM(const CTransaction& tx, const CSparkAssetTxData& assetData);
+uint256 GetSpatsAssetOwnershipHash(const CTransaction& tx, const CSparkAssetTxData& assetData);
+
+/**
+ * Check asset operations, mints and burns against the registry at the start of the block.
+ * Registry ops ride on a Spark spend (the coin owner spends). Admin ownership
+ * is required only for modify and transfer. A burn is a SPATS spend of the
+ * asset coins; after it is mined, circulating supply is reduced. A transparent
+ * admin mint still spends one of its P2PK/P2PKH coins with SIGHASH_ALL.
+ * @param[in] inputs Coins spent by tx; unused for Spark spends
+ * @param[in] pending Effects of transactions already accepted into the same block or mempool
+ * @param[out] effects What tx does to the registry
+ */
+bool CheckSparkAssetTransaction(
+        const CTransaction& tx,
+        const CCoinsViewCache& inputs,
+        CValidationState& state,
+        int nHeight,
+        bool isVerifyDB,
+        bool isMempoolAcceptance,
+        const CSparkAssetPending& pending,
+        CSparkAssetTxEffects& effects);
+
+/** Track the registry effects of a transaction entering or leaving the mempool. */
+void AddSparkAssetTxToMempool(CTxMemPool& pool, const uint256& hash, const CSparkAssetTxEffects& effects);
+void RemoveSparkAssetTxFromMempool(CTxMemPool& pool, const uint256& hash);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 CAmount GetSparkFee(const CTransaction &tx);
 
 size_t GetSpendInputs(const CTransaction &tx);
+/** Transparent FIRO withdrawn by a Spark spend. Skips Spark/SPATS mint and burn outputs. */
 CAmount GetSpendTransparentAmount(const CTransaction& tx);
 
 /** Whether a Spark spend has a format mineable at the given block height. */
@@ -231,6 +310,8 @@ public:
     void AddBlock(CBlockIndex *index);
     // Disconnect block from the chain rolling back mints and spends
     void RemoveBlock(CBlockIndex *index);
+    // Record the block's asset registry changes in its index entry, then apply them
+    void ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info);
 
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
@@ -303,6 +384,8 @@ public:
 
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
+    void ApplyAssetBlock(const CBlockIndexPrivacyData& pd);
+    void UndoAssetBlock(const CBlockIndexPrivacyData& pd);
 
 private:
     // Group Limit

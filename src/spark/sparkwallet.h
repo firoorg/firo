@@ -74,7 +74,6 @@ public:
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     std::list<CSparkSpendEntry> ListSparkSpends() const;
 
-    // ATTENTION: this will return spats coins too, at least for now!
     std::unordered_map<uint256, CSparkMintMeta> getMintMap() const;
 
     // generate spark Coin from meta data
@@ -87,6 +86,12 @@ public:
     CAmount getAvailableBalance() const;
     CAmount getUnconfirmedBalance() const;
     std::pair<CAmount, CAmount> getSparkBalance();
+
+    /**
+     * Spendable amount of one asset. (0, 0) is FIRO.
+     * Same coins as GetAvailableSparkCoins for that identifier.
+     */
+    CAmount GetAvailableSparkBalance(const std::pair<Scalar, Scalar>& identifier, const CCoinControl* coinControl = nullptr) const;
 
     CAmount getAddressFullBalance(const spark::Address& address) const;
     CAmount getAddressAvailableBalance(const spark::Address& address) const;
@@ -197,11 +202,8 @@ public:
             const uint256& extensionCommitment = uint256(),
             int expectedNextBlockHeight = -1,
             std::vector<CAmount>* recipientAmounts = nullptr,
-            const uint256& extraDataHash = uint256());
-
-    void AppendSpatsMintTxData(CMutableTransaction& tx,
-        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
-        const spark::SpendKey& spendKey);
+            const uint256& extraDataHash = uint256(),
+            const std::optional<std::pair<spark::MintedCoinData, spark::Address>>& spatsMintRecipient = std::nullopt);
 
     CWalletTx CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
@@ -274,6 +276,11 @@ public:
         spark::CSparkAssetTxData &assetData,
         CAmount &txFee,
         const CCoinControl *coinControl = nullptr);
+
+    /** Receiver-side handoff: sign public registry fields for \p symbol. */
+    std::string CreateSpatsAssetReceiveData(
+        const std::string& symbol,
+        std::string address = {});
 
     // Filters coins by identifier, returns all available coins for a specific asset
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;

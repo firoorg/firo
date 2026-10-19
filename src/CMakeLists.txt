@@ -346,6 +346,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/state.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/assetstate.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spark/sparkasset.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/timedata.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/torcontrol.cpp

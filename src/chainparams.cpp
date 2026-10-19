@@ -1024,7 +1024,7 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
 
         consensus.nSparkStartBlock = 1500;
-        consensus.nSpatsStartBlock = 2000;
+        consensus.nSpatsStartBlock = SPATS_DEVNET_START_BLOCK;
         consensus.nSpatsRegFee = standardSparkNamesFee;
         consensus.nSparkSingleInputStartBlock = 3600; // H1: ~87 blocks / ~7h15m after devnet height 3513
         consensus.nSparkChaumV2StartBlock = 3700;      // H2: ~187 blocks / ~15h35m after devnet height 3513

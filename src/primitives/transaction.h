@@ -470,15 +470,11 @@ public:
     bool IsSparkMint() const;
 
     bool IsSpatsTransaction() const;
-    bool IsSpatsCreate() const;
-    bool IsSpatsUnregister() const;
-    bool IsSpatsModify() const;
     bool IsSpatsMint() const;
-    bool IsSpatsBurn() const;
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;
-    bool HasSpatsBurnAmount() const;
+    bool HasSpatsBurn() const;
 
     /**
      * Get the total transaction size in bytes, including witness data.

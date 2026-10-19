@@ -516,7 +516,10 @@ unsigned char* GroupElement::serialize(unsigned char* buffer) const {
     secp256k1_fe_normalize(&x);
     secp256k1_fe_normalize(&y);
     unsigned char oddness = secp256k1_fe_is_odd(&y);
-    unsigned char infinity = value.infinity;
+    // Infinity is a flag. Any non-zero value is the point at infinity, so the
+    // compressed byte is only 0 or 1. Otherwise a payload can change that byte
+    // and deserialize to the same point.
+    unsigned char infinity = value.infinity ? 1 : 0;
     secp256k1_fe_get_b32(buffer, &x);
     buffer[32] = oddness;
     buffer[33] = infinity;

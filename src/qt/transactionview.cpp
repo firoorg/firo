@@ -334,6 +334,13 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Mint spark to"), TransactionFilterProxy::TYPE(TransactionRecord::MintSparkTo));
     typeWidget->addItem(tr("Spend spark to"), TransactionFilterProxy::TYPE(TransactionRecord::SpendSparkTo));
     typeWidget->addItem(tr("Received Spark"), TransactionFilterProxy::TYPE(TransactionRecord::RecvSpark));
+    typeWidget->addItem(tr("SPATS"),
+                        TransactionFilterProxy::TYPE(TransactionRecord::SpatsMint) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::SpatsBurn) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::SpatsRegister) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::SpatsModify) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::SpatsTransfer) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::SpatsSpend));
     headerLayout->addWidget(typeWidget, 0, 3);
 
     addressWidget = new QLineEdit(this);

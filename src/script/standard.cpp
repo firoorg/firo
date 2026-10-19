@@ -38,6 +38,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_SPARKMINT: return "sparkmint";
     case TX_SPARKSMINT: return "sparksmint";
     case TX_SPATSMINT: return "spatsmint";
+    case TX_SPATSBURN: return "spatsburn";
     case TX_EXCHANGEADDRESS: return "exchangeaddress";
     case TX_SPARKNAMEFEE: return "sparknamefee";
     }
@@ -161,6 +162,15 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
     {
         typeRet = TX_SPATSMINT;
         if (scriptPubKey.size() < 213) return false;
+        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
+        return true;
+    }
+
+    if (scriptPubKey.IsSpatsBurn())
+    {
+        typeRet = TX_SPATSBURN;
+        // Canonical burn: OP_SPATSBURN, two 32-byte scalars, and an 8-byte amount.
+        if (scriptPubKey.size() != 1 + 32 + 32 + 8) return false;
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;
     }

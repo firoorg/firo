@@ -28,7 +28,7 @@ Scalar GetSpatsRegistreM(const CSparkAssetTxData& assetData)
 {
     // The ownership proof is of this scalar, so the message must not include the proof.
     CSparkAssetTxData message = assetData;
-    message.setOwnershipProof(OwnershipProof());
+    message.setOwnershipProof(std::vector<unsigned char>{});
     spark::Hash hash("SpatsRegistreM");
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << message;
@@ -148,6 +148,26 @@ bool CAssetState::Erase(std::uint64_t assetType)
         supply = circulating_supply_.erase(supply);
     }
     return true;
+}
+
+void CAssetState::SetEntry(std::uint64_t assetType, const CSparkAssetDBEntry& entry)
+{
+    entries_[assetType] = {entry};
+    symbolToAssetType_[NormalizeSymbol(entry.symbol)] = assetType;
+    const bool nonFungible = entry.assetKind == static_cast<uint8_t>(AssetKind::NonFungible);
+    isNonFungable[assetType] = nonFungible;
+    if (nonFungible && entry.identifier != 0)
+        nftIdentifiers_[assetType] = {entry.identifier};
+    else
+        nftIdentifiers_.erase(assetType);
+    if (nextAssetType_ <= assetType)
+        nextAssetType_ = assetType + 1;
+}
+
+void CAssetState::UndoRegister(std::uint64_t assetType)
+{
+    Erase(assetType);
+    nextAssetType_ = assetType == 0 ? 1 : assetType;
 }
 
 bool CAssetState::Contains(std::uint64_t assetType) const

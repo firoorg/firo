@@ -646,4 +646,58 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_balance_skips_spats_coins)
+{
+    auto* wallet = pwalletMain->sparkWallet.get();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    const auto before = wallet->getSparkBalance();
+
+    const auto make = [](CAmount value, int height, std::uint64_t asset, bool used) {
+        CSparkMintMeta meta;
+        meta.v = value;
+        meta.nHeight = height;
+        meta.isUsed = used;
+        meta.a = Scalar(asset);
+        meta.iota = Scalar(uint64_t(0));
+        meta.type = asset == 0 ? spark::COIN_TYPE_MINT : spark::COIN_TYPE_MINT_V2;
+        meta.k.randomize();
+        meta.i = 1;
+        meta.memo = "balance";
+        return meta;
+    };
+
+    const CSparkMintMeta firo = make(4 * COIN, 3, 0, false);
+    const CSparkMintMeta firoPending = make(COIN, 0, 0, false);
+    const CSparkMintMeta asset = make(9000, 3, 7, false);
+    const CSparkMintMeta assetPending = make(100, 0, 7, false);
+    const CSparkMintMeta assetUsed = make(5000, 3, 7, true);
+    const uint256 firoHash = uint256S("11");
+    const uint256 firoPendingHash = uint256S("12");
+    const uint256 assetHash = uint256S("13");
+    const uint256 assetPendingHash = uint256S("14");
+    const uint256 assetUsedHash = uint256S("15");
+
+    wallet->addOrUpdateMint(firo, firoHash, walletdb);
+    wallet->addOrUpdateMint(firoPending, firoPendingHash, walletdb);
+    wallet->addOrUpdateMint(asset, assetHash, walletdb);
+    wallet->addOrUpdateMint(assetPending, assetPendingHash, walletdb);
+    wallet->addOrUpdateMint(assetUsed, assetUsedHash, walletdb);
+
+    const auto after = wallet->getSparkBalance();
+    BOOST_CHECK_EQUAL(after.first, before.first + 4 * COIN);
+    BOOST_CHECK_EQUAL(after.second, before.second + COIN);
+    BOOST_CHECK_EQUAL(pwalletMain->GetSparkBalance().first, after.first);
+    BOOST_CHECK_EQUAL(pwalletMain->GetSparkBalance().second, after.second);
+    // These records are not in the chain anonymity set, so they are not spendable.
+    BOOST_CHECK_EQUAL(
+        wallet->GetAvailableSparkBalance(std::make_pair(Scalar(uint64_t(7)), Scalar(uint64_t(0)))),
+        0);
+
+    wallet->eraseMint(firoHash, walletdb);
+    wallet->eraseMint(firoPendingHash, walletdb);
+    wallet->eraseMint(assetHash, walletdb);
+    wallet->eraseMint(assetPendingHash, walletdb);
+    wallet->eraseMint(assetUsedHash, walletdb);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

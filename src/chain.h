@@ -22,6 +22,7 @@
 #include "coin_containers.h"
 #include "streams.h"
 #include "sparkname.h"
+#include "spark/sparkasset.h"
 
 #include <memory>
 #include <utility>
@@ -189,12 +190,18 @@ struct CBlockIndexPrivacyData {
     std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
     std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
+    // Spark asset registry changes, in block order, and supply changes keyed by (asset type, identifier)
+    std::vector<spark::CSparkAssetIndexOp> sparkAssetOps;
+    std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> sparkAssetMinted;
+    std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> sparkAssetBurned;
+
     // Every member above must be checked here. An omitted member could be
     // discarded when SetActiveDisablingSporks releases an empty allocation.
     bool IsEmpty() const {
         return sparkMintedCoins.empty() && sparkSetHash.empty() &&
                sparkTxHashContext.empty() && spentLTags.empty() && ltagTxhash.empty() &&
-               activeDisablingSporks.empty() && addedSparkNames.empty() && removedSparkNames.empty();
+               activeDisablingSporks.empty() && addedSparkNames.empty() && removedSparkNames.empty() &&
+               sparkAssetOps.empty() && sparkAssetMinted.empty() && sparkAssetBurned.empty();
     }
 };
 
@@ -677,6 +684,14 @@ public:
             auto& pd = ensurePrivacyData();
             READWRITE(pd.addedSparkNames);
             READWRITE(pd.removedSparkNames);
+        }
+
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSpatsStartBlock &&
+                nVersion >= SPATS_ASSET_INDEX_VERSION) {
+            auto& pd = ensurePrivacyData();
+            READWRITE(pd.sparkAssetOps);
+            READWRITE(pd.sparkAssetMinted);
+            READWRITE(pd.sparkAssetBurned);
         }
     }
 

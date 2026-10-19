@@ -156,13 +156,9 @@ const char* GetOpName(opcodetype opcode)
     case OP_SPARKMINT   : return "OP_SPARKMINT";
     case OP_SPARKSMINT  : return "OP_SPARKSMINT";
     case OP_SPARKSPEND  : return "OP_SPARKSPEND";
-    case OP_SPATSCREATE  : return "OP_SPATSCREATE";
-    case OP_SPATSUNREGISTER  : return "OP_SPATSUNREGISTER";
-    case OP_SPATSMODIFY  : return "OP_SPATSMODIFY";
     case OP_SPATSMINT  : return "OP_SPATSMINT";
     case OP_SPATSSPEND  : return "OP_SPATSSPEND";
     case OP_SPATSBURN  : return "OP_SPATSBURN";
-    case OP_SPATSBURNAMOUNT  : return "OP_SPATSBURNAMOUNT";
     // Super transparent txout script prefix
     case OP_EXCHANGEADDR    : return "OP_EXCHANGEADDR";
     // Spark name fee tag
@@ -368,21 +364,6 @@ bool CScript::IsSparkSpend() const {
             ((*this)[0] == OP_SPARKSPEND || (*this)[0] == OP_SPATSSPEND));
 }
 
-bool CScript::IsSpatsCreate() const
-{
-    return this->size() > 0 && (*this)[0] == OP_SPATSCREATE;
-}
-
-bool CScript::IsSpatsUnregister() const
-{
-    return this->size() > 0 && (*this)[0] == OP_SPATSUNREGISTER;
-}
-
-bool CScript::IsSpatsModify() const
-{
-    return this->size() > 0 && (*this)[0] == OP_SPATSMODIFY;
-}
-
 bool CScript::IsSpatsMint() const
 {
     return this->size() > 0 && (*this)[0] == OP_SPATSMINT;
@@ -393,11 +374,6 @@ bool CScript::IsSpatsBurn() const
     return this->size() > 0 && (*this)[0] == OP_SPATSBURN;
 }
 
-bool CScript::IsSpatsBurnAmount() const
-{
-    return this->size() > 0 && (*this)[0] == OP_SPATSBURNAMOUNT;
-}
-
 bool CScript::IsSpats() const
 {
     return this->size() > 0 && IsSpatsOp(static_cast<opcodetype>((*this)[0]));
@@ -405,7 +381,7 @@ bool CScript::IsSpats() const
 
 bool CScript::HasSerializedSpatsAction() const
 {
-    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn(); // TODO more maybe
+    return IsSpatsMint() || IsSpatsBurn();
 }
 
 bool CScript::IsSparkMintType() const {

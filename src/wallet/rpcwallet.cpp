@@ -19,6 +19,7 @@
 #include "script/sign.h"
 #include "timedata.h"
 #include "util.h"
+#include "utilstrencodings.h"
 #include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
@@ -30,6 +31,7 @@
 #include "wallet/sparkspendbatch.h"
 #include "rpcdump.h"
 #include "spark/assetstate.h"
+#include "spark/state.h"
 
 #include <stdint.h>
 
@@ -522,6 +524,33 @@ static void ValidateFeeSubtractionAmount(CAmount nAmount, bool fSubtractFeeFromA
             throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Amount %s is too small when subtracting fee from address %s. Estimated fee is %s, so amount must be greater than the fee.", FormatMoney(nAmount), strAddress, FormatMoney(estimatedFee)));
         }
     }
+}
+
+static int RegisteredAssetPrecision(const Scalar& assetType)
+{
+    const auto type = spark::GetSpatsScalarAsUint64(assetType);
+    if (!type)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid asset type");
+    LOCK(cs_main);
+    const auto entry = spark::CSparkState::GetState()->GetAssetState().Get(*type);
+    if (!entry)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Asset is not registered");
+    if (entry->precision > 8)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid asset precision");
+    return entry->precision;
+}
+
+/** Parse an asset amount in that asset's registered decimal precision. */
+static CAmount AmountFromAssetValue(const UniValue& value, int precision)
+{
+    if (!value.isNum() && !value.isStr())
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount is not a number or string");
+    CAmount amount = 0;
+    if (!ParseFixedPoint(value.getValStr(), precision, &amount) ||
+        amount <= 0 ||
+        amount > spark::MAX_ASSET_MONEY)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid asset amount");
+    return amount;
 }
 
 UniValue sendtoaddress(const JSONRPCRequest& request)
@@ -2289,6 +2318,31 @@ static void MaybePushAddress(UniValue & entry, const CTxDestination &dest, CBitc
         entry.push_back(Pair("address", addr.ToString()));
 }
 
+static const char* SpatsSentCategory(const CWalletTx& wtx)
+{
+    try {
+        if (const auto op = spark::GetSparkAssetTxData(*wtx.tx)) {
+            if (op->isRegister())
+                return "spatsregister";
+            if (op->isModify())
+                return "spatsmodify";
+            if (op->isTransfer())
+                return "spatstransfer";
+        }
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception&) {
+    }
+    if (wtx.tx->HasSpatsBurn())
+        return "spatsburn";
+    if (wtx.tx->IsSpatsMint())
+        return "spatsmint";
+    if (!wtx.tx->vin.empty() && !wtx.tx->vin[0].scriptSig.empty() &&
+        wtx.tx->vin[0].scriptSig[0] == OP_SPATSSPEND)
+        return "spatsspend";
+    return nullptr;
+}
+
 void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter)
 {
     CAmount nFee;
@@ -2301,6 +2355,11 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
 
     bool fAllAccounts = (strAccount == std::string("*"));
     bool involvesWatchonly = wtx.IsFromMe(ISMINE_WATCH_ONLY);
+
+    // A registry modify or transfer spends Spark coins and returns only change,
+    // which GetAmounts omits. Keep one fee row so the SPATS category is visible.
+    if (listSent.empty() && nFee != 0 && SpatsSentCategory(wtx))
+        listSent.push_back({CNoDestination(), 0, -1});
 
     // Sent
     if ((!listSent.empty() || nFee != 0) && (fAllAccounts || strAccount == strSentAccount))
@@ -2315,7 +2374,8 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             MaybePushAddress(entry, s.destination, addr);
 
             CSparkOutputTx output;
-            if (wtx.tx->IsSparkTransaction()) {
+            if (s.vout >= 0 && static_cast<unsigned int>(s.vout) < wtx.tx->vout.size() &&
+                wtx.tx->IsSparkTransaction()) {
                 const CTxOut& txout = wtx.tx->vout[s.vout];
                 if (txout.scriptPubKey.IsSparkMintType()) {
                     if(pwallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
@@ -2324,9 +2384,9 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
                 }
             }
 
-            // TODO Distinguish all spats actions for "category"
-
-            if (wtx.tx->HasNoRegularInputs()) {
+            if (const char* spatsCategory = SpatsSentCategory(wtx))
+                entry.push_back(Pair("category", spatsCategory));
+            else if (wtx.tx->HasNoRegularInputs()) {
                 entry.push_back(Pair("category", "spend"));
             }
             else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint() || wtx.tx->IsSparkMint()) {
@@ -2347,7 +2407,8 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             if (pwallet->mapAddressBook.count(s.destination)) {
                 entry.push_back(Pair("label", pwallet->mapAddressBook[s.destination].name));
             }
-            entry.push_back(Pair("vout", s.vout));
+            if (s.vout >= 0)
+                entry.push_back(Pair("vout", s.vout));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
@@ -4345,22 +4406,6 @@ UniValue mintspats(const JSONRPCRequest& request)
 
     UniValue data = request.params[1].get_obj();
     spark::MintedCoinData output;
-    CAmount nAmount(0);
-    if (data.exists("amount"))
-        nAmount = AmountFromValue(data["amount"]);
-    else
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount"));
-
-    std::string memo = "";
-    if (data.exists("memo"))
-        memo = data["memo"].get_str();
-
-    if (nAmount <= 0)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-    LogPrintf("rpcWallet.mintspats() nAmount = %d \n", nAmount);
-
-    output.memo = memo;
-    output.v = nAmount;
 
     if (data.exists("a"))
         output.a = Scalar(data["a"].get_uint64());
@@ -4372,12 +4417,28 @@ UniValue mintspats(const JSONRPCRequest& request)
     else
         throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("iota is not specified"));
 
+    CAmount nAmount(0);
+    if (data.exists("amount"))
+        nAmount = AmountFromAssetValue(data["amount"], RegisteredAssetPrecision(output.a));
+    else
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount"));
+
+    std::string memo = "";
+    if (data.exists("memo"))
+        memo = data["memo"].get_str();
+
+    LogPrintf("rpcWallet.mintspats() nAmount = %d \n", nAmount);
+
+    output.memo = memo;
+    output.v = nAmount;
+
     bool sparkInitiator = false;
     spark::Address sparkAddr(params);
     try {
         if (sparkAddr.decode(str_addr) != network)
             throw std::runtime_error("wrong network");
         sparkInitiator = true;
+        output.address = sparkAddr;
     } catch (const std::exception&) {
     }
 
@@ -4714,6 +4775,39 @@ UniValue modifysparkassetdescription(const JSONRPCRequest& request) {
     return wtx.GetHash().GetHex();
 }
 
+UniValue sparkassetreceive(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw std::runtime_error(
+            "sparkassetreceive \"symbol\" ( \"address\" )\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nCreate receiver data for a Spark asset transfer. Signs the asset type, current\n"
+            "admin, and receive address so the current admin can transfer to you.\n"
+            "\nArguments:\n"
+            "1. \"symbol\"              (string, required) asset ticker\n"
+            "2. \"address\"             (string, optional) Spark or transparent address to receive admin; default is the wallet Spark address\n"
+            "\nResult:\n"
+            "\"address:hexproof\"       (string) hand this string to the current admin\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sparkassetreceive", "\"FIROX\"")
+            + HelpExampleRpc("sparkassetreceive", "\"FIROX\"")
+        );
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    const std::string symbol = request.params[0].get_str();
+    const std::string address = request.params.size() > 1 ? request.params[1].get_str() : std::string();
+    try {
+        return pwallet->sparkWallet->CreateSpatsAssetReceiveData(symbol, address);
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+}
+
 UniValue sparkassettransfer(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4725,18 +4819,19 @@ UniValue sparkassettransfer(const JSONRPCRequest& request) {
             "sparkassettransfer"
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nTransfer administration of a Spark asset.\n"
+            "The receiver creates data with sparkassetreceive. Pass that string here;\n"
+            "it is parsed, checked against the registry, and placed in the transaction.\n"
             "\nArguments:\n"
             "1. asset               (object, required)\n"
             "   {\n"
             "     \"symbol\": \"xxx\",     (string, required)\n"
-            "     \"address\": \"xxx\",    (string, required) new admin address\n"
-            "     \"signature\": \"xxx\"   (string, required) receiver ownership proof\n"
+            "     \"receive\": \"xxx\"     (string, required) address:hexproof from sparkassetreceive\n"
             "   }\n"
             "\nResult:\n"
             "\"txid\"                    (string) transaction id\n"
             "\nExamples:\n"
-            + HelpExampleCli("sparkassettransfer", "'{\"symbol\":\"FIROX\",\"address\":\"aNewAdmin\",\"signature\":\"proof\"}'")
-            + HelpExampleRpc("sparkassettransfer", "{\"symbol\":\"FIROX\",\"address\":\"aNewAdmin\",\"signature\":\"proof\"}")
+            + HelpExampleCli("sparkassettransfer", "'{\"symbol\":\"FIROX\",\"receive\":\"spr1...:ab\"}'")
+            + HelpExampleRpc("sparkassettransfer", "{\"symbol\":\"FIROX\",\"receive\":\"spr1...:ab\"}")
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
@@ -4745,6 +4840,13 @@ UniValue sparkassettransfer(const JSONRPCRequest& request) {
     if (!arguments.exists("symbol"))
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("symbol is a required argument"));
     std::string symbol = arguments["symbol"].get_str();
+    if (!arguments.exists("receive"))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "receive is a required argument");
+
+    std::string receiveAddress;
+    std::vector<unsigned char> receiveProof;
+    if (!spark::ParseSpatsAssetReceiveData(arguments["receive"].get_str(), receiveAddress, receiveProof))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid receive data");
 
     spark::CSparkAssetTxData assetData;
     assetData.setSymbol(symbol);
@@ -4759,18 +4861,12 @@ UniValue sparkassettransfer(const JSONRPCRequest& request) {
     if (!assetEntry.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
 
+    if (!spark::VerifySpatsAssetReceiverProof(
+            *assetType, assetEntry->adminPublicAddress, receiveAddress, receiveProof))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid receiver ownership proof");
 
-
-    if (!arguments.exists("address")) {
-        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Address is not provided"));
-    } else
-        assetData.setTransferAddress(arguments["address"].get_str());
-
-    if (!arguments.exists("signature")) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Receiver signature is not provided");
-    } else
-        assetData.setRecieverProof(arguments["signature"].get_str());
-
+    assetData.setTransferAddress(receiveAddress);
+    assetData.setRecieverProof(std::move(receiveProof));
     assetData.setDataFromDBentry(assetEntry.value());
 
     std::string error;
@@ -4786,6 +4882,163 @@ UniValue sparkassettransfer(const JSONRPCRequest& request) {
     }
 
     return wtx.GetHash().GetHex();
+}
+
+static std::string FormatAssetAmount(std::uint64_t amount, int precision)
+{
+    if (precision < 0)
+        precision = 0;
+    if (precision > 8)
+        precision = 8;
+    if (precision == 0)
+        return std::to_string(amount);
+    std::uint64_t scale = 1;
+    for (int i = 0; i < precision; ++i)
+        scale *= 10;
+    const std::uint64_t whole = amount / scale;
+    std::uint64_t frac = amount % scale;
+    std::string fracStr = std::to_string(frac);
+    if (fracStr.size() < static_cast<size_t>(precision))
+        fracStr.insert(0, static_cast<size_t>(precision) - fracStr.size(), '0');
+    return strprintf("%u.%s", whole, fracStr);
+}
+
+static bool WalletIsAssetAdmin(CWallet* pwallet, const std::string& admin)
+{
+    if (!pwallet)
+        return false;
+    try {
+        spark::Address sparkAdmin(spark::Params::get_default());
+        if (sparkAdmin.decode(admin) == spark::GetNetworkType())
+            return pwallet->sparkWallet && pwallet->sparkWallet->isAddressMine(sparkAdmin);
+    } catch (const std::exception&) {
+    }
+    CBitcoinAddress address(admin);
+    if (!address.IsValid())
+        return false;
+    return pwallet->IsMine(CTxOut(0, GetScriptForDestination(address.Get()))) == ISMINE_SPENDABLE;
+}
+
+static UniValue SparkAssetToUniv(CWallet* pwallet, std::uint64_t assetType, const spark::CSparkAssetDBEntry& entry, std::uint64_t circulating)
+{
+    const int precision = entry.precision > 8 ? 8 : static_cast<int>(entry.precision);
+    const bool nft = entry.assetKind == static_cast<uint8_t>(spark::AssetKind::NonFungible);
+    CAmount balance = 0;
+    if (pwallet && pwallet->sparkWallet) {
+        balance = pwallet->sparkWallet->GetAvailableSparkBalance(
+            std::make_pair(Scalar(assetType), Scalar(entry.identifier)));
+    }
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("assetType", static_cast<int64_t>(assetType)));
+    result.push_back(Pair("symbol", entry.symbol));
+    result.push_back(Pair("name", entry.name));
+    result.push_back(Pair("description", entry.description));
+    result.push_back(Pair("metadata", entry.metadata));
+    result.push_back(Pair("kind", nft ? "nft" : "fungible"));
+    result.push_back(Pair("identifier", static_cast<int64_t>(entry.identifier)));
+    result.push_back(Pair("precision", precision));
+    result.push_back(Pair("maxSupply", entry.maxSupply == 0 ? "0" : FormatAssetAmount(entry.maxSupply, precision)));
+    result.push_back(Pair("circulatingSupply", FormatAssetAmount(circulating, precision)));
+    result.push_back(Pair("balance", FormatAssetAmount(static_cast<std::uint64_t>(balance < 0 ? 0 : balance), precision)));
+    result.push_back(Pair("adminAddress", entry.adminPublicAddress));
+    result.push_back(Pair("isAdmin", WalletIsAssetAdmin(pwallet, entry.adminPublicAddress)));
+    result.push_back(Pair("txid", entry.registeringTxid.GetHex()));
+    result.push_back(Pair("height", entry.nHeight));
+    return result;
+}
+
+UniValue listsparkassets(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            "listsparkassets\n"
+            "\nList every registered Spark asset.\n"
+            "Amounts use the asset precision. maxSupply \"0\" means there is no cap.\n"
+            "assetType and identifier are the numbers for mintspats, spendspark, and listunspentspatsmints.\n"
+            "balance is this wallet's spendable amount. isAdmin is true when this wallet controls the admin address.\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"assetType\": n,              (numeric) chain-assigned asset type\n"
+            "    \"symbol\": \"xxx\",           (string)\n"
+            "    \"name\": \"xxx\",             (string)\n"
+            "    \"description\": \"xxx\",      (string)\n"
+            "    \"metadata\": \"xxx\",         (string)\n"
+            "    \"kind\": \"fungible|nft\",    (string)\n"
+            "    \"identifier\": n,             (numeric) 0 for a fungible asset\n"
+            "    \"precision\": n,              (numeric)\n"
+            "    \"maxSupply\": \"x.xx\",       (string) \"0\" means no cap\n"
+            "    \"circulatingSupply\": \"x.xx\", (string)\n"
+            "    \"balance\": \"x.xx\",         (string) spendable amount in this wallet\n"
+            "    \"adminAddress\": \"xxx\",     (string)\n"
+            "    \"isAdmin\": true|false,       (boolean)\n"
+            "    \"txid\": \"xxx\",             (string) registration transaction\n"
+            "    \"height\": n                  (numeric)\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listsparkassets", "")
+            + HelpExampleRpc("listsparkassets", "")
+        );
+
+    EnsureSparkWalletIsAvailable();
+    LOCK(cs_main);
+    const spark::CAssetState& registry = spark::CSparkState::GetState()->GetAssetState();
+    UniValue result(UniValue::VARR);
+    for (const auto& item : registry.Entries()) {
+        if (item.second.empty())
+            continue;
+        const std::uint64_t circulating = registry.GetCirculatingSupply(item.first, item.second.front().identifier);
+        result.push_back(SparkAssetToUniv(pwallet, item.first, item.second.front(), circulating));
+    }
+    return result;
+}
+
+UniValue getsparkasset(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "getsparkasset \"symbol\"\n"
+            "\nReturn one registered Spark asset by ticker.\n"
+            "The fields match listsparkassets.\n"
+            "\nArguments:\n"
+            "1. \"symbol\"              (string, required) asset ticker\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"assetType\": n,        (numeric)\n"
+            "  \"symbol\": \"xxx\",     (string)\n"
+            "  \"balance\": \"x.xx\",   (string) spendable amount in this wallet\n"
+            "  \"isAdmin\": true|false, (boolean)\n"
+            "  ...\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparkasset", "\"FIROX\"")
+            + HelpExampleRpc("getsparkasset", "\"FIROX\"")
+        );
+
+    EnsureSparkWalletIsAvailable();
+    const std::string symbol = request.params[0].get_str();
+    LOCK(cs_main);
+    const spark::CAssetState& registry = spark::CSparkState::GetState()->GetAssetState();
+    const auto assetType = registry.GetAssetTypeBySymbol(symbol);
+    if (!assetType)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Asset is not registered");
+    const auto entry = registry.Get(*assetType);
+    if (!entry)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Asset is not registered");
+    const std::uint64_t circulating = registry.GetCirculatingSupply(*assetType, entry->identifier);
+    return SparkAssetToUniv(pwallet, *assetType, *entry, circulating);
 }
 
 UniValue automintspark(const JSONRPCRequest& request) {
@@ -4838,7 +5091,8 @@ UniValue spendspark(const JSONRPCRequest& request)
                                                      "\nArguments:\n"
                                                      "1. recipients              (string, required) A json object with addresses and amounts\n"
                                                      "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool), a (numeric), iota (numeric) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool, required for FIRO outputs), a (numeric), iota (numeric) The Spark address is the key. An asset amount uses that asset's precision. a and iota come from listsparkassets. subtractFee is not used for an asset output.\n"
+                                                     "  \"burn\": [amount, a, iota]  (array, optional) Burn a fungible asset. amount uses the asset precision. iota is 0.\n"
                                                      "  ,...\n"
                                                      " }\n"
                                                      "\nResult:\n"
@@ -4904,9 +5158,12 @@ UniValue spendspark(const JSONRPCRequest& request)
             if (burn_.size() != 3) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "For burn you have to provide amount and asset identifier!"s);
             }
-            burn.first = burn_[0].get_int64();
+            if (!burn_[0].isNum() && !burn_[0].isStr())
+                throw JSONRPCError(RPC_TYPE_ERROR, "Burn amount is not a number or string");
             burn.second.first = Scalar(burn_[1].get_uint64());
             burn.second.second = Scalar(burn_[2].get_uint64());
+            burn.first = AmountFromAssetValue(burn_[0], RegisteredAssetPrecision(burn.second.first));
+            continue;
         } else {
             sparkAddressStr = name_;
         }
@@ -4922,42 +5179,49 @@ UniValue spendspark(const JSONRPCRequest& request)
 
         if (isSparkAddress) {
             UniValue amountAndMemo = sendTo[name_].get_obj();
-            CAmount nAmount(0);
-            if (amountAndMemo.exists("amount"))
-                nAmount = AmountFromValue(amountAndMemo["amount"]);
-            else
-            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ")+name_);
-
-            if (nAmount <= 0)
-                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-
             std::string memo = "";
             if (amountAndMemo.exists("memo"))
                 memo = amountAndMemo["memo"].get_str();
 
-            bool subtractFee = false;
-            if (amountAndMemo.exists("subtractFee"))
-                subtractFee = amountAndMemo["subtractFee"].get_bool();
-            else
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ")+name_);   // TODO is this required in case of spats too?
-
-            if (nAmount <= 0)
-                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-            // Validate that amount is reasonable when fee is being subtracted
-            ValidateFeeSubtractionAmount(nAmount, subtractFee, name_);
-            LogPrintf("rpcWallet.sendSpark() nAmount = %d \n", nAmount);
-
             spark::OutputCoinData data;
             data.address = sAddress;
             data.memo = memo;
-            data.v = nAmount;
 
             if (amountAndMemo.exists("a"))
                  data.a = Scalar(amountAndMemo["a"].get_uint64());
 
             if (amountAndMemo.exists("iota"))
                 data.iota = Scalar(amountAndMemo["iota"].get_uint64());
-            if (data.a != Scalar(uint64_t(0)) || data.iota != Scalar(uint64_t(0)))
+            const bool isAssetOutput = data.a != Scalar(uint64_t(0)) || data.iota != Scalar(uint64_t(0));
+
+            CAmount nAmount(0);
+            if (!amountAndMemo.exists("amount"))
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ")+name_);
+            if (isAssetOutput)
+                nAmount = AmountFromAssetValue(amountAndMemo["amount"], RegisteredAssetPrecision(data.a));
+            else
+                nAmount = AmountFromValue(amountAndMemo["amount"]);
+            if (!isAssetOutput && nAmount <= 0)
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+            data.v = nAmount;
+
+            bool subtractFee = false;
+            if (isAssetOutput) {
+                // The fee is FIRO. It must not be taken from the asset amount.
+                if (amountAndMemo.exists("subtractFee") && amountAndMemo["subtractFee"].get_bool())
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("subtractFee cannot be taken from a SPATS asset amount: ") + name_);
+            } else if (amountAndMemo.exists("subtractFee")) {
+                subtractFee = amountAndMemo["subtractFee"].get_bool();
+            } else {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
+            }
+
+            if (nAmount <= 0)
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+            ValidateFeeSubtractionAmount(nAmount, subtractFee, name_);
+            LogPrintf("rpcWallet.sendSpark() nAmount = %d \n", nAmount);
+
+            if (isAssetOutput)
                 spatsRecipients.push_back(data);
             else
                 privateRecipients.push_back(std::make_pair(data, subtractFee));
@@ -5195,7 +5459,8 @@ UniValue sendspark(const JSONRPCRequest& request)
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool, required for FIRO outputs), a (numeric), iota (numeric) The Spark address is the key. An asset amount uses that asset's precision. a and iota come from listsparkassets. subtractFee is not used for an asset output.\n"
+                                                     "  \"burn\": [amount, a, iota]  (array, optional) Burn a fungible asset. amount uses the asset precision. iota is 0.\n"
                                                      "  ,...\n"
                                                      " }\n"
                                                      "\nResult:\n"
@@ -6380,9 +6645,12 @@ static const CRPCCommand commands[] =
     { "wallet",             "mintspark",              &mintspark,              true,  {} },
     { "wallet",             "mintspats",              &mintspats,              false },
     { "wallet",             "createsparkasset",       &createsparkasset,       false, {} },
+    { "wallet",             "listsparkassets",        &listsparkassets,        false, {} },
+    { "wallet",             "getsparkasset",          &getsparkasset,          false, {"symbol"} },
     { "wallet",             "modifysparkassetname",   &modifysparkassetname,   false, {} },
     { "wallet",             "modifysparkassetmetadata", &modifysparkassetmetadata, false, {} },
     { "wallet",             "modifysparkassetdescription", &modifysparkassetdescription, false, {} },
+    { "wallet",             "sparkassetreceive",      &sparkassetreceive,  false, {"symbol","address"} },
     { "wallet",             "sparkassettransfer",     &sparkassettransfer, false, {} },
     { "wallet",             "automintspark",          &automintspark,          false, {} },
     { "wallet",             "spendspark",             &spendspark,             false, {} },

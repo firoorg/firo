@@ -198,7 +198,8 @@ testScripts = [
     'sendtransparent.py',
     'spendspark.py',
     'sendspark.py',
-    'sendsparkmany.py'
+    'sendsparkmany.py',
+    'spark_assets.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

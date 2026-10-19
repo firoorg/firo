@@ -7,15 +7,11 @@ namespace spats
 // Useful scalar constants
 const Scalar ZERO = Scalar((uint64_t)0);
 
-namespace {
-static const unsigned char OP_SPATSMINT_BYTE = 0xd7;
-}
-
 // Generate a spend transaction that consumes existing coins and generates new ones
 SpendTransaction::SpendTransaction(
     const spark::Params* params)
+    : params(params), inputBase(0), outBase(0), f(0)
 {
-    this->params = params;
 }
 
 
@@ -380,6 +376,14 @@ const std::vector<uint64_t>& SpendTransaction::getCoinGroupIds()
     return cover_set_ids;
 }
 
+std::size_t SpendTransaction::getCoverSetSize(uint64_t cover_set_id) const
+{
+    const auto size = cover_set_sizes.find(cover_set_id);
+    if (size == cover_set_sizes.end())
+        throw std::invalid_argument("Cover set size missing");
+    return size->second;
+}
+
 const std::vector<spark::Coin>& SpendTransaction::getOutCoins()
 {
     return out_coins;
@@ -640,21 +644,25 @@ bool SpendTransaction::verify(
         std::vector<std::size_t> sizes;
         std::vector<spark::GrootleProof> proofs;
 
-        std::size_t full_cover_set_size = cover_sets.at(cover_set_id).size();
+        const auto coverSet = cover_sets.find(cover_set_id);
+        if (coverSet == cover_sets.end())
+            return false;
+        const std::size_t full_cover_set_size = coverSet->second.size();
         for (std::size_t i = 0; i < full_cover_set_size; i++) {
-            S.emplace_back(cover_sets.at(cover_set_id)[i].S);
-            V.emplace_back(cover_sets.at(cover_set_id)[i].C);
+            S.emplace_back(coverSet->second[i].S);
+            V.emplace_back(coverSet->second[i].C);
         }
 
         for (auto proof_index : proof_indexes) {
             const auto& tx = transactions[proof_index.first];
-            if (!cover_sets.count(cover_set_id))
-                throw std::invalid_argument("Cover set missing");
             // Because we assume all proofs in this list share a monotonic cover set, the largest such set is the one to use for verification
             if (!tx.cover_set_sizes.count(cover_set_id))
                 throw std::invalid_argument("Cover set size missing");
 
             std::size_t this_cover_set_size = tx.cover_set_sizes.at(cover_set_id);
+            // Grootle reads a suffix of this length. A shorter vector indexes before begin.
+            if (this_cover_set_size > full_cover_set_size)
+                return false;
 
             // We always use the other elements
             S1.emplace_back(tx.S1[proof_index.second]);

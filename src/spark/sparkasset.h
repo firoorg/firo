@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "serialize.h"
 #include "../base58.h"
@@ -16,8 +17,46 @@
 namespace spark {
 class CSparkAssetTxData;
 
-/** Domain-separated hash of an asset payload. Used as the Spark V2 extension commitment. */
+/**
+ * Domain-separated hash of an asset payload without its ownership proof.
+ * The Spark spend commits to this value. Modify and transfer attach an admin
+ * ownership proof over the finished transaction.
+ */
 uint256 GetSpatsAssetBindHash(const CSparkAssetTxData& assetData);
+
+/** Hash of registry fields plus the receive address the new admin proves for a transfer. */
+uint256 GetSpatsAssetTransferReceiverHash(
+    std::uint64_t assetType,
+    const std::string& currentAdmin,
+    const std::string& receiverAddress);
+Scalar GetSpatsAssetTransferReceiverM(
+    std::uint64_t assetType,
+    const std::string& currentAdmin,
+    const std::string& receiverAddress);
+bool VerifySpatsAssetReceiverProof(
+    std::uint64_t assetType,
+    const std::string& currentAdmin,
+    const std::string& receiverAddress,
+    const std::vector<unsigned char>& proof);
+/** Spark prove_own or transparent compact-sig over the finished-tx ownership message. */
+bool VerifySpatsAssetAdminProof(
+    const std::string& admin,
+    const Scalar& sparkMessage,
+    const uint256& transparentHash,
+    const std::vector<unsigned char>& proof);
+
+/** "address:hexproof" handoff from the receiver to the current admin. */
+std::string EncodeSpatsAssetReceiveData(
+    const std::string& address,
+    const std::vector<unsigned char>& proof);
+/** Parse a handoff string. On failure, \p address and \p proof are left unchanged. */
+bool ParseSpatsAssetReceiveData(
+    const std::string& data,
+    std::string& address,
+    std::vector<unsigned char>& proof);
+
+/** True for a Spark address or a P2PKH base58 address of the current network. */
+bool IsValidAssetAdminAddress(const std::string& address);
 
 static const CAmount MAX_ASSET_MONEY = 90000000000 * COIN;
 
@@ -93,6 +132,27 @@ public:
     int nHeight = -1;
 };
 
+/** One registry change made by a block, with enough data to undo it. */
+class CSparkAssetIndexOp
+{
+public:
+    std::uint64_t assetType = 0;
+    bool fRegister = false;
+    CSparkAssetDBEntry before; //!< unused when fRegister
+    CSparkAssetDBEntry after;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(assetType);
+        READWRITE(fRegister);
+        if (!fRegister)
+            READWRITE(before);
+        READWRITE(after);
+    }
+};
+
 class CSparkAssetTxData 
 
 {
@@ -132,8 +192,8 @@ public:
         if (version != 1)
             throw std::ios_base::failure("CSparkAssetTxData: unsupported version");
 
-        // Field set depends only on operationType. Admin address and ownership proof
-        // are always present, including for a transparent admin.
+        // Field set depends only on operationType. Admin address is always present.
+        // Ownership proof is serialized for every op and is empty on register.
         READWRITE(operationType);
         READWRITE(symbol);
 
@@ -205,8 +265,9 @@ public:
     const std::string& getTransferAddress() const { return transferPublicAddress; }
     void setTransferAddress(const std::string& transferPublicAddress_) { transferPublicAddress = transferPublicAddress_; }
 
-    const std::string& getRecieverOwnershipProof() const { return recieverOwnershipProof; }
-    void setRecieverProof(const std::string& recieverOwnershipProof_) { recieverOwnershipProof = recieverOwnershipProof_; }
+    const std::vector<unsigned char>& getRecieverOwnershipProof() const { return recieverOwnershipProof; }
+    void setRecieverProof(std::vector<unsigned char> recieverOwnershipProof_);
+    void setRecieverProof(const spark::OwnershipProof& proof);
 
     const std::string& getSymbol() const { return symbol; }
   	void setSymbol(const std::string& symbol_) { symbol = symbol_; }
@@ -255,7 +316,9 @@ public:
 
     bool Verify(std::string& error) const;
 
-    void setOwnershipProof(const spark::OwnershipProof& ownershipProof);
+    void setOwnershipProof(std::vector<unsigned char> ownershipProof_);
+    void setOwnershipProof(const spark::OwnershipProof& proof);
+    const std::vector<unsigned char>& getOwnershipProof() const { return ownershipProof; }
 
 private:
     std::uint32_t version = 1;
@@ -271,10 +334,10 @@ private:
     /** Maximum total supply in raw (smallest) units; 0 = no cap. Meaningful for fungible only. */
     std::uint64_t maxSupply = 0;
 
-    spark::OwnershipProof ownershipProof;
+    std::vector<unsigned char> ownershipProof;
 
     std::string transferPublicAddress;
-    std::string recieverOwnershipProof;
+    std::vector<unsigned char> recieverOwnershipProof;
 };
 
 }

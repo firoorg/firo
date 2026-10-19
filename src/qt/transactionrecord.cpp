@@ -11,6 +11,7 @@
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
+#include "spark/state.h"
 #include "bip47/bip47utils.h"
 
 #include <stdint.h>
@@ -45,35 +46,42 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
+    try {
+        if (const auto op = spark::GetSparkAssetTxData(*wtx.tx)) {
+            TransactionRecord rec(hash, nTime);
+            rec.involvesWatchAddress = false;
+            rec.debit = nDebit;
+            rec.credit = nCredit;
+            rec.address = op->getSymbol();
+            if (op->isRegister())
+                rec.type = TransactionRecord::SpatsRegister;
+            else if (op->isModify())
+                rec.type = TransactionRecord::SpatsModify;
+            else if (op->isTransfer())
+                rec.type = TransactionRecord::SpatsTransfer;
+            if (rec.type != TransactionRecord::Other) {
+                parts.append(rec);
+                return parts;
+            }
+        }
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception&) {
+    }
+
     if (wtx.tx->IsSpatsTransaction()) {
         TransactionRecord rec(hash, nTime);
         rec.involvesWatchAddress = false;
         rec.debit = nDebit;
         rec.credit = nCredit;
 
-        if (wtx.tx->IsSpatsCreate()) {
-            rec.type = TransactionRecord::SpatsCreate;
-            rec.address = "Spats Create";
-        }
-        else if (wtx.tx->IsSpatsMint()) {
+        if (wtx.tx->IsSpatsMint()) {
             rec.type = TransactionRecord::SpatsMint;
             rec.address = "Spats Mint";
         }
-        else if (wtx.tx->IsSpatsModify()) {
-            rec.type = TransactionRecord::SpatsModify;
-            rec.address = "Spats Modify";
-        }
-        else if (wtx.tx->IsSpatsUnregister()) {
-            rec.type = TransactionRecord::SpatsRevoke;
-            rec.address = "Spats Unregister";
-        }
-        else if (wtx.tx->IsSpatsBurn()) {
-            rec.type = TransactionRecord::SpatsRevoke;
+        else if (wtx.tx->HasSpatsBurn()) {
+            rec.type = TransactionRecord::SpatsBurn;
             rec.address = "Spats Burn";
-        }
-        else if (wtx.tx->HasSpatsBurnAmount()) {
-            rec.type = TransactionRecord::SpatsRevoke;
-            rec.address = "Spats BurnAmount";
         }
         parts.append(rec);
         return parts;
@@ -277,7 +285,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     }
                 } catch (...) {
                 }
-                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SpendSparkToSelf, "",
+                const bool spatsSpend = !wtx.tx->vin.empty() &&
+                    !wtx.tx->vin[0].scriptSig.empty() &&
+                    wtx.tx->vin[0].scriptSig[0] == OP_SPATSSPEND;
+                parts.append(TransactionRecord(hash, nTime,
+                    spatsSpend ? TransactionRecord::SpatsSpend : TransactionRecord::SpendSparkToSelf, "",
                     -(fee), 0));
             } else {
                 // Payment to self
@@ -337,7 +349,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     }
                     if(wtx.tx->IsSparkSpend())
                     {
-                        sub.type = TransactionRecord::SpendSparkTo;
+                        const bool spatsSpend = !wtx.tx->vin.empty() &&
+                            !wtx.tx->vin[0].scriptSig.empty() &&
+                            wtx.tx->vin[0].scriptSig[0] == OP_SPATSSPEND;
+                        sub.type = spatsSpend ? TransactionRecord::SpatsSpend : TransactionRecord::SpendSparkTo;
                     }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
@@ -353,7 +368,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
                 else if(wtx.tx->IsSparkSpend())
                 {
-                    sub.type = TransactionRecord::SpendSparkTo;
+                    const bool spatsSpend = !wtx.tx->vin.empty() &&
+                        !wtx.tx->vin[0].scriptSig.empty() &&
+                        wtx.tx->vin[0].scriptSig[0] == OP_SPATSSPEND;
+                    sub.type = spatsSpend ? TransactionRecord::SpatsSpend : TransactionRecord::SpendSparkTo;
                     if(wallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
                         sub.address = output.address;
                     }

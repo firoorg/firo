@@ -32,8 +32,9 @@ public:
 
     void add(const spark::SpendTransaction& tx, const uint256& txHash);
     void addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
-    void add(const spats::SpendTransaction& tx);
+    void add(const spats::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
+    void remove(const spats::SpendTransaction& tx);
 public:
     bool fCollectProofs = 0;
 
@@ -54,6 +55,12 @@ private:
     std::vector<uint256> sparkTxIds;
     std::vector<spark::SpendTransaction> historicalSparkTransactions;
     std::vector<uint256> historicalSparkTxIds;
+
+    // Spats spends are verified in the same batch window as Spark spends.
+    std::vector<spats::SpendTransaction> tempSpatsTransactions;
+    std::vector<uint256> tempSpatsTxIds;
+    std::vector<spats::SpendTransaction> spatsTransactions;
+    std::vector<uint256> spatsTxIds;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H

@@ -14,12 +14,21 @@
 #include "../miner.h"
 #include "../policy/policy.h"
 #include "../hash.h"
+#include "../rpc/server.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
+#include <univalue.h>
 #include <iostream>
 #include <set>
 #include <boost/test/unit_test.hpp>
+
+void ListTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter);
+UniValue createsparkasset(const JSONRPCRequest& request);
+UniValue mintspats(const JSONRPCRequest& request);
+UniValue listsparkassets(const JSONRPCRequest& request);
+UniValue getsparkasset(const JSONRPCRequest& request);
+UniValue spendspark(const JSONRPCRequest& request);
 
 namespace spark {
 
@@ -213,7 +222,46 @@ public:
         return CTransaction(tx);
     }
 
+    std::string SparkAdminAddress()
+    {
+        return pwalletMain->sparkWallet->getDefaultAddress().encode(spark::GetNetworkType());
+    }
 
+    CMutableTransaction CreateAssetTx(spark::CSparkAssetTxData asset)
+    {
+        CAmount fee;
+        return CMutableTransaction(*pwalletMain->CreateOrModifyAsset(asset, fee).tx);
+    }
+
+    uint64_t RegisterSparkAsset(const std::string& symbol, uint64_t maxSupply = 0)
+    {
+        spark::CSparkAssetTxData asset;
+        asset.setOperationType(spark::CSparkAssetTxData::opRegister);
+        asset.setSymbol(symbol);
+        asset.setName(symbol);
+        asset.setAdminPublicAddress(SparkAdminAddress());
+        asset.setMaxSupply(maxSupply);
+        CMutableTransaction tx = CreateAssetTx(asset);
+        mempool.clear();
+        BOOST_REQUIRE(GenerateBlock({tx}));
+        const auto assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+        BOOST_REQUIRE(assetType);
+        return *assetType;
+    }
+
+    static bool CheckAssetTx(const CMutableTransaction& tx, std::string* reason = nullptr)
+    {
+        LOCK(cs_main);
+        CCoinsViewCache view(pcoinsTip);
+        CValidationState state;
+        CSparkAssetPending pending;
+        CSparkAssetTxEffects effects;
+        const bool ok = CheckSparkAssetTransaction(
+            CTransaction(tx), view, state, chainActive.Height() + 1, false, true, pending, effects);
+        if (reason)
+            *reason = state.GetRejectReason();
+        return ok;
+    }
 
 public:
      CSparkState *sparkState;
@@ -261,6 +309,17 @@ struct RestoreBroadcastSetting {
     }
 };
 
+static CScript MakeSpatsBurnScript(uint64_t assetType, uint64_t identifier, CAmount amount)
+{
+    CScript script;
+    script << OP_SPATSBURN;
+    CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+    payload << std::make_pair(Scalar(assetType), Scalar(identifier));
+    payload << amount;
+    script.insert(script.end(), payload.begin(), payload.end());
+    return script;
+}
+
 BOOST_FIXTURE_TEST_SUITE(spark_tests, SparkTests)
 
 BOOST_AUTO_TEST_CASE(schnorr_proof)
@@ -269,6 +328,20 @@ BOOST_AUTO_TEST_CASE(schnorr_proof)
 
     MintTransaction mintTransaction(params);
     BOOST_CHECK(mintTransaction.verify());
+}
+
+BOOST_AUTO_TEST_CASE(spats_mint_spend_bind_hash)
+{
+    const std::vector<unsigned char> prefix = {OP_SPATSMINT, 0x01, 0x02};
+    const uint256 first = spark::GetSpatsMintSpendBindHash(10 * COIN, prefix);
+    const uint256 same = spark::GetSpatsMintSpendBindHash(10 * COIN, prefix);
+    std::vector<unsigned char> changedPrefix = prefix;
+    changedPrefix.push_back(0x03);
+
+    BOOST_CHECK(first == same);
+    BOOST_CHECK(first != spark::GetSpatsMintSpendBindHash(10 * COIN, changedPrefix));
+    BOOST_CHECK(first != spark::GetSpatsMintSpendBindHash(11 * COIN, prefix));
+    BOOST_CHECK(first != uint256());
 }
 
 BOOST_AUTO_TEST_CASE(is_spark_allowed)
@@ -284,6 +357,73 @@ BOOST_AUTO_TEST_CASE(is_spark_allowed)
     BOOST_CHECK(!IsSpatsStarted(startSpats - 1));
     BOOST_CHECK(IsSpatsStarted(startSpats));
     BOOST_CHECK(IsSpatsStarted(startSpats + 1));
+}
+
+BOOST_AUTO_TEST_CASE(spats_spend_before_spats_activation)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(txs));
+    GenerateBlocks(10);
+    BOOST_REQUIRE(chainActive.Height() < ::Params().GetConsensus().nSpatsStartBlock);
+    BOOST_REQUIRE(!IsSpatsStarted());
+
+    CMutableTransaction spend(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    BOOST_REQUIRE(!spend.vin.empty() && !spend.vin[0].scriptSig.empty());
+    spend.vin[0].scriptSig[0] = OP_SPATSSPEND;
+
+    BOOST_CHECK(!IsSparkSpendFormatAllowed(
+        CTransaction(spend), chainActive.Height()));
+
+    CValidationState state;
+    CSparkTxInfo info;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(spend), state, spend.GetHash(), false, chainActive.Height(), false, true, &info));
+    int dos = 0;
+    BOOST_CHECK(state.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 100);
+    BOOST_CHECK_EQUAL(state.GetRejectReason(),
+        "CheckSparkSpendTransaction: spats spend before spats activation");
+
+    CValidationState mempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(spend), mempoolState, spend.GetHash(), false, INT_MAX, false, true, nullptr));
+    int mempoolDos = -1;
+    BOOST_REQUIRE(mempoolState.IsInvalid(mempoolDos));
+    BOOST_CHECK_EQUAL(mempoolDos, 0);
+    BOOST_CHECK_EQUAL(mempoolState.GetRejectReason(),
+        "CheckSparkSpendTransaction: spats spend before spats activation");
+
+    CMutableTransaction mintTx;
+    mintTx.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    CScript mintScript;
+    mintScript << OP_SPATSMINT;
+    mintTx.vout.emplace_back(0, mintScript);
+
+    CValidationState mintState;
+    CSparkTxInfo mintInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(mintTx), mintState, mintTx.GetHash(), false, chainActive.Height(), false, true, &mintInfo));
+    int mintDos = 0;
+    BOOST_CHECK(mintState.IsInvalid(mintDos));
+    BOOST_CHECK_EQUAL(mintDos, 100);
+    BOOST_CHECK_EQUAL(mintState.GetRejectReason(),
+        "CheckSparkTransaction: spats mint before spats activation");
+    BOOST_CHECK(mintInfo.mints.empty());
+
+    CValidationState mintMempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(mintTx), mintMempoolState, mintTx.GetHash(), false, INT_MAX, false, true, nullptr));
+    int mintMempoolDos = -1;
+    BOOST_REQUIRE(mintMempoolState.IsInvalid(mintMempoolDos));
+    BOOST_CHECK_EQUAL(mintMempoolDos, 0);
+    BOOST_CHECK_EQUAL(mintMempoolState.GetRejectReason(),
+        "CheckSparkTransaction: spats mint before spats activation");
+
+    mempool.clear();
+    sparkState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
@@ -992,30 +1132,22 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
-    //TODO levon
-//    auto new_asset_wtx = pwalletMain->CreateNewSparkAsset(
-//        spats::FungibleSparkAsset(spats::asset_type_t{2}, spats::AssetNaming{"abcdef"s, "ABCDEF"s, "whatever"s}, "",
-//                                       pwalletMain->sparkWallet->getSpatsWallet().my_public_address_as_admin(),
-//                                       {30000, 4}, true));
-//    BOOST_REQUIRE(new_asset_wtx);
-//    CMutableTransaction createTx(*new_asset_wtx);
-//    currentBlock = chainActive.Tip()->nHeight;
     mempool.clear();
-//    GenerateBlock({createTx});
-//    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+    const uint64_t assetType = RegisterSparkAsset("CHECKSPATS");
 
     auto address = pwalletMain->sparkWallet->getDefaultAddress();
     spark::MintedCoinData minted;
     minted.address = address;
     minted.v = 100 * 10000;
     minted.memo = "";
-	minted.a = Scalar(uint64_t(2));
-	minted.iota = Scalar(uint64_t(1));
+    minted.a = Scalar(assetType);
+    minted.iota = Scalar(uint64_t(0));
     wtx = pwalletMain->MintAndStoreSpats(minted);
 
     CMutableTransaction mintTx(wtx);
     BOOST_CHECK(CheckSparkTransaction(
         mintTx, state, mintTx.GetHash(), false, chainActive.Height(), false, true, &info));
+    BOOST_CHECK(CheckAssetTx(mintTx));
 
     currentBlock = chainActive.Tip()->nHeight;
     mempool.clear();
@@ -1023,19 +1155,866 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     GenerateBlock({mintTx});
 
     BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+    BOOST_CHECK_EQUAL(sparkState->GetAssetState().GetCirculatingSupply(assetType, 0), minted.v);
 
     spark::OutputCoinData output;
     output.address = address;
     output.v = 25 * 10000;
     output.memo = "";
-	output.a = Scalar(uint64_t(2));
-	output.iota = Scalar(uint64_t(1));
+    output.a = Scalar(assetType);
+    output.iota = Scalar(uint64_t(0));
 
     wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee, burn);
 
     CMutableTransaction spatsTX(wtx);
     BOOST_CHECK(CheckSparkTransaction(
         spatsTX, state, mintTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_wallet_constructs_burn)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    pwalletMain->SetBroadcastTransactions(true);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    GenerateBlock(txs);
+    GenerateBlocks(10);
+
+    const uint64_t assetType = RegisterSparkAsset("BURNABLE");
+    auto address = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::MintedCoinData minted;
+    minted.address = address;
+    minted.v = 100 * 10000;
+    minted.memo = "";
+    minted.a = Scalar(assetType);
+    minted.iota = Scalar(uint64_t(0));
+    CWalletTx mintWtx = pwalletMain->MintAndStoreSpats(minted);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(mintWtx)}));
+    BOOST_CHECK_EQUAL(sparkState->GetAssetState().GetCirculatingSupply(assetType, 0), minted.v);
+
+    const auto findBurn = [](const CTransaction& tx) {
+        for (size_t i = 0; i < tx.vout.size(); ++i) {
+            if (tx.vout[i].scriptPubKey.IsSpatsBurn())
+                return i;
+        }
+        return tx.vout.size();
+    };
+    const auto checkSpend = [](const CMutableTransaction& tx) {
+        CValidationState state;
+        CSparkTxInfo info;
+        return CheckSparkTransaction(
+            tx, state, tx.GetHash(), false, chainActive.Height(), false, true, &info);
+    };
+
+    CAmount fee;
+    std::pair<CAmount, std::pair<Scalar, Scalar>> partialBurn;
+    partialBurn.first = 40 * 10000;
+    partialBurn.second = {Scalar(assetType), Scalar(uint64_t(0))};
+    CWalletTx partialWtx = pwalletMain->SpendAndStoreSpark({}, {}, {}, fee, partialBurn);
+    CMutableTransaction partialTx(partialWtx);
+    const size_t partialBurnIdx = findBurn(partialTx);
+    BOOST_REQUIRE(partialBurnIdx < partialTx.vout.size());
+    BOOST_CHECK_EQUAL(partialTx.vout[partialBurnIdx].nValue, 0);
+    {
+        std::pair<Scalar, Scalar> parsedId;
+        CAmount parsedAmount = 0;
+        BOOST_REQUIRE(ParseSpatsBurn(partialTx.vout[partialBurnIdx].scriptPubKey, parsedId, parsedAmount));
+        BOOST_CHECK_EQUAL(parsedAmount, partialBurn.first);
+        BOOST_CHECK(parsedId.first == partialBurn.second.first);
+        BOOST_CHECK(parsedId.second.isZero());
+    }
+    BOOST_CHECK(CTransaction(partialTx).IsSparkSpendV2());
+    BOOST_REQUIRE(!partialTx.vin.empty() && !partialTx.vin[0].scriptSig.empty());
+    BOOST_CHECK_EQUAL(partialTx.vin[0].scriptSig[0], OP_SPATSSPEND);
+    BOOST_CHECK(CTransaction(partialTx).HasSpatsBurn());
+    BOOST_CHECK(checkSpend(partialTx));
+    BOOST_CHECK(CheckAssetTx(partialTx));
+    {
+        CMutableTransaction twoBurns = partialTx;
+        twoBurns.vout.push_back(twoBurns.vout[partialBurnIdx]);
+        std::string reason;
+        BOOST_CHECK(!CheckAssetTx(twoBurns, &reason));
+        BOOST_CHECK_EQUAL(reason, "bad-spats-burn");
+    }
+
+    {
+        std::pair<CAmount, std::pair<Scalar, Scalar>> noBurn;
+        CMutableTransaction plainTx(pwalletMain->SpendAndStoreSpark(
+            {{script, 1 * COIN, false}}, {}, {}, fee, noBurn));
+        BOOST_REQUIRE(checkSpend(plainTx));
+        CMutableTransaction fakeBurn = plainTx;
+        fakeBurn.vout.emplace_back(0, MakeSpatsBurnScript(assetType, 0, partialBurn.first));
+        BOOST_CHECK(!checkSpend(fakeBurn));
+        std::string reason;
+        BOOST_CHECK(!CheckAssetTx(fakeBurn, &reason));
+        BOOST_CHECK_EQUAL(reason, "bad-spats-burn");
+    }
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({partialTx}));
+    BOOST_CHECK_EQUAL(
+        sparkState->GetAssetState().GetCirculatingSupply(assetType, 0),
+        minted.v - partialBurn.first);
+
+    std::pair<CAmount, std::pair<Scalar, Scalar>> fullBurn;
+    fullBurn.first = minted.v - partialBurn.first;
+    fullBurn.second = {Scalar(assetType), Scalar(uint64_t(0))};
+    CWalletTx fullWtx = pwalletMain->SpendAndStoreSpark({}, {}, {}, fee, fullBurn);
+    CMutableTransaction fullTx(fullWtx);
+    const size_t fullBurnIdx = findBurn(fullTx);
+    BOOST_REQUIRE(fullBurnIdx < fullTx.vout.size());
+    BOOST_CHECK_EQUAL(fullTx.vout[fullBurnIdx].nValue, 0);
+    {
+        std::pair<Scalar, Scalar> parsedId;
+        CAmount parsedAmount = 0;
+        BOOST_REQUIRE(ParseSpatsBurn(fullTx.vout[fullBurnIdx].scriptPubKey, parsedId, parsedAmount));
+        BOOST_CHECK_EQUAL(parsedAmount, fullBurn.first);
+    }
+    BOOST_CHECK(CTransaction(fullTx).HasSpatsBurn());
+    BOOST_CHECK(checkSpend(fullTx));
+    BOOST_CHECK(CheckAssetTx(fullTx));
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({fullTx}));
+    BOOST_CHECK_EQUAL(sparkState->GetAssetState().GetCirculatingSupply(assetType, 0), 0u);
+    BOOST_REQUIRE(DisconnectBlocks(1));
+    BOOST_CHECK_EQUAL(
+        sparkState->GetAssetState().GetCirculatingSupply(assetType, 0),
+        minted.v - partialBurn.first);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_balance_is_separate_from_firo)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+    pwalletMain->SetBroadcastTransactions(true);
+    auto* wallet = pwalletMain->sparkWallet.get();
+
+    const uint64_t assetType = RegisterSparkAsset("BALANCE");
+    const auto assetId = std::make_pair(Scalar(assetType), Scalar(uint64_t(0)));
+    const auto otherId = std::make_pair(Scalar(assetType + 1), Scalar(uint64_t(0)));
+    BOOST_CHECK_EQUAL(wallet->GetAvailableSparkBalance(assetId), 0);
+
+    spark::MintedCoinData minted;
+    minted.address = wallet->getDefaultAddress();
+    minted.v = 250000;
+    minted.memo = "";
+    minted.a = Scalar(assetType);
+    minted.iota = Scalar(uint64_t(0));
+    CWalletTx mintWtx = pwalletMain->MintAndStoreSpats(minted);
+    wallet->WaitForPendingTasks();
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(mintWtx)}));
+    GenerateBlocks(2);
+    wallet->WaitForPendingTasks();
+
+    BOOST_CHECK_EQUAL(wallet->GetAvailableSparkBalance(assetId), minted.v);
+    BOOST_CHECK_EQUAL(wallet->GetAvailableSparkBalance(otherId), 0);
+    const auto sparkBalance = wallet->getSparkBalance();
+    BOOST_CHECK_EQUAL(sparkBalance.first, wallet->getAvailableBalance());
+    BOOST_CHECK_EQUAL(sparkBalance.second, wallet->getUnconfirmedBalance());
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_listtransactions_categories)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({50 * COIN, 50 * COIN, 50 * COIN, 50 * COIN, 50 * COIN}, txs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(txs));
+    GenerateBlocks(10);
+
+    const auto sentCategory = [](const CWalletTx& created) {
+        const auto stored = pwalletMain->mapWallet.find(created.GetHash());
+        BOOST_REQUIRE(stored != pwalletMain->mapWallet.end());
+        UniValue entries(UniValue::VARR);
+        ListTransactions(pwalletMain, stored->second, "*", 0, false, entries, ISMINE_SPENDABLE);
+        std::string category;
+        for (size_t i = 0; i < entries.size(); ++i) {
+            if (find_value(entries[i], "fee").isNull())
+                continue;
+            const std::string label = find_value(entries[i], "category").get_str();
+            if (category.empty())
+                category = label;
+            else
+                BOOST_CHECK_EQUAL(label, category);
+        }
+        BOOST_REQUIRE(!category.empty());
+        return category;
+    };
+
+    CAmount fee;
+    const std::string admin = SparkAdminAddress();
+    spark::CSparkAssetTxData reg;
+    reg.setOperationType(spark::CSparkAssetTxData::opRegister);
+    reg.setSymbol("HIST");
+    reg.setName("Hist");
+    reg.setAdminPublicAddress(admin);
+    reg.setMaxSupply(0);
+    const CWalletTx regWtx = pwalletMain->CreateAndStoreAsset(reg, fee);
+    BOOST_CHECK_EQUAL(sentCategory(regWtx), "spatsregister");
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(regWtx)}));
+    const auto assetType = sparkState->GetAssetState().GetAssetTypeBySymbol("HIST");
+    BOOST_REQUIRE(assetType);
+
+    spark::CSparkAssetTxData modify;
+    modify.setOperationType(spark::CSparkAssetTxData::opModifyName);
+    modify.setSymbol("HIST");
+    modify.setName("Renamed");
+    modify.setAdminPublicAddress(admin);
+    const CWalletTx modifyWtx = pwalletMain->CreateAndStoreAsset(modify, fee);
+    BOOST_CHECK_EQUAL(sentCategory(modifyWtx), "spatsmodify");
+
+    const std::string newAdmin = pwalletMain->sparkWallet->generateNewAddress().encode(spark::GetNetworkType());
+    const std::string receive = pwalletMain->sparkWallet->CreateSpatsAssetReceiveData("HIST", newAdmin);
+    std::string receiveAddress;
+    std::vector<unsigned char> receiveProof;
+    BOOST_REQUIRE(spark::ParseSpatsAssetReceiveData(receive, receiveAddress, receiveProof));
+    spark::CSparkAssetTxData transfer;
+    transfer.setOperationType(spark::CSparkAssetTxData::opTransfer);
+    transfer.setSymbol("HIST");
+    transfer.setAdminPublicAddress(admin);
+    transfer.setTransferAddress(receiveAddress);
+    transfer.setRecieverProof(std::move(receiveProof));
+    const CWalletTx transferWtx = pwalletMain->CreateAndStoreAsset(transfer, fee);
+    BOOST_CHECK_EQUAL(sentCategory(transferWtx), "spatstransfer");
+
+    spark::MintedCoinData minted;
+    minted.address = pwalletMain->sparkWallet->getDefaultAddress();
+    minted.v = 250000;
+    minted.memo = "";
+    minted.a = Scalar(*assetType);
+    minted.iota = Scalar(uint64_t(0));
+    const CWalletTx mintWtx = pwalletMain->MintAndStoreSpats(minted);
+    BOOST_REQUIRE(mintWtx.tx->IsSpatsMint());
+    BOOST_REQUIRE(!mintWtx.tx->vin.empty() && !mintWtx.tx->vin[0].scriptSig.empty());
+    BOOST_CHECK_EQUAL(mintWtx.tx->vin[0].scriptSig[0], OP_SPATSSPEND);
+    BOOST_CHECK_EQUAL(sentCategory(mintWtx), "spatsmint");
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(mintWtx)}));
+
+    spark::OutputCoinData output;
+    output.address = pwalletMain->sparkWallet->generateNewAddress();
+    output.v = 100000;
+    output.memo = "";
+    output.a = minted.a;
+    output.iota = minted.iota;
+    std::pair<CAmount, std::pair<Scalar, Scalar>> noBurn;
+    const CWalletTx spendWtx = pwalletMain->SpendAndStoreSpark({}, {}, {output}, fee, noBurn);
+    BOOST_CHECK(!spendWtx.tx->IsSpatsMint());
+    BOOST_CHECK(!spendWtx.tx->HasSpatsBurn());
+    BOOST_CHECK_EQUAL(sentCategory(spendWtx), "spatsspend");
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_asset_rpcs)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    std::vector<CMutableTransaction> txs;
+    GenerateMints(std::vector<CAmount>(12, 50 * COIN), txs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(txs));
+    GenerateBlocks(10);
+
+    const auto call = [](UniValue (*method)(const JSONRPCRequest&), UniValue params) {
+        JSONRPCRequest request;
+        request.params = std::move(params);
+        return method(request);
+    };
+    const auto expectError = [](UniValue (*method)(const JSONRPCRequest&), UniValue params, const char* fragment) {
+        JSONRPCRequest request;
+        request.params = std::move(params);
+        try {
+            method(request);
+            BOOST_FAIL("expected RPC error");
+        } catch (const UniValue& error) {
+            const std::string message = find_value(error, "message").get_str();
+            BOOST_CHECK_MESSAGE(message.find(fragment) != std::string::npos, message);
+        }
+    };
+    const auto mineTxids = [&](const std::vector<std::string>& txids) {
+        std::vector<CMutableTransaction> blockTxs;
+        for (const std::string& txidHex : txids) {
+            const auto stored = pwalletMain->mapWallet.find(uint256S(txidHex));
+            BOOST_REQUIRE(stored != pwalletMain->mapWallet.end());
+            blockTxs.emplace_back(stored->second);
+        }
+        mempool.clear();
+        BOOST_REQUIRE(GenerateBlock(blockTxs));
+        pwalletMain->sparkWallet->WaitForPendingTasks();
+    };
+    const auto assetBySymbol = [&](const std::string& symbol) {
+        const UniValue listed = call(::listsparkassets, UniValue(UniValue::VARR));
+        for (size_t i = 0; i < listed.size(); ++i) {
+            if (find_value(listed[i], "symbol").get_str() == symbol)
+                return listed[i];
+        }
+        BOOST_FAIL("missing spark asset");
+        return UniValue();
+    };
+    const auto registerAsset = [&](const std::string& symbol, const std::string& name, int precision, uint64_t maxSupply, bool nft, int64_t identifier) {
+        UniValue create(UniValue::VOBJ);
+        create.pushKV("symbol", symbol);
+        create.pushKV("name", name);
+        create.pushKV("maxSupply", maxSupply);
+        create.pushKV("precision", precision);
+        if (nft) {
+            create.pushKV("isNFT", UniValue(true));
+            create.pushKV("identifier", identifier);
+        }
+        UniValue params(UniValue::VARR);
+        params.push_back(create);
+        return call(::createsparkasset, params).get_str();
+    };
+
+    UniValue badFungible(UniValue::VOBJ);
+    badFungible.pushKV("symbol", "BADID");
+    badFungible.pushKV("name", "Bad");
+    badFungible.pushKV("maxSupply", uint64_t(10));
+    badFungible.pushKV("precision", 0);
+    badFungible.pushKV("identifier", int64_t(1));
+    UniValue badParams(UniValue::VARR);
+    badParams.push_back(badFungible);
+    expectError(::createsparkasset, badParams, "identifier is needed only for NFTs");
+    badFungible = UniValue(UniValue::VOBJ);
+    badFungible.pushKV("symbol", "PRECHI");
+    badFungible.pushKV("name", "Too fine");
+    badFungible.pushKV("maxSupply", uint64_t(10));
+    badFungible.pushKV("precision", 9);
+    badParams.clear();
+    badParams.setArray();
+    badParams.push_back(badFungible);
+    expectError(::createsparkasset, badParams, "precision could be up to 8");
+
+    const std::string wholeTxid = registerAsset("WHOLE", "Whole units", 0, 1000, false, 0);
+    const std::string rpcxTxid = registerAsset("RPCX", "Rpc asset", 2, 100000, false, 0);
+    const std::string fineTxid = registerAsset("FINE", "Fine units", 8, 100000000, false, 0);
+    const std::string nftTxid = registerAsset("ITEM", "One item", 0, 1, true, 7);
+    mineTxids({wholeTxid, rpcxTxid, fineTxid, nftTxid});
+
+    const UniValue listed = call(::listsparkassets, UniValue(UniValue::VARR));
+    BOOST_REQUIRE_EQUAL(listed.size(), 4u);
+    const UniValue whole = assetBySymbol("WHOLE");
+    const UniValue rpcx = assetBySymbol("RPCX");
+    const UniValue fine = assetBySymbol("FINE");
+    const UniValue nft = assetBySymbol("ITEM");
+    BOOST_CHECK_EQUAL(find_value(whole, "kind").get_str(), "fungible");
+    BOOST_CHECK_EQUAL(find_value(whole, "precision").get_int(), 0);
+    BOOST_CHECK_EQUAL(find_value(whole, "identifier").get_int64(), 0);
+    BOOST_CHECK_EQUAL(find_value(whole, "maxSupply").get_str(), "1000");
+    BOOST_CHECK_EQUAL(find_value(whole, "balance").get_str(), "0");
+    BOOST_CHECK(find_value(whole, "isAdmin").get_bool());
+    BOOST_CHECK_EQUAL(find_value(rpcx, "kind").get_str(), "fungible");
+    BOOST_CHECK_EQUAL(find_value(rpcx, "precision").get_int(), 2);
+    BOOST_CHECK_EQUAL(find_value(rpcx, "maxSupply").get_str(), "1000.00");
+    BOOST_CHECK_EQUAL(find_value(rpcx, "balance").get_str(), "0.00");
+    BOOST_CHECK_EQUAL(find_value(rpcx, "txid").get_str(), rpcxTxid);
+    BOOST_CHECK_EQUAL(find_value(fine, "precision").get_int(), 8);
+    BOOST_CHECK_EQUAL(find_value(fine, "maxSupply").get_str(), "1.00000000");
+    BOOST_CHECK_EQUAL(find_value(fine, "circulatingSupply").get_str(), "0.00000000");
+    BOOST_CHECK_EQUAL(find_value(nft, "kind").get_str(), "nft");
+    BOOST_CHECK_EQUAL(find_value(nft, "precision").get_int(), 0);
+    BOOST_CHECK_EQUAL(find_value(nft, "identifier").get_int64(), 7);
+    BOOST_CHECK_EQUAL(find_value(nft, "maxSupply").get_str(), "1");
+    BOOST_CHECK_EQUAL(find_value(nft, "balance").get_str(), "0");
+    BOOST_CHECK(find_value(nft, "isAdmin").get_bool());
+    const int64_t wholeType = find_value(whole, "assetType").get_int64();
+    const int64_t rpcxType = find_value(rpcx, "assetType").get_int64();
+    const int64_t fineType = find_value(fine, "assetType").get_int64();
+    const int64_t nftType = find_value(nft, "assetType").get_int64();
+    BOOST_CHECK(wholeType != rpcxType && rpcxType != fineType && fineType != nftType);
+
+    UniValue getParams(UniValue::VARR);
+    getParams.push_back("RPCX");
+    const UniValue got = call(::getsparkasset, getParams);
+    BOOST_CHECK_EQUAL(find_value(got, "assetType").get_int64(), rpcxType);
+    BOOST_CHECK_EQUAL(find_value(got, "name").get_str(), "Rpc asset");
+    getParams.clear();
+    getParams.setArray();
+    getParams.push_back("MISSING");
+    expectError(::getsparkasset, getParams, "Asset is not registered");
+
+    const std::string address = pwalletMain->sparkWallet->getDefaultAddress().encode(spark::GetNetworkType());
+    const auto mintParams = [&](const std::string& amount, int64_t type, int64_t iota) {
+        UniValue mint(UniValue::VOBJ);
+        mint.pushKV("amount", amount);
+        mint.pushKV("a", type);
+        mint.pushKV("iota", iota);
+        UniValue params(UniValue::VARR);
+        params.push_back(address);
+        params.push_back(mint);
+        return params;
+    };
+    const auto rejectMint = [&](const std::string& txid, const char* reasonText) {
+        const auto stored = pwalletMain->mapWallet.find(uint256S(txid));
+        BOOST_REQUIRE(stored != pwalletMain->mapWallet.end());
+        std::string reason;
+        BOOST_CHECK(!CheckAssetTx(CMutableTransaction(stored->second), &reason));
+        BOOST_CHECK_EQUAL(reason, reasonText);
+    };
+    expectError(::mintspats, mintParams("12.5", wholeType, 0), "Invalid asset amount");
+    expectError(::mintspats, mintParams("1.555", rpcxType, 0), "Invalid asset amount");
+    expectError(::mintspats, mintParams("0", rpcxType, 0), "Invalid asset amount");
+    expectError(::mintspats, mintParams("0.000000001", fineType, 0), "Invalid asset amount");
+    expectError(::mintspats, mintParams("1.50", rpcxType + 1000000, 0), "Asset is not registered");
+
+    UniValue spend(UniValue::VOBJ);
+    UniValue output(UniValue::VOBJ);
+    output.pushKV("amount", "0.10");
+    output.pushKV("a", rpcxType);
+    output.pushKV("iota", int64_t(0));
+    output.pushKV("subtractFee", UniValue(true));
+    spend.pushKV(address, output);
+    UniValue spendParams(UniValue::VARR);
+    spendParams.push_back(spend);
+    expectError(::spendspark, spendParams, "subtractFee cannot be taken from a SPATS asset amount");
+
+    rejectMint(call(::mintspats, mintParams("1.00", rpcxType, 1)).get_str(), "spats-mint-wrong-identifier");
+    rejectMint(call(::mintspats, mintParams("1", nftType, 0)).get_str(), "spats-mint-wrong-identifier");
+
+    const std::string wholeMint = call(::mintspats, mintParams("12", wholeType, 0)).get_str();
+    const std::string rpcxMint = call(::mintspats, mintParams("1.50", rpcxType, 0)).get_str();
+    const std::string fineMint = call(::mintspats, mintParams("0.00000001", fineType, 0)).get_str();
+    const std::string nftMint = call(::mintspats, mintParams("1", nftType, 7)).get_str();
+    mineTxids({wholeMint, rpcxMint, fineMint, nftMint});
+
+    const auto expectHolding = [&](const std::string& symbol, const char* amount, CAmount raw, uint64_t iota) {
+        UniValue params(UniValue::VARR);
+        params.push_back(symbol);
+        const UniValue holding = call(::getsparkasset, params);
+        BOOST_CHECK_EQUAL(find_value(holding, "circulatingSupply").get_str(), amount);
+        BOOST_CHECK_EQUAL(find_value(holding, "balance").get_str(), amount);
+        BOOST_CHECK_EQUAL(
+            pwalletMain->sparkWallet->GetAvailableSparkBalance(
+                std::make_pair(Scalar(uint64_t(find_value(holding, "assetType").get_int64())), Scalar(iota))),
+            raw);
+    };
+    expectHolding("WHOLE", "12", 12, 0);
+    expectHolding("RPCX", "1.50", 150, 0);
+    expectHolding("FINE", "0.00000001", 1, 0);
+    expectHolding("ITEM", "1", 1, 7);
+    BOOST_CHECK_EQUAL(find_value(assetBySymbol("ITEM"), "kind").get_str(), "nft");
+
+    rejectMint(call(::mintspats, mintParams("1", nftType, 7)).get_str(), "spats-nft-already-minted");
+    expectHolding("ITEM", "1", 1, 7);
+
+    UniValue burn(UniValue::VARR);
+    burn.push_back("0.40");
+    burn.push_back(rpcxType);
+    burn.push_back(int64_t(0));
+    UniValue burnRequest(UniValue::VOBJ);
+    burnRequest.pushKV("burn", burn);
+    UniValue burnParams(UniValue::VARR);
+    burnParams.push_back(burnRequest);
+    const std::string burnTxid = call(::spendspark, burnParams).get_str();
+    const auto burned = pwalletMain->mapWallet.find(uint256S(burnTxid));
+    BOOST_REQUIRE(burned != pwalletMain->mapWallet.end());
+    BOOST_CHECK(burned->second.tx->HasSpatsBurn());
+    mineTxids({burnTxid});
+
+    expectHolding("RPCX", "1.10", 110, 0);
+    expectHolding("WHOLE", "12", 12, 0);
+    expectHolding("FINE", "0.00000001", 1, 0);
+    BOOST_CHECK_EQUAL(
+        sparkState->GetAssetState().GetCirculatingSupply(static_cast<uint64_t>(rpcxType), 0),
+        110u);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_coin_control_selects_fungibles)
+{
+    CSparkMintMeta fungible;
+    fungible.v = 40 * 10000;
+    fungible.a = Scalar(uint64_t(2));
+    fungible.iota = Scalar(uint64_t(0));
+
+    CCoinControl coinControl;
+    coinControl.Select(COutPoint(uint256S("1"), 0));
+
+    int64_t change = 0;
+    std::vector<CSparkMintMeta> selected;
+    BOOST_REQUIRE(pwalletMain->sparkWallet->GetCoinsToSpend(
+        fungible.v, selected, {fungible}, change, &coinControl, true));
+    BOOST_REQUIRE_EQUAL(selected.size(), 1u);
+    BOOST_CHECK_EQUAL(selected[0].v, fungible.v);
+    BOOST_CHECK(selected[0].iota.isZero());
+    BOOST_CHECK_EQUAL(change, 0);
+
+    CSparkMintMeta sparkCoin;
+    sparkCoin.v = 10 * COIN;
+    selected.clear();
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->GetCoinsToSpend(
+            1, selected, {sparkCoin}, change, &coinControl, true),
+        InsufficientFunds);
+}
+
+BOOST_AUTO_TEST_CASE(spats_mint_bound_to_spend)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    pwalletMain->SetBroadcastTransactions(true);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    GenerateBlock(txs);
+    GenerateBlocks(10);
+
+    const auto check = [](const CMutableTransaction& tx) {
+        CValidationState state;
+        CSparkTxInfo info;
+        return CheckSparkTransaction(
+            tx, state, tx.GetHash(), false, chainActive.Height(), false, true, &info);
+    };
+    const auto findMint = [](const CMutableTransaction& tx) {
+        for (size_t i = 0; i < tx.vout.size(); ++i) {
+            if (tx.vout[i].scriptPubKey.IsSpatsMint())
+                return i;
+        }
+        return tx.vout.size();
+    };
+
+    const uint64_t assetType = RegisterSparkAsset("BOUNDMINT");
+
+    auto address = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::MintedCoinData minted;
+    minted.address = address;
+    minted.v = 100 * 10000;
+    minted.memo = "";
+    minted.a = Scalar(assetType);
+    minted.iota = Scalar(uint64_t(0));
+
+    CAmount fee;
+    CMutableTransaction mintTx(pwalletMain->sparkWallet->CreateSpatsMintTransaction({minted, address}, fee));
+    const size_t mintIdx = findMint(mintTx);
+    BOOST_REQUIRE(mintIdx < mintTx.vout.size());
+    BOOST_CHECK_EQUAL(mintTx.vout[mintIdx].nValue, 0);
+    BOOST_CHECK(CTransaction(mintTx).IsSparkSpendV2());
+    BOOST_CHECK(check(mintTx));
+    BOOST_CHECK(CheckAssetTx(mintTx));
+
+    {
+        CMutableTransaction v1Type = mintTx;
+        v1Type.nType = TRANSACTION_SPARK;
+        BOOST_CHECK(!check(v1Type));
+    }
+
+    // Swap in another well-formed mint coin with the same value.
+    {
+        const auto& tags = ParseSpatsSpend(mintTx).getUsedLTags();
+        CDataStream serialContext(SER_NETWORK, PROTOCOL_VERSION);
+        serialContext << tags;
+        spark::MintTransaction otherMint(
+            spark::Params::get_default(),
+            {minted},
+            std::vector<unsigned char>(serialContext.begin(), serialContext.end()),
+            true);
+        CDataStream otherCoin = otherMint.getMintedCoinsSerialized().front();
+
+        const CScript& original = mintTx.vout[mintIdx].scriptPubKey;
+        BOOST_REQUIRE_EQUAL(original.size(), 1 + otherCoin.size() + OwnershipProof::memoryRequired());
+
+        CScript swapped;
+        swapped << OP_SPATSMINT;
+        swapped.insert(swapped.end(), otherCoin.begin(), otherCoin.end());
+        swapped.insert(swapped.end(), original.begin() + 1 + otherCoin.size(), original.end());
+        BOOST_REQUIRE(swapped != original);
+
+        CMutableTransaction tampered = mintTx;
+        tampered.vout[mintIdx].scriptPubKey = swapped;
+        BOOST_CHECK(!check(tampered));
+    }
+
+    // The registered Spark admin must sign the mint through the ownership suffix.
+    {
+        const CScript& original = mintTx.vout[mintIdx].scriptPubKey;
+        const size_t prefixSize = original.size() - OwnershipProof::memoryRequired();
+
+        CMutableTransaction stripped = mintTx;
+        stripped.vout[mintIdx].scriptPubKey = CScript(original.begin(), original.begin() + prefixSize);
+        std::string reason;
+        BOOST_CHECK(!CheckAssetTx(stripped, &reason));
+        BOOST_CHECK_EQUAL(reason, "spats-mint-ownership-missing");
+
+        const auto* params = spark::Params::get_default();
+        const SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(params);
+        const IncomingViewKey incomingViewKey{FullViewKey(spendKey)};
+        Scalar m;
+        m.randomize();
+        OwnershipProof proof;
+        address.prove_own(m, spendKey, incomingViewKey, proof);
+        CDataStream serializedProof(SER_NETWORK, PROTOCOL_VERSION);
+        serializedProof << proof;
+
+        CMutableTransaction forged = stripped;
+        CScript& mintScript = forged.vout[mintIdx].scriptPubKey;
+        mintScript.insert(mintScript.end(), serializedProof.begin(), serializedProof.end());
+        BOOST_CHECK(!CheckAssetTx(forged, &reason));
+        BOOST_CHECK_EQUAL(reason, "spats-mint-ownership-invalid");
+    }
+
+    // Drop the mint output.
+    {
+        CMutableTransaction tampered = mintTx;
+        tampered.vout.erase(tampered.vout.begin() + mintIdx);
+        BOOST_CHECK(!check(tampered));
+    }
+
+    // Graft the mint output onto a spend that did not authorize it.
+    {
+        std::pair<CAmount, std::pair<Scalar, Scalar>> burn;
+        CMutableTransaction plainTx(pwalletMain->SpendAndStoreSpark({{script, 1 * COIN, false}}, {}, {}, fee, burn));
+        BOOST_REQUIRE(check(plainTx));
+
+        CMutableTransaction tampered = plainTx;
+        tampered.vout.push_back(mintTx.vout[mintIdx]);
+        BOOST_CHECK(!check(tampered));
+    }
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_registry_is_consensus)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    pwalletMain->SetBroadcastTransactions(true);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN, 10 * COIN, 10 * COIN, 10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    GenerateBlock(txs);
+    GenerateBlocks(10);
+
+    const CAssetState& registry = sparkState->GetAssetState();
+    const std::string admin = SparkAdminAddress();
+    std::string reason;
+
+    // Two registrations of one symbol: only the first to confirm stays valid.
+    spark::CSparkAssetTxData reg;
+    reg.setOperationType(spark::CSparkAssetTxData::opRegister);
+    reg.setSymbol("CAPPED");
+    reg.setName("Capped");
+    reg.setAdminPublicAddress(admin);
+    reg.setMaxSupply(1000);
+    CMutableTransaction regTx = CreateAssetTx(reg);
+    CMutableTransaction dupTx = CreateAssetTx(reg);
+    {
+        const auto parsed = spark::GetSparkAssetTxData(CTransaction(regTx));
+        BOOST_REQUIRE(parsed);
+        BOOST_CHECK(parsed->getOwnershipProof().empty());
+    }
+    BOOST_CHECK(CheckAssetTx(regTx));
+    BOOST_CHECK(CheckAssetTx(dupTx));
+    BOOST_CHECK(CTransaction(regTx).IsSparkSpendV2());
+    {
+        CValidationState nameState;
+        BOOST_CHECK(CSparkNameManager::GetInstance()->CheckSparkNameTx(
+            CTransaction(regTx), chainActive.Height() + 1, nameState));
+        CValidationState spendState;
+        CSparkTxInfo info;
+        BOOST_CHECK(CheckSparkTransaction(
+            regTx, spendState, regTx.GetHash(), false, chainActive.Height(),
+            false, true, &info));
+    }
+
+    mempool.clear();
+    CBlockIndex* regIndex = GenerateBlock({regTx});
+    BOOST_REQUIRE(regIndex);
+    const int regHeight = regIndex->nHeight;
+    const auto assetType = registry.GetAssetTypeBySymbol("CAPPED");
+    BOOST_REQUIRE(assetType);
+    {
+        const auto entry = registry.Get(*assetType);
+        BOOST_REQUIRE(entry);
+        BOOST_CHECK_EQUAL(entry->adminPublicAddress, admin);
+        BOOST_CHECK_EQUAL(entry->maxSupply, 1000u);
+        const auto& ops = regIndex->privacyData().sparkAssetOps;
+        BOOST_REQUIRE_EQUAL(ops.size(), 1u);
+        BOOST_CHECK(ops[0].fRegister);
+        BOOST_CHECK_EQUAL(ops[0].assetType, *assetType);
+    }
+    BOOST_CHECK(!CheckAssetTx(dupTx, &reason));
+    BOOST_CHECK_EQUAL(reason, "spats-asset-symbol-taken");
+
+    // Mints are capped by maxSupply, counting confirmed and pending supply.
+    auto address = pwalletMain->sparkWallet->getDefaultAddress();
+    const auto makeMint = [&](uint64_t v) {
+        spark::MintedCoinData minted;
+        minted.address = address;
+        minted.v = v;
+        minted.memo = "";
+        minted.a = Scalar(*assetType);
+        minted.iota = Scalar(uint64_t(0));
+        CAmount fee;
+        return CMutableTransaction(pwalletMain->sparkWallet->CreateSpatsMintTransaction({minted, address}, fee));
+    };
+    CMutableTransaction mint1 = makeMint(600);
+    CMutableTransaction mint2 = makeMint(600);
+    BOOST_CHECK(CheckAssetTx(mint1));
+    BOOST_CHECK(CheckAssetTx(mint2));
+    BOOST_CHECK(!CheckAssetTx(makeMint(1001), &reason));
+    BOOST_CHECK_EQUAL(reason, "spats-mint-exceeds-max-supply");
+    {
+        LOCK(cs_main);
+        CCoinsViewCache view(pcoinsTip);
+        CValidationState state;
+        CSparkAssetPending pending;
+        CSparkAssetTxEffects effects;
+        BOOST_REQUIRE(CheckSparkAssetTransaction(
+            CTransaction(mint1), view, state, chainActive.Height() + 1, false, true, pending, effects));
+        AddSparkAssetEffects(pending, effects);
+        BOOST_CHECK(!CheckSparkAssetTransaction(
+            CTransaction(mint2), view, state, chainActive.Height() + 1, false, true, pending, effects));
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "spats-mint-exceeds-max-supply");
+    }
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({mint1}));
+    BOOST_CHECK_EQUAL(registry.GetCirculatingSupply(*assetType, 0), 600u);
+    BOOST_CHECK(!CheckAssetTx(mint2, &reason));
+    BOOST_CHECK_EQUAL(reason, "spats-mint-exceeds-max-supply");
+    const int heightAfterMint = chainActive.Height();
+    BOOST_CHECK(!GenerateBlock({mint2}));
+    BOOST_CHECK_EQUAL(chainActive.Height(), heightAfterMint);
+
+    // A modify signed by the old admin is invalid once the asset is transferred.
+    const std::string newAdmin = pwalletMain->sparkWallet->generateNewAddress().encode(spark::GetNetworkType());
+    spark::CSparkAssetTxData modify;
+    modify.setOperationType(spark::CSparkAssetTxData::opModifyName);
+    modify.setSymbol("CAPPED");
+    modify.setName("Renamed");
+    modify.setAdminPublicAddress(admin);
+    CMutableTransaction modifyTx = CreateAssetTx(modify);
+    {
+        const auto parsed = spark::GetSparkAssetTxData(CTransaction(modifyTx));
+        BOOST_REQUIRE(parsed);
+        BOOST_CHECK(!parsed->getOwnershipProof().empty());
+        CMutableTransaction unsignedModify = modifyTx;
+        CDataStream oldPayload(SER_NETWORK, PROTOCOL_VERSION);
+        oldPayload << *parsed;
+        BOOST_REQUIRE(unsignedModify.vExtraPayload.size() >= oldPayload.size());
+        unsignedModify.vExtraPayload.resize(unsignedModify.vExtraPayload.size() - oldPayload.size());
+        auto stripped = *parsed;
+        stripped.setOwnershipProof(std::vector<unsigned char>{});
+        CDataStream newPayload(SER_NETWORK, PROTOCOL_VERSION);
+        newPayload << stripped;
+        unsignedModify.vExtraPayload.insert(
+            unsignedModify.vExtraPayload.end(), newPayload.begin(), newPayload.end());
+        BOOST_CHECK(!CheckAssetTx(unsignedModify, &reason));
+        BOOST_CHECK_EQUAL(reason, "spats-asset-ownership-invalid");
+    }
+    BOOST_CHECK(CheckAssetTx(modifyTx));
+    {
+        const CScript payee = GetScriptForDestination(
+            CBitcoinAddress(consensus.stage3CommunityFundAddress).Get());
+        const CAmount regFee =
+            static_cast<CAmount>(consensus.nSpatsRegFee[modify.getSymbol().size()]) * COIN;
+        for (const CTxOut& out : modifyTx.vout) {
+            BOOST_CHECK(!(out.scriptPubKey == payee && out.nValue >= regFee));
+        }
+    }
+
+    spark::CSparkAssetTxData transfer;
+    transfer.setOperationType(spark::CSparkAssetTxData::opTransfer);
+    transfer.setSymbol("CAPPED");
+    transfer.setAdminPublicAddress(admin);
+    transfer.setTransferAddress(newAdmin);
+    CAmount missingProofFee;
+    BOOST_CHECK_THROW(
+        pwalletMain->CreateOrModifyAsset(transfer, missingProofFee),
+        std::runtime_error);
+    const std::string receive = pwalletMain->sparkWallet->CreateSpatsAssetReceiveData("CAPPED", newAdmin);
+    std::string receiveAddress;
+    std::vector<unsigned char> receiveProof;
+    BOOST_REQUIRE(spark::ParseSpatsAssetReceiveData(receive, receiveAddress, receiveProof));
+    BOOST_CHECK_EQUAL(receiveAddress, newAdmin);
+    BOOST_REQUIRE(spark::VerifySpatsAssetReceiverProof(
+        *assetType, admin, receiveAddress, receiveProof));
+    transfer.setTransferAddress(receiveAddress);
+    transfer.setRecieverProof(std::move(receiveProof));
+    CMutableTransaction transferTx = CreateAssetTx(transfer);
+    BOOST_CHECK(CheckAssetTx(transferTx));
+
+    {
+        spark::SpendKey foreignSpend(spark::Params::get_default());
+        spark::IncomingViewKey foreignView{spark::FullViewKey(foreignSpend)};
+        spark::Address foreignAddress(foreignView, 1);
+        const std::string foreignDest = foreignAddress.encode(spark::GetNetworkType());
+        spark::CSparkAssetTxData foreignTransfer;
+        foreignTransfer.setOperationType(spark::CSparkAssetTxData::opTransfer);
+        foreignTransfer.setSymbol("CAPPED");
+        foreignTransfer.setAdminPublicAddress(admin);
+        foreignTransfer.setTransferAddress(foreignDest);
+        CAmount foreignFee;
+        BOOST_CHECK_THROW(
+            pwalletMain->CreateOrModifyAsset(foreignTransfer, foreignFee),
+            std::runtime_error);
+
+        spark::OwnershipProof receiverProof;
+        foreignAddress.prove_own(
+            spark::GetSpatsAssetTransferReceiverM(*assetType, admin, foreignDest),
+            foreignSpend,
+            foreignView,
+            receiverProof);
+        foreignTransfer.setRecieverProof(receiverProof);
+        BOOST_CHECK(CheckAssetTx(CreateAssetTx(foreignTransfer)));
+    }
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({transferTx}));
+    BOOST_CHECK_EQUAL(registry.Get(*assetType)->adminPublicAddress, newAdmin);
+    BOOST_CHECK(!CheckAssetTx(modifyTx, &reason));
+    BOOST_CHECK_EQUAL(reason, "spats-asset-not-admin");
+
+    // Disconnecting the transfer restores the previous admin.
+    BOOST_REQUIRE(DisconnectBlocks(1));
+    BOOST_CHECK_EQUAL(registry.Get(*assetType)->adminPublicAddress, admin);
+    BOOST_CHECK(CheckAssetTx(modifyTx));
+
+    // The registry rebuilt from the block index matches the connected one.
+    BOOST_REQUIRE(BuildSparkStateFromIndex(&chainActive));
+    {
+        const auto entry = registry.Get(*assetType);
+        BOOST_REQUIRE(entry);
+        BOOST_CHECK_EQUAL(entry->adminPublicAddress, admin);
+        BOOST_CHECK_EQUAL(entry->maxSupply, 1000u);
+        BOOST_CHECK_EQUAL(registry.GetAssetTypeBySymbol("CAPPED").value_or(0), *assetType);
+        BOOST_CHECK_EQUAL(registry.GetCirculatingSupply(*assetType, 0), 600u);
+    }
+
+    // Disconnecting the mint and the registration empties the registry.
+    BOOST_REQUIRE(DisconnectBlocks(chainActive.Height() - regHeight + 1));
+    BOOST_CHECK(!registry.GetAssetTypeBySymbol("CAPPED"));
+    BOOST_CHECK(!registry.Get(*assetType));
+    BOOST_CHECK_EQUAL(registry.GetCirculatingSupply(*assetType, 0), 0u);
+    BOOST_CHECK(CheckAssetTx(regTx));
 
     mempool.clear();
     sparkState->Reset();
@@ -1061,7 +2040,9 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
             address,
             value,
             "coin-type-test",
-            random_char_vector());
+            random_char_vector(),
+            Scalar(uint64_t(0)),
+            Scalar(uint64_t(0)));
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
         serialized << coin;
 
@@ -1080,6 +2061,14 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         makeTransaction(OP_SPARKMINT, COIN_TYPE_SPEND);
     const CMutableTransaction mismatchedSMint =
         makeTransaction(OP_SPARKSMINT, COIN_TYPE_MINT);
+    const CMutableTransaction mismatchedMintV2 =
+        makeTransaction(OP_SPARKMINT, COIN_TYPE_SPEND_V2);
+    const CMutableTransaction mismatchedSMintV2 =
+        makeTransaction(OP_SPARKSMINT, COIN_TYPE_MINT_V2);
+    const CMutableTransaction consistentSMintV2 =
+        makeTransaction(OP_SPARKSMINT, COIN_TYPE_SPEND_V2);
+    const CMutableTransaction consistentMintV2 =
+        makeTransaction(OP_SPARKMINT, COIN_TYPE_MINT_V2);
 
     // Relay policy rejects both mismatches immediately, before Spark coin
     // deserialization, without assigning peer misbehavior points.
@@ -1118,6 +2107,45 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
     BOOST_CHECK_EQUAL(smintPolicyState.GetRejectCode(), REJECT_NONSTANDARD);
     BOOST_CHECK_EQUAL(smintPolicyState.GetRejectReason(), "bad-spark-coin-type");
     BOOST_CHECK(!smintMissingInputs);
+
+    auto checkTypePolicyReject = [](const CMutableTransaction& tx) {
+        CValidationState state;
+        bool missingInputs = true;
+        {
+            LOCK(cs_main);
+            BOOST_CHECK(!AcceptToMemoryPool(
+                mempool,
+                state,
+                MakeTransactionRef(tx),
+                false,
+                &missingInputs));
+        }
+        int dos = -1;
+        BOOST_REQUIRE(state.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 0);
+        BOOST_CHECK_EQUAL(state.GetRejectCode(), REJECT_NONSTANDARD);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-spark-coin-type");
+        BOOST_CHECK(!missingInputs);
+    };
+    checkTypePolicyReject(mismatchedMintV2);
+    checkTypePolicyReject(mismatchedSMintV2);
+
+    auto checkTypePolicyAllows = [](const CMutableTransaction& tx) {
+        CValidationState state;
+        bool missingInputs = true;
+        {
+            LOCK(cs_main);
+            AcceptToMemoryPool(
+                mempool,
+                state,
+                MakeTransactionRef(tx),
+                false,
+                &missingInputs);
+        }
+        BOOST_CHECK_NE(state.GetRejectReason(), "bad-spark-coin-type");
+    };
+    checkTypePolicyAllows(consistentSMintV2);
+    checkTypePolicyAllows(consistentMintV2);
 
     const int activationHeight = chainActive.Height() + 1;
     UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
@@ -1345,6 +2373,44 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         consistentSMint.GetHash(),
         false,
         activationHeight));
+
+    CValidationState consistentSMintV2State;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(consistentSMintV2),
+        consistentSMintV2State,
+        true,
+        consistentSMintV2.GetHash(),
+        false,
+        activationHeight));
+
+    CValidationState consistentMintV2State;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(consistentMintV2),
+        consistentMintV2State,
+        true,
+        consistentMintV2.GetHash(),
+        false,
+        activationHeight));
+
+    CValidationState mismatchedSMintV2State;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMintV2),
+        mismatchedSMintV2State,
+        true,
+        mismatchedSMintV2.GetHash(),
+        false,
+        activationHeight));
+    BOOST_CHECK_EQUAL(mismatchedSMintV2State.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState mismatchedMintV2State;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedMintV2),
+        mismatchedMintV2State,
+        true,
+        mismatchedMintV2.GetHash(),
+        false,
+        activationHeight));
+    BOOST_CHECK_EQUAL(mismatchedMintV2State.GetRejectReason(), "bad-spark-coin-type");
 
     const auto* params = Params::get_default();
     const SpendKey spendKey(params);
@@ -1888,6 +2954,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         sizeof(uint64_t),
         0xff);
     BOOST_CHECK_THROW(GetSparkSpendFee(oversizedFee), std::invalid_argument);
+    BOOST_CHECK_THROW(GetSparkFee(oversizedFee), std::invalid_argument);
     mempool.clear();
 
     const int preActivationHeight = chainActive.Height();
@@ -3577,6 +4644,163 @@ BOOST_AUTO_TEST_CASE(verifydb_level_four_reconnects_spark_spend_and_mints)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spats_burn_not_counted_as_spark_spend)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(txs));
+    GenerateBlocks(10);
+
+    CMutableTransaction spend(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    const CAmount transparent = GetSpendTransparentAmount(CTransaction(spend));
+    BOOST_CHECK_EQUAL(transparent, 1 * COIN);
+
+    spend.vout.emplace_back(0, MakeSpatsBurnScript(2, 0, 10000 * COIN));
+
+    BOOST_CHECK_EQUAL(GetSpendTransparentAmount(CTransaction(spend)), transparent);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_burn_failures_are_scored)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(txs));
+    GenerateBlocks(10);
+
+    const auto burnScript = [](uint64_t assetType, uint64_t identifier, CAmount amount = COIN) {
+        return MakeSpatsBurnScript(assetType, identifier, amount);
+    };
+    const auto rejected = [](const CMutableTransaction& tx, const char* reason) {
+        CValidationState state;
+        CSparkTxInfo info;
+        BOOST_CHECK(!CheckSparkTransaction(
+            CTransaction(tx), state, tx.GetHash(), false, chainActive.Height(), false, true, &info));
+        int dos = 0;
+        BOOST_CHECK(state.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 100);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), reason);
+    };
+
+    CMutableTransaction duplicate(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    duplicate.vout.emplace_back(0, burnScript(2, 0));
+    duplicate.vout.emplace_back(0, burnScript(2, 0));
+    rejected(duplicate, "CheckSparkSpendTransaction: multiple spats burn outputs");
+
+    CMutableTransaction badIdentifier(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    badIdentifier.vout.emplace_back(0, burnScript(2, 1));
+    rejected(badIdentifier, "CheckSparkSpendTransaction: spats burn identifier is not zero");
+
+    CMutableTransaction valued(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    valued.vout.emplace_back(COIN, burnScript(2, 0));
+    rejected(valued, "bad-spats-burn-nvalue");
+
+    CMutableTransaction truncated(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    CScript shortBurn;
+    shortBurn << OP_SPATSBURN;
+    truncated.vout.emplace_back(0, shortBurn);
+    rejected(truncated, "CheckSparkSpendTransaction: invalid spats burn output");
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_checks_spats_mint)
+{
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    pwalletMain->SetBroadcastTransactions(true);
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({10 * COIN, 10 * COIN, 10 * COIN}, txs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(txs));
+    GenerateBlocks(10);
+
+    const uint64_t assetType = RegisterSparkAsset("VERIFYMINT");
+    auto address = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::MintedCoinData minted;
+    minted.address = address;
+    minted.v = 100 * 10000;
+    minted.memo = "";
+    minted.a = Scalar(assetType);
+    minted.iota = Scalar(uint64_t(0));
+    CAmount fee;
+    CMutableTransaction mintTx(
+        pwalletMain->sparkWallet->CreateSpatsMintTransaction({minted, address}, fee));
+
+    const auto findMint = [](CMutableTransaction& tx) {
+        return std::find_if(tx.vout.begin(), tx.vout.end(), [](const CTxOut& output) {
+            return output.scriptPubKey.IsSpatsMint();
+        });
+    };
+    const auto containsAssetCoin = [&](const CSparkTxInfo& info) {
+        for (const spark::Coin& coin : info.mints) {
+            if (coin.a == minted.a && coin.v == minted.v)
+                return true;
+        }
+        return false;
+    };
+
+    CValidationState state;
+    CSparkTxInfo info;
+    BOOST_CHECK(CheckSparkTransaction(
+        CTransaction(mintTx),
+        state,
+        mintTx.GetHash(),
+        true,
+        chainActive.Height() + 1,
+        false,
+        true,
+        &info));
+    BOOST_CHECK(containsAssetCoin(info));
+
+    CMutableTransaction tampered = mintTx;
+    auto mintOutput = findMint(tampered);
+    BOOST_REQUIRE(mintOutput != tampered.vout.end());
+    const size_t proofSize = spark::OwnershipProof::memoryRequired();
+    BOOST_REQUIRE(mintOutput->scriptPubKey.size() > 1 + proofSize);
+    mintOutput->scriptPubKey[mintOutput->scriptPubKey.size() - proofSize - 1] ^= 1;
+    CValidationState tamperedState;
+    CSparkTxInfo tamperedInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(tampered),
+        tamperedState,
+        tampered.GetHash(),
+        true,
+        chainActive.Height() + 1,
+        false,
+        true,
+        &tamperedInfo));
+
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({mintTx}));
+    {
+        spark::MintTransaction parsed(spark::Params::get_default());
+        spark::OwnershipProof parsedProof;
+        const auto output = findMint(mintTx);
+        BOOST_REQUIRE(output != mintTx.vout.end());
+        ParseSpatsMintTransaction(output->scriptPubKey, parsed, parsedProof);
+        std::vector<spark::Coin> coins;
+        parsed.getCoins(coins);
+        BOOST_REQUIRE_EQUAL(coins.size(), 1U);
+        BOOST_CHECK(sparkState->HasCoin(coins.front()));
+    }
+    CVerifyDB verifier;
+    BOOST_CHECK(verifier.VerifyDB(::Params(), pcoinsTip, 4, 20));
+    BOOST_CHECK_EQUAL(
+        sparkState->GetAssetState().GetCirculatingSupply(assetType, 0), minted.v);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(verifydb_rejects_invalid_standalone_spark_mint)
 {
     BatchProofContainer::get_instance()->fCollectProofs = false;
@@ -4465,7 +5689,7 @@ BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
     meta.memo = "lookup test";
     meta.serial_context = random_char_vector();
     meta.type = COIN_TYPE_MINT;
-    meta.coin = Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
+    meta.coin = Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context, Scalar(uint64_t(0)), Scalar(uint64_t(0)));
 
     const uint256 lTagHash = uint256S("0x1");
 
@@ -4547,7 +5771,7 @@ BOOST_AUTO_TEST_CASE(wallet_cache_verification)
     good.memo = "good";
     good.serial_context = random_char_vector();
     good.type = COIN_TYPE_MINT;
-    good.coin = Coin(params, good.type, good.k, goodAddress, good.v, good.memo, good.serial_context);
+    good.coin = Coin(params, good.type, good.k, goodAddress, good.v, good.memo, good.serial_context, Scalar(uint64_t(0)), Scalar(uint64_t(0)));
     const uint256 goodTag = uint256S("0x10");
 
     // A record whose coin was built from foreign keys, standing in for a
@@ -4568,7 +5792,7 @@ BOOST_AUTO_TEST_CASE(wallet_cache_verification)
     bad.memo = "bad";
     bad.serial_context = random_char_vector();
     bad.type = COIN_TYPE_MINT;
-    bad.coin = Coin(params, bad.type, bad.k, foreignAddress, bad.v, bad.memo, bad.serial_context);
+    bad.coin = Coin(params, bad.type, bad.k, foreignAddress, bad.v, bad.memo, bad.serial_context, Scalar(uint64_t(0)), Scalar(uint64_t(0)));
     const uint256 badTag = uint256S("0x20");
 
     wallet->addOrUpdateMint(good, goodTag, walletdb);

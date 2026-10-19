@@ -5,6 +5,25 @@
 #include "serialize.h"
 #include "../uint256.h"
 
+#include <optional>
+
+namespace spark {
+/** The uint64 an asset type or identifier scalar encodes, or nullopt if it is larger. */
+inline std::optional<std::uint64_t> GetSpatsScalarAsUint64(const secp_primitives::Scalar& value)
+{
+    unsigned char buffer[32];
+    value.serialize(buffer);
+    for (int i = 0; i < 24; ++i) {
+        if (buffer[i] != 0)
+            return std::nullopt;
+    }
+    std::uint64_t result = 0;
+    for (int i = 24; i < 32; ++i)
+        result = (result << 8) | buffer[i];
+    return result;
+}
+}
+
 struct CSparkMintMeta
 {
     int nHeight;
@@ -36,9 +55,14 @@ struct CSparkMintMeta
     // TODO any need to check `type` as well? Perhaps just for better performance?
     bool IsSpats() const noexcept { return !(a.isZero() && coin.a.isZero()); }
 
-   // TODO Performance: consider a faster retrieval of uint64 from Scalar other than via .tostring(). Or even, why is Scalar used for these two in the first place?
-    std::uint64_t GetAssetType() const { return std::stoull((a.isZero() ? coin.a : a).tostring()); }
-    std::uint64_t GetIdentifier() const { return std::stoull((iota.isZero() ? coin.iota : iota).tostring()); }
+    std::optional<std::uint64_t> GetAssetType() const
+    {
+        return spark::GetSpatsScalarAsUint64(a.isZero() ? coin.a : a);
+    }
+    std::optional<std::uint64_t> GetIdentifier() const
+    {
+        return spark::GetSpatsScalarAsUint64(iota.isZero() ? coin.iota : iota);
+    }
 
     bool operator==(const CSparkMintMeta& other) const
     {

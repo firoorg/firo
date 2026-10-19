@@ -84,6 +84,7 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
     case TX_ZEROCOINMINTV3:
     case TX_LELANTUSMINT:
     case TX_LELANTUSJMINT:
+    case TX_SPATSBURN:
         return false;
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();

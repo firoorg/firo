@@ -89,7 +89,7 @@ static void ReplaceSpatsMintPlaceholder(CMutableTransaction& tx, const spark::Mi
 {
     const CScript ph = SpatsMintPlaceholderScript();
     for (size_t i = 0; i < tx.vout.size(); ++i) {
-        if (tx.vout[i].scriptPubKey == ph && tx.vout[i].nValue == mintData.v) {
+        if (tx.vout[i].scriptPubKey == ph && tx.vout[i].nValue == 0) {
             tx.vout[i].scriptPubKey = BuildSpatsMintScriptPubKey(tx, mintData);
             return;
         }
@@ -3444,8 +3444,12 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         return false;
     }
     if (pSpatsMintTransparent) {
-        if (vecSend.size() != 1 || vecSend[0].nAmount != pSpatsMintTransparent->v) {
-            strFailReason = _("Spats mint transparent requires exactly one recipient with amount equal to mint value");
+        if (pSpatsMintTransparent->v == 0) {
+            strFailReason = _("Spats mint amount must be greater than zero");
+            return false;
+        }
+        if (vecSend.size() != 1 || vecSend[0].nAmount != 0) {
+            strFailReason = _("Spats mint transparent requires exactly one zero-value mint output");
             return false;
         }
     }
@@ -4064,37 +4068,67 @@ CWalletTx CWallet::MintAndStoreSpats(
         const spark::MintedCoinData& mintData,
         const CCoinControl* coinControl)
 {
-    const std::string initiatorAddress; //TODO levon get address from spats wallet
+    const auto assetType = spark::GetSpatsScalarAsUint64(mintData.a);
+    std::optional<spark::CSparkAssetDBEntry> entry;
+    {
+        LOCK(cs_main);
+        if (assetType)
+            entry = spark::CSparkState::GetState()->GetAssetState().Get(*assetType);
+    }
+    if (!entry)
+        throw std::runtime_error(_("Asset is not registered"));
+    const std::string& adminAddress = entry->adminPublicAddress;
 
-    spark::Address sparkInitiator(spark::Params::get_default());
-    bool initiatorIsSpark = false;
+    spark::Address sparkAdmin(spark::Params::get_default());
+    bool adminIsSpark = false;
     try {
-        sparkInitiator = CSparkWallet::decodeAddress(initiatorAddress);
-        initiatorIsSpark = true;
+        sparkAdmin = CSparkWallet::decodeAddress(adminAddress);
+        adminIsSpark = true;
     } catch (const std::exception&) {
     }
 
-    if (initiatorIsSpark) {
+    if (adminIsSpark) {
         EnsureSparkWalletAvailable();
-        if (!sparkWallet->isAddressMine(initiatorAddress))
-            throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
+        if (!sparkWallet->isAddressMine(adminAddress))
+            throw std::runtime_error(_("Asset admin address doesn't belong to the wallet"));
 
-        spark::MintedCoinData md = mintData;
-        md.address = sparkInitiator;
         CAmount fee;
-        CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction({md, sparkInitiator}, fee, coinControl);
+        CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction({mintData, sparkAdmin}, fee, coinControl);
         CommitWalletTransaction(wtx);
         return wtx;
     }
 
-    CBitcoinAddress btcAddr(initiatorAddress);
+    CBitcoinAddress btcAddr(adminAddress);
     if (!btcAddr.IsValid())
-        throw std::runtime_error(_("Invalid initiator address"));
-    if (IsMine(CTxOut(0, GetScriptForDestination(btcAddr.Get()))) != ISMINE_SPENDABLE)
-        throw std::runtime_error(_("Transparent address doesn't belong to wallet"));
+        throw std::runtime_error(_("Invalid asset admin address"));
+    const CTxDestination adminDest = btcAddr.Get();
+    if (IsMine(CTxOut(0, GetScriptForDestination(adminDest))) != ISMINE_SPENDABLE)
+        throw std::runtime_error(_("Asset admin address doesn't belong to wallet"));
+
+    // Consensus authorizes a transparent admin by a SIGHASH_ALL spend of one of its coins.
+    CCoinControl control;
+    if (coinControl)
+        control = *coinControl;
+    control.fAllowOtherInputs = true;
+    bool foundAdminInput = false;
+    {
+        LOCK2(cs_main, cs_wallet);
+        std::vector<COutput> coins;
+        AvailableCoins(coins, true, &control);
+        for (const COutput& out : coins) {
+            CTxDestination dest;
+            if (!out.fSpendable || !ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, dest) || dest != adminDest)
+                continue;
+            control.Select(COutPoint(out.tx->GetHash(), out.i));
+            foundAdminInput = true;
+            break;
+        }
+    }
+    if (!foundAdminInput)
+        throw std::runtime_error(_("Asset admin address has no available output"));
 
     CAmount fee;
-    CWalletTx wtx = CreateSpatsMintTransparentTransaction(mintData, fee, coinControl);
+    CWalletTx wtx = CreateSpatsMintTransparentTransaction(mintData, fee, &control);
     CommitWalletTransaction(wtx);
     return wtx;
 }
@@ -4107,18 +4141,15 @@ CWalletTx CWallet::CreateSpatsMintTransparentTransaction(
     if (IsLocked())
         throw std::runtime_error(_("Wallet locked"));
 
-    if (mintData.a == Scalar(uint64_t(0)) || mintData.iota == Scalar(uint64_t(0)))
-        throw std::runtime_error(_("Invalid asset type and identifier"));
-//    const spats::asset_type_t a{std::stoull(mintData.a.tostring())};
-//    if (!is_fungible_asset_type(a))
-//        throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));
+    if (mintData.a == Scalar(uint64_t(0)))
+        throw std::runtime_error(_("Invalid asset type"));
 
     CWalletTx wtxNew;
     CReserveKey reservekey(this);
     int nChangePosInOut = -1;
     std::string strFailReason;
     std::vector<CRecipient> vecSend(1);
-    vecSend[0].nAmount = mintData.v;
+    vecSend[0].nAmount = 0;
     vecSend[0].scriptPubKey = CScript();
     vecSend[0].fSubtractFeeFromAmount = false;
 
@@ -4134,7 +4165,7 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         CAmount& fee,
         const std::pair<CAmount, std::pair<Scalar, Scalar>>& burnAsset,
         const CCoinControl* coinControl,
-        const std::optional<std::pair<spark::MintedCoinData, spark::Address>>&,
+        const std::optional<std::pair<spark::MintedCoinData, spark::Address>>& spatsMintRecipient,
         int expectedNextBlockHeight,
         std::vector<CAmount>* recipientAmounts)
 {
@@ -4155,7 +4186,9 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         0,
         uint256(),
         expectedNextBlockHeight,
-        recipientAmounts);
+        recipientAmounts,
+        uint256(),
+        spatsMintRecipient);
 }
 
 CWalletTx CWallet::CreateSparkSpendTransaction(
@@ -4264,25 +4297,6 @@ CWalletTx CWallet::CreateAndStoreAsset(
     CommitWalletTransaction(result);
     return result;
 }
-
-//
-//std::optional<CWalletTx> CWallet::BurnSparkAssetSupply(spats::asset_type_t asset_type, const spats::asset_symbol_t &asset_symbol, spats::supply_amount_t burn_amount,
-//    const spats::BurnActionUserConfirmationCallback& user_confirmation_callback)
-//{
-//    // create transaction
-//    CAmount standard_fee;
-//    auto wtx = sparkWallet->getSpatsWallet().create_burn_asset_supply_transaction(asset_type, asset_symbol, burn_amount, standard_fee, user_confirmation_callback);
-//    if (!wtx)
-//        return wtx;
-//
-//    CommitWalletTransaction(*wtx,
-//            std::string(_("Error: The BurnSparkAssetSupply transaction was rejected! This might happen e.g. if some of "
-//                    "the coins in your wallet were already spent, such as if you used "
-//                    "a copy of wallet.dat and coins were spent in the copy but not "
-//                    "marked as spent here.")));
-//
-//    return wtx;
-//}
 
 std::vector<CWalletTx> CWallet::SpendAndStoreSparkSingleInput(
         const std::vector<CRecipient>& recipients,
@@ -6256,14 +6270,6 @@ std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 
     return sparkWallet->getSparkBalance();
 }
-
-//spats::Wallet::asset_balances_t CWallet::GetSpatsBalances() const
-//{
-    //TODO levon
-//    if (!spark::IsSparkAllowed() || !sparkWallet)
-//        return { { spats::base::universal_id, {} } };
-//    return sparkWallet->getAssetBalances();
-//}
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {
     return sparkWallet && sparkWallet->isAddressMine(address);

@@ -162,7 +162,7 @@ std::pair<CAmount, CAmount> CSparkWallet::getSparkBalance() {
     for (auto& it : coinMeta) {
         CSparkMintMeta mint = it.second;
 
-        if (mint.isUsed)
+        if (mint.isUsed || mint.IsSpats())
             continue;
 
         // Not confirmed
@@ -318,7 +318,7 @@ spark::Address CSparkWallet::getAddress(const int32_t i) const
     if (lastDiversifier < i || addresses.count(i) == 0)
         return spark::Address(viewKey, i);
 
-    return addresses[i];
+    return addresses.at(i);
 }
 
 bool CSparkWallet::isAddressMine(const std::string& encodedAddr) const
@@ -1599,6 +1599,17 @@ bool getIndex(const spark::Coin& coin, const std::vector<spark::Coin>& anonymity
     return false;
 }
 
+static CScript BuildSpatsBurnScript(const std::pair<Scalar, Scalar>& assetId, CAmount amount)
+{
+    CScript script;
+    script << OP_SPATSBURN;
+    CDataStream serializedBurn(SER_NETWORK, PROTOCOL_VERSION);
+    serializedBurn << assetId;
+    serializedBurn << amount;
+    script.insert(script.end(), serializedBurn.begin(), serializedBurn.end());
+    return script;
+}
+
 CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
@@ -1610,7 +1621,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const uint256& extensionCommitment,
         int expectedNextBlockHeight,
         std::vector<CAmount>* recipientAmounts,
-        const uint256& extraDataHash) {
+        const uint256& extraDataHash,
+        const std::optional<std::pair<spark::MintedCoinData, spark::Address>>& spatsMintRecipient) {
 
     // if additionalTxSize is not 0 that means we are creating spats mint transaction // TODO GV #Review: not necessarily, it could be a spark name creation too
     if (recipients.empty() && privateRecipients.empty() && spatsRecipients.empty() && !additionalTxSize && burnAsset.first <= 0) {
@@ -1618,7 +1630,12 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     const auto &consensusParams = Params().GetConsensus();
-    if ((privateRecipients.size() +  spatsRecipients.size()) >= (consensusParams.nMaxSparkOutLimitPerTx - 1))
+    const bool dummyAssetOutput = burnAsset.first > 0 &&
+        std::none_of(spatsRecipients.begin(), spatsRecipients.end(),
+            [](const spark::OutputCoinData& recipient) { return recipient.v > 0; });
+    const std::size_t reservedPrivateChange = dummyAssetOutput ? 2 : 1;
+    if (privateRecipients.size() + spatsRecipients.size() + reservedPrivateChange >=
+            consensusParams.nMaxSparkOutLimitPerTx)
         throw std::runtime_error(_("Spark shielded output limit exceeded."));
 
     // calculate the total value to spend
@@ -1679,23 +1696,28 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         }
     }
 
-    const auto& burn_asset_type = burnAsset.second.first;
     if (burnAsset.first > 0) {
-        //TODO levon
-//        if (!spats::is_fungible_asset_type(spats::asset_type_t{std::stoull(burn_asset_type.tostring())}))
-//            throw std::runtime_error(_("Burning is allowed only for fungible assets."));
-//        if (!burnAsset.second.second.isZero())
-//            throw std::domain_error("Cannot burn an asset which has an identifier (NFT ID).");
-//        if (spatsMintVOut > 0) {
-//            if (burnAsset.second != identifier)
-//                throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-//        } else {
-//            assert(identifier.first.isZero());
-//            assert(identifier.second.isZero());
-//            identifier = burnAsset.second;
-//        }
-//        spatsMintVOut += burnAsset.first;
-//        additionalTxSize += 2 * Scalar::memoryRequired();
+        if (!spark::IsSpatsStarted())
+            throw std::runtime_error(_("Spats not started."));
+        if (burnAsset.first > spark::MAX_ASSET_MONEY)
+            throw std::runtime_error(_("Burn amount is out of range"));
+        if (burnAsset.second.first.isZero() || !burnAsset.second.second.isZero())
+            throw std::runtime_error(_("Burning is allowed only for fungible assets."));
+        if (spatsMintVOut > 0) {
+            if (burnAsset.second != identifier)
+                throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
+        } else {
+            identifier = burnAsset.second;
+        }
+        if (spatsMintVOut > spark::MAX_ASSET_MONEY - burnAsset.first)
+            throw std::runtime_error(_("Spark asset output amount is out of range"));
+        spatsMintVOut += burnAsset.first;
+        additionalTxSize += GetSerializeSize(
+            CTxOut(0, BuildSpatsBurnScript(burnAsset.second, burnAsset.first)),
+            SER_NETWORK,
+            PROTOCOL_VERSION);
+        if (dummyAssetOutput)
+            additionalTxSize += 322;
     }
     if (mintVOut > MAX_MONEY - vOut) {
         throw std::runtime_error(_(
@@ -1719,8 +1741,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     std::vector<CSparkMintMeta> selectedCoins;
     std::vector<CSparkMintMeta> spatsSpendCoins;
     CAmount spatsSpendAmount = 0;
+    if (spatsMintRecipient && !spark::IsSpatsStarted())
+        throw std::runtime_error(_("Spats not started."));
     const bool spatsSpend = spark::IsSpatsStarted() &&
-        (!spatsRecipients.empty() || burnAsset.first > 0 || !extraDataHash.IsNull());
+        (!spatsRecipients.empty() || burnAsset.first > 0 || !extraDataHash.IsNull() ||
+            spatsMintRecipient.has_value());
     std::vector<spark::OutputCoinData> privOutputs;
     std::vector<spark::InputCoinData> inputs;
     std::map<uint64_t, uint256> idAndBlockHashes;
@@ -1750,6 +1775,14 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
         if (vOut > consensusParams.GetMaxValueSparkSpendPerTransaction(nHeight + 1))
             throw std::runtime_error(_("Spend to transparent address limit exceeded."));
+        if (burnAsset.first > 0) {
+            const auto assetType = spark::GetSpatsScalarAsUint64(burnAsset.second.first);
+            const auto entry = assetType
+                ? spark::CSparkState::GetState()->GetAssetState().Get(*assetType)
+                : std::nullopt;
+            if (!entry || entry->assetKind != static_cast<uint8_t>(spark::AssetKind::Fungible))
+                throw std::runtime_error(_("Burning is allowed only for fungible assets."));
+        }
 
     // Discourage fee sniping.
     //
@@ -1982,6 +2015,17 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.iota = identifier.second;
                 wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
                 privOutputs.push_back(output);
+            } else if (dummyAssetOutput) {
+                // Spend proofs require asset inputs and outputs together. A full
+                // burn has no leftover, so add a zero-value asset coin.
+                spark::OutputCoinData output;
+                output.address = getChangeAddress();
+                output.memo = "";
+                output.v = 0;
+                output.a = identifier.first;
+                output.iota = identifier.second;
+                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
+                privOutputs.push_back(output);
             }
 
 
@@ -2117,6 +2161,28 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             ++i;
         }
     };
+    CScript spatsMintScript;
+    uint256 spendExtraDataHash = extraDataHash;
+    if (spatsMintRecipient) {
+        if (!isAddressMine(spatsMintRecipient->second))
+            throw std::runtime_error(_("Spark asset public address is not mine"));
+        std::vector<secp_primitives::GroupElement> tags;
+        tags.reserve(inputs.size());
+        for (const auto& input : inputs)
+            tags.push_back(input.T);
+        CDataStream serialContext(SER_NETWORK, PROTOCOL_VERSION);
+        serialContext << tags;
+        spark::MintTransaction mint(
+            params,
+            {spatsMintRecipient->first},
+            std::vector<unsigned char>(serialContext.begin(), serialContext.end()),
+            true);
+        CDataStream serializedMint = mint.getMintedCoinsSerialized().front();
+        spatsMintScript << OP_SPATSMINT;
+        spatsMintScript.insert(spatsMintScript.end(), serializedMint.begin(), serializedMint.end());
+        const std::vector<unsigned char> prefix(spatsMintScript.begin(), spatsMintScript.end());
+        spendExtraDataHash = spark::GetSpatsMintSpendBindHash(0, prefix);
+    }
     if (spatsSpend) {
         spats::SpendTransaction spendTransaction(
             params,
@@ -2129,7 +2195,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             transparentOut,
             burnAsset.first,
             privOutputs,
-            extraDataHash,
+            spendExtraDataHash,
             idAndBlockHashes);
         spendTransaction.setBlockHashes(idAndBlockHashes);
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -2159,12 +2225,18 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     if (burnAsset.first > 0) {
-        CScript script;
-        script << OP_SPATSBURNAMOUNT;
-        CDataStream serializedBurn(SER_NETWORK, PROTOCOL_VERSION);
-        serializedBurn << burnAsset.second;
-        script.insert(script.end(), serializedBurn.begin(), serializedBurn.end());
-        tx.vout.push_back(CTxOut(burnAsset.first, script));
+        tx.vout.push_back(CTxOut(0, BuildSpatsBurnScript(burnAsset.second, burnAsset.first)));
+    }
+
+    if (!spatsMintScript.empty()) {
+        tx.vout.push_back(CTxOut(0, spatsMintScript));
+        const Scalar m = spark::GetSpatsMintM(tx);
+        spark::OwnershipProof ownershipProof;
+        spatsMintRecipient->second.prove_own(m, spendKey, viewKey, ownershipProof);
+        CDataStream serializedOwn(SER_NETWORK, PROTOCOL_VERSION);
+        serializedOwn << ownershipProof;
+        tx.vout.back().scriptPubKey.insert(
+            tx.vout.back().scriptPubKey.end(), serializedOwn.begin(), serializedOwn.end());
     }
 
     if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
@@ -2260,72 +2332,21 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     return wtxNew;
 }
 
-void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
-    const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
-    const spark::SpendKey& spendKey)
-{
-    if (!isAddressMine(spatsRecipient.second))
-        throw std::runtime_error(_("Spark asset public address is not mine"));
-
-
-    std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
-
-    const spark::Params* params = spark::Params::get_default();
-    spark::MintTransaction spatskMint(params, {spatsRecipient.first}, serialContext, true);
-    CDataStream serializedMint = spatskMint.getMintedCoinsSerialized().front();
-
-    CScript script;
-    // opcode is inserted as 1 byte according to file script/script.h
-    script << OP_SPATSMINT;
-    script.insert(script.end(), serializedMint.begin(), serializedMint.end());
-
-    tx.vout.push_back(CTxOut(spatsRecipient.first.v, script));
-
-    Scalar m = spark::GetSpatsMintM(tx);
-    spark::OwnershipProof ownershipProof;
-    spatsRecipient.second.prove_own(m, spendKey, viewKey, ownershipProof);
-    CDataStream serializedOwn(SER_NETWORK, PROTOCOL_VERSION);
-    serializedOwn << ownershipProof;
-
-    auto& scriptRef = tx.vout.back().scriptPubKey;
-    scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
-}
-
-uint256 getSpatsMintExtraDataHash(const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient) {
-    CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
-    hashStream << spark::LABEL_SPATS_MINT_SPEND_BIND;
-    hashStream << spatsRecipient.first.v;
-    hashStream << spatsRecipient.first.a;
-    hashStream << spatsRecipient.first.iota;
-    unsigned char network = spark::GetNetworkType();
-    hashStream << spatsRecipient.second.encode(network);
-    return hashStream.GetHash();
-}
-
 CWalletTx CSparkWallet::CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         CAmount &fee,
         const CCoinControl *coinControl)
 {
 
-    if (spatsRecipient.first.a == Scalar(uint64_t(0)) || spatsRecipient.first.iota == Scalar(uint64_t(0)))
-        throw std::runtime_error(_("Invalid assed type and identifier, please use spark mint creation."));
-    // TODO levon also check type and identifier against spark asset registry
-    //TODO levon check value agains state, if able to mint
+    if (spatsRecipient.first.a == Scalar(uint64_t(0)))
+        throw std::runtime_error(_("Invalid asset type, please use spark mint creation."));
 
     CAmount additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequired() + 8;
     std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
 
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction(
+    return CreateSparkSpendTransaction(
         {}, {}, {}, fee, emptyBurn, coinControl, additionalTxSize,
-        uint256(), -1, nullptr, getSpatsMintExtraDataHash(spatsRecipient));
-
-    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey());
-    spark::Address  address(spark::Params::get_default());
-
-    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
-    return wtxSparkSpend;
+        uint256(), -1, nullptr, uint256(), spatsRecipient);
 }
 
 CWalletTx CSparkWallet::CreateSparkNameTransaction(
@@ -2467,7 +2488,7 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
     else
         throw std::runtime_error(_("Invalid admin public address"));
 
-    const auto &consensusParams = Params().GetConsensus();
+    const auto& consensusParams = Params().GetConsensus();
     int nHeight;
     {
         LOCK(cs_main);
@@ -2479,12 +2500,20 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
 
     spark::CSparkState* sparkState = spark::CSparkState::GetState();
 
-    std::string payoutAddress = consensusParams.stage3CommunityFundAddress;
-    CAmount sparkAssetFee = consensusParams.nSparkNamesFee[assetData.getSymbol().size()] * COIN;
+    std::vector<CRecipient> recipients;
     if (assetData.isRegister()) {
         if (!sparkState->GetAssetState().CanRegister(assetData))
             throw std::runtime_error(_("Unable to register, state conflict"));
-
+        const size_t symbolSize = assetData.getSymbol().size();
+        if (symbolSize >= consensusParams.nSpatsRegFee.size() ||
+            consensusParams.nSpatsRegFee[symbolSize] < 0)
+            throw std::runtime_error(_("Unable to register, invalid fee"));
+        CRecipient devPayout;
+        devPayout.nAmount = consensusParams.nSpatsRegFee[symbolSize] * COIN;
+        devPayout.scriptPubKey = GetScriptForDestination(
+            CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
+        devPayout.fSubtractFeeFromAmount = false;
+        recipients.push_back(devPayout);
     }
 
     if (assetData.isModify()) {
@@ -2495,89 +2524,137 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
     if (assetData.isTransfer()) {
         if (!sparkState->GetAssetState().CanTransfer(assetData))
             throw std::runtime_error(_("Unable to transfer, state conflict"));
+        const auto assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(assetData.getSymbol());
+        const auto entry = assetType ? sparkState->GetAssetState().Get(*assetType) : std::nullopt;
+        if (!entry)
+            throw std::runtime_error(_("Unable to transfer, state conflict"));
+        if (assetData.getRecieverOwnershipProof().empty())
+            throw std::runtime_error(_("Receiver ownership proof is required"));
+        if (!spark::VerifySpatsAssetReceiverProof(
+                *assetType,
+                entry->adminPublicAddress,
+                assetData.getTransferAddress(),
+                assetData.getRecieverOwnershipProof()))
+            throw std::runtime_error(_("Invalid receiver ownership proof"));
     }
 
-
-    CRecipient devPayout;
-    devPayout.nAmount = sparkAssetFee;
-    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(payoutAddress).Get());
-    devPayout.fSubtractFeeFromAmount = false;
-
-
+    const bool signAdmin = assetData.isModify() || assetData.isTransfer();
+    if (signAdmin) {
+        if (isTransparent) {
+            CBitcoinAddress address(assetData.getAdminBitcoinAddress());
+            const CTxDestination adminDest = address.Get();
+            if (!(::IsMine(*pwalletMain, adminDest) & ISMINE_SPENDABLE))
+                throw std::runtime_error(_("Transparent asset public address is not mine"));
+        } else if (!isAddressMine(assetData.getAdminPublicAddress())) {
+            throw std::runtime_error(_("Spark asset public address is not mine"));
+        }
+    }
 
     CWalletTx wtx;
+    assetData.setOwnershipProof(std::vector<unsigned char>{});
+    const size_t assetPayloadSize = GetSerializeSize(assetData, SER_NETWORK, PROTOCOL_VERSION)
+        + (signAdmin ? spark::OwnershipProof::memoryRequired() + 20 : 20);
+    const uint256 assetBind = spark::GetSpatsAssetBindHash(assetData);
+    const bool useChaumV2 = nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock;
+    const uint256 extensionCommitment = useChaumV2 ? assetBind : uint256();
+    const uint256 extraDataHash = useChaumV2 ? uint256() : assetBind;
+    wtx = CreateSparkSpendTransaction(
+        recipients, {}, {}, txFee, std::pair<CAmount, std::pair<Scalar, Scalar>>{},
+        coinConrol, assetPayloadSize, extensionCommitment, -1, nullptr,
+        extraDataHash);
 
-    if (!isTransparent) {
-    	if (!isAddressMine(assetData.getAdminPublicAddress()))
-   			throw std::runtime_error(_("Spark asset public address is not mine"));
+    CMutableTransaction tx = CMutableTransaction(*wtx.tx);
+    const size_t spendSize = tx.vExtraPayload.size();
+    CDataStream unsignedAsset(SER_NETWORK, PROTOCOL_VERSION);
+    unsignedAsset << assetData;
+    tx.vExtraPayload.insert(tx.vExtraPayload.end(), unsignedAsset.begin(), unsignedAsset.end());
 
-        Scalar m = spark::GetSpatsRegistreM(assetData);
-    	spark::OwnershipProof ownershipProof;
-    	spark::SpendKey spendKey = ensureSpendKey();
-    	assetData.getAdminSparkAddress().prove_own(m, spendKey, viewKey, ownershipProof);
-    	assetData.setOwnershipProof(ownershipProof);
-
-        const size_t assetPayloadSize = GetSerializeSize(assetData, SER_NETWORK, PROTOCOL_VERSION)
-        + 20 /* add a little bit to the fee to be on the safe side */;
-        const uint256 assetBind = spark::GetSpatsAssetBindHash(assetData);
-        // After Chaum V2 the bytes following a spend are a committed extension.
-        // Before that, the same hash is bound inside a SPATS spend.
-        const bool useChaumV2 = nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock;
-        const uint256 extensionCommitment = useChaumV2 ? assetBind : uint256();
-        const uint256 extraDataHash = useChaumV2 ? uint256() : assetBind;
-    	wtx = CreateSparkSpendTransaction(
-            {devPayout}, {}, {}, txFee, std::pair<CAmount, std::pair<Scalar, Scalar>>{},
-            coinConrol, assetPayloadSize, extensionCommitment, -1, nullptr,
-            extraDataHash);
-
-    	CMutableTransaction tx = CMutableTransaction(*wtx.tx);
-    	CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
-    	serializedAsset << assetData;
-   	 	tx.vExtraPayload.insert(tx.vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
-    	wtx.tx = MakeTransactionRef(std::move(tx));
-	} else {
-        CBitcoinAddress address(assetData.getAdminBitcoinAddress());
-        const CTxDestination adminDest = address.Get();
-        if (!(::IsMine(*pwalletMain, adminDest) & ISMINE_SPENDABLE))
-            throw std::runtime_error(_("Transparent asset public address is not mine"));
-
-        CCoinControl control;
-        if (coinConrol)
-            control = *coinConrol;
-        control.fAllowOtherInputs = true;
-
-        bool foundAdminInput = false;
-        {
-            LOCK2(cs_main, pwalletMain->cs_wallet);
-            std::vector<COutput> coins;
-            pwalletMain->AvailableCoins(coins, true, &control);
-            for (const COutput& out : coins) {
-                if (!out.fSpendable)
-                    continue;
-                CTxDestination dest;
-                if (!ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, dest))
-                    continue;
-                if (dest != adminDest)
-                    continue;
-                control.Select(COutPoint(out.tx->GetHash(), out.i));
-                foundAdminInput = true;
-                break;
+    if (signAdmin) {
+        if (isTransparent) {
+            const CBitcoinAddress destAddr(assetData.getAdminBitcoinAddress());
+            CKeyID keyID;
+            if (!destAddr.IsValid() || !destAddr.GetKeyID(keyID))
+                throw std::runtime_error(_("Invalid admin public address"));
+            CKey key;
+            {
+                LOCK(pwalletMain->cs_wallet);
+                if (!pwalletMain->GetKey(keyID, key))
+                    throw std::runtime_error(_("Transparent asset public address is not mine"));
             }
+            std::vector<unsigned char> signature;
+            if (!key.SignCompact(spark::GetSpatsAssetOwnershipHash(CTransaction(tx), assetData), signature))
+                throw std::runtime_error(_("Unable to sign asset operation"));
+            assetData.setOwnershipProof(std::move(signature));
+        } else {
+            spark::OwnershipProof ownershipProof;
+            assetData.getAdminSparkAddress().prove_own(
+                spark::GetSpatsAssetOwnershipM(CTransaction(tx), assetData),
+                ensureSpendKey(),
+                viewKey,
+                ownershipProof);
+            assetData.setOwnershipProof(ownershipProof);
         }
-        if (!foundAdminInput)
-            throw std::runtime_error(_("Transparent asset public address has no available output"));
-
-        std::vector<uint8_t> vExtraPayload;
         CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
-    	serializedAsset << assetData;
-   	 	vExtraPayload.insert(vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
-        CReserveKey reservekey(pwalletMain);
-        std::string strFailReason;
-        int nChangePosInOut = -1;
-		if (!pwalletMain->CreateTransaction({devPayout}, wtx, reservekey, txFee, nChangePosInOut, strFailReason, &control, true, static_cast<int>(vExtraPayload.size()), false, vExtraPayload))
-        	throw std::runtime_error(strFailReason);
-	}
+        serializedAsset << assetData;
+        tx.vExtraPayload.resize(spendSize);
+        tx.vExtraPayload.insert(tx.vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
+    }
+    wtx.tx = MakeTransactionRef(std::move(tx));
     return wtx;
+}
+
+std::string CSparkWallet::CreateSpatsAssetReceiveData(const std::string& symbol, std::string address)
+{
+    if (address.empty())
+        address = getDefaultAddress().encode(spark::GetNetworkType());
+    if (!spark::IsValidAssetAdminAddress(address))
+        throw std::runtime_error(_("Invalid receive address"));
+
+    spark::CSparkState* sparkState = spark::CSparkState::GetState();
+    const auto assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    const auto entry = assetType ? sparkState->GetAssetState().Get(*assetType) : std::nullopt;
+    if (!entry)
+        throw std::runtime_error(_("Asset by this symbol does not exist"));
+
+    spark::Address sparkDest(spark::Params::get_default());
+    bool isSpark = false;
+    try {
+        isSpark = sparkDest.decode(address) == spark::GetNetworkType();
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception&) {
+    }
+
+    std::vector<unsigned char> proof;
+    if (isSpark) {
+        if (!isAddressMine(sparkDest))
+            throw std::runtime_error(_("Spark asset public address is not mine"));
+        spark::OwnershipProof ownershipProof;
+        sparkDest.prove_own(
+            spark::GetSpatsAssetTransferReceiverM(*assetType, entry->adminPublicAddress, address),
+            ensureSpendKey(),
+            viewKey,
+            ownershipProof);
+        CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+        serialized << ownershipProof;
+        proof.assign(serialized.begin(), serialized.end());
+    } else {
+        const CBitcoinAddress destAddr(address);
+        CKeyID keyID;
+        if (!destAddr.IsValid() || !destAddr.GetKeyID(keyID))
+            throw std::runtime_error(_("Invalid receive address"));
+        CKey key;
+        {
+            LOCK(pwalletMain->cs_wallet);
+            if (!pwalletMain->GetKey(keyID, key))
+                throw std::runtime_error(_("Transparent asset public address is not mine"));
+        }
+        if (!key.SignCompact(
+                spark::GetSpatsAssetTransferReceiverHash(*assetType, entry->adminPublicAddress, address),
+                proof))
+            throw std::runtime_error(_("Unable to sign asset receive data"));
+    }
+    return spark::EncodeSpatsAssetReceiveData(address, proof);
 }
 
 template<typename Iterator>
@@ -2618,13 +2695,16 @@ bool CSparkWallet::GetCoinsToSpend(
         if (coinControl->HasSelected()) {
             auto coinIt = coins.rbegin();
             for (; coinIt != coins.rend(); coinIt++) {
-                if (!((!fSpats && coinIt->a == ZERO && coinIt->iota == ZERO) ||
-                      ( fSpats && coinIt->a != ZERO && coinIt->iota != ZERO))) {
+                const bool matching = fSpats
+                    ? coinIt->a != ZERO
+                    : coinIt->a == ZERO && coinIt->iota == ZERO;
+                if (!matching)
                     continue;
-                }
                 coinsToSpend.push_back(*coinIt);
                 spend_val += coinIt->v;
             }
+            if (spend_val < required)
+                throw InsufficientFunds();
             coinControlUsed = true;
         }
     }
@@ -2810,7 +2890,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
 
         // 1803 is for the first grootle proof/aux data
         // 322 for each private output, 34 for each utxo, 1571 for constant parts of tx
-        // TODO take spats burn into account?
+        // Burn and other SPATS scripts are included in additionalTxSize.
         size = 1571 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum + 1 + (sChangeToMint > 0)) + 34*utxoNum + additionalTxSize;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
         if (fee >= feeNeeded) {
@@ -2832,6 +2912,14 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
 std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const
 {
     return GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
+}
+
+CAmount CSparkWallet::GetAvailableSparkBalance(const std::pair<Scalar, Scalar>& identifier, const CCoinControl* coinControl) const
+{
+    CAmount balance = 0;
+    for (const CSparkMintMeta& coin : GetAvailableSparkCoins(identifier, coinControl))
+        balance += coin.v;
+    return balance;
 }
 
 std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl) const

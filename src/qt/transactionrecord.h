@@ -96,10 +96,12 @@ public:
         MintSparkTo,
         SpendSparkTo,
         RecvSpark,
-        SpatsCreate,
         SpatsMint,
+        SpatsBurn,
+        SpatsRegister,
         SpatsModify,
-        SpatsRevoke
+        SpatsTransfer,
+        SpatsSpend
     };
 
     /** Number of confirmation recommended for accepting a transaction */

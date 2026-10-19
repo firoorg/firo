@@ -207,15 +207,11 @@ enum opcodetype
     OP_SPARKMINT = 0xd1,
     OP_SPARKSMINT = 0xd2,
     OP_SPARKSPEND = 0xd3,
-    OP_SPATSCREATE = 0xd4,
-    OP_SPATSUNREGISTER = 0xd5,
-    OP_SPATSMODIFY = 0xd6,
+    // Asset register, modify, and transfer are payload data, not script opcodes.
+    // The assigned SPATS opcodes are mint (0xd7), spend (0xd8), and burn (0xdb).
     OP_SPATSMINT = 0xd7,
     OP_SPATSSPEND = 0xd8,
-    OP_SPATSBURN = 0xda,
-    OP_SPATSBURNAMOUNT = 0xdb,
-    // TODO when adding a new spats opcode, update this below, and keep all spats ops values consecutive if possible, otherwise change IsSpatsOp() implementation
-    OP_SPATSLAST = OP_SPATSBURNAMOUNT,
+    OP_SPATSBURN = 0xdb,
 
     // basically NOP but identifies that subsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0,
@@ -231,8 +227,24 @@ const char* GetOpName(opcodetype opcode);
 
 constexpr bool IsSpatsOp(opcodetype opcode) noexcept
 {
-    return opcode >= OP_SPATSCREATE && opcode <= OP_SPATSLAST;
+    switch (opcode) {
+    case OP_SPATSMINT:
+    case OP_SPATSSPEND:
+    case OP_SPATSBURN:
+        return true;
+    default:
+        return false;
+    }
 }
+
+static_assert(IsSpatsOp(OP_SPATSMINT), "SPATS opcode missing from IsSpatsOp");
+static_assert(IsSpatsOp(OP_SPATSSPEND), "SPATS opcode missing from IsSpatsOp");
+static_assert(IsSpatsOp(OP_SPATSBURN), "SPATS opcode missing from IsSpatsOp");
+static_assert(!IsSpatsOp(static_cast<opcodetype>(0xd4)), "retired SPATS opcode");
+static_assert(!IsSpatsOp(static_cast<opcodetype>(0xd5)), "retired SPATS opcode");
+static_assert(!IsSpatsOp(static_cast<opcodetype>(0xd6)), "retired SPATS opcode");
+static_assert(!IsSpatsOp(static_cast<opcodetype>(OP_SPATSSPEND + 1)), "unassigned opcode 0xd9");
+static_assert(!IsSpatsOp(static_cast<opcodetype>(0xda)), "retired SPATS opcode");
 
 class scriptnum_error : public std::runtime_error
 {
@@ -709,16 +721,9 @@ public:
 
     bool IsSparkSpend() const;
 
-    bool IsSpatsCreate() const;
-
-    bool IsSpatsUnregister() const;
-
-    bool IsSpatsModify() const;
-
     bool IsSpatsMint() const;
 
     bool IsSpatsBurn() const;
-    bool IsSpatsBurnAmount() const;
 
     bool IsSpats() const;
     bool HasSerializedSpatsAction() const;
@@ -743,10 +748,17 @@ public:
      * Returns whether the script is guaranteed to fail at execution,
      * regardless of the initial stack. This allows outputs to be pruned
      * instantly when entering the UTXO set.
+     *
+     * SPATS mint and burn outputs carry protocol data only; spending them
+     * hits BAD_OPCODE, so they are pruned like OP_RETURN.
      */
     bool IsUnspendable() const
     {
-        return (size() > 0 && *begin() == OP_RETURN) || (size() > MAX_SCRIPT_SIZE);
+        return (size() > 0 &&
+                (*begin() == OP_RETURN ||
+                 *begin() == OP_SPATSMINT ||
+                 *begin() == OP_SPATSBURN)) ||
+            (size() > MAX_SCRIPT_SIZE);
     }
 
     void clear()

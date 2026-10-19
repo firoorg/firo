@@ -243,30 +243,6 @@ bool CTransaction::IsSparkMint() const
     return false;
 }
 
-bool CTransaction::IsSpatsCreate() const
-{
-    for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSpatsCreate())
-            return true;
-    return false;
-}
-
-bool CTransaction::IsSpatsUnregister() const
-{
-    for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSpatsUnregister())
-            return true;
-    return false;
-}
-
-bool CTransaction::IsSpatsModify() const
-{
-    for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSpatsModify())
-            return true;
-    return false;
-}
-
 bool CTransaction::IsSpatsMint() const
 {
     for (const CTxOut &txout: vout)
@@ -275,17 +251,9 @@ bool CTransaction::IsSpatsMint() const
     return false;
 }
 
-bool CTransaction::IsSpatsBurn() const
-{
-    for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSpatsBurn())
-            return true;
-    return false;
-}
-
 bool CTransaction::IsSpatsTransaction() const
 {
-    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn() || HasSpatsBurnAmount();
+    return IsSpatsMint() || HasSpatsBurn();
 }
 
 bool CTransaction::IsZerocoinTransaction() const
@@ -320,10 +288,10 @@ bool CTransaction::HasPrivateInputs() const {
     return IsSigmaSpend() || IsLelantusJoinSplit() || IsSparkSpend();
 }
 
-bool CTransaction::HasSpatsBurnAmount() const
+bool CTransaction::HasSpatsBurn() const
 {
     for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSpatsBurnAmount())
+        if (txout.scriptPubKey.IsSpatsBurn())
             return true;
     return false;
 }

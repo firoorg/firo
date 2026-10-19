@@ -985,7 +985,7 @@ public:
                            std::string& strFailReason, const CCoinControl *coinControl = nullptr, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false,
                            const std::vector<uint8_t>& vExtraPayload = {} , const spark::MintedCoinData* pSpatsMintTransparent = nullptr);
 
-    /** Transparent inputs/outputs plus one OP_SPATSMINT||mint vout (no Spark spend; ECDSA on inputs authorizes the tx). */
+    /** Transparent inputs pay the fee; one OP_SPATSMINT vout with nValue 0. Spending an admin UTXO authorizes the mint. */
     CWalletTx CreateSpatsMintTransparentTransaction(
             const spark::MintedCoinData& mintData,
             CAmount& feeRet,

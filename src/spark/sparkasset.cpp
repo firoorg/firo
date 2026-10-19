@@ -8,9 +8,14 @@
 #include "../base58.h"
 #include "state.h"
 #include "../libspark/keys.h"
+#include "../libspark/ownership_proof.h"
 #include "../libspark/util.h"
 #include "../hash.h"
+#include "../messagesigner.h"
+#include "../streams.h"
+#include "../utilstrencodings.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace {
@@ -45,12 +50,143 @@ bool SymbolIsAsciiLatinLettersOnly(const std::string& s)
 
 namespace spark {
 
+namespace {
+
+bool IsCanonicalOwnershipProof(
+        const std::vector<unsigned char>& encoded,
+        const OwnershipProof& proof)
+{
+    CDataStream canonical(SER_NETWORK, PROTOCOL_VERSION);
+    canonical.reserve(OwnershipProof::memoryRequired());
+    canonical << proof;
+    return canonical.size() == encoded.size() &&
+        std::equal(
+            canonical.begin(), canonical.end(), encoded.begin(),
+            [](char left, unsigned char right) {
+                return static_cast<unsigned char>(left) == right;
+            });
+}
+
+} // namespace
+
 uint256 GetSpatsAssetBindHash(const CSparkAssetTxData& assetData)
 {
+    CSparkAssetTxData unsigned_data = assetData;
+    unsigned_data.setOwnershipProof(std::vector<unsigned char>{});
     CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
     hashStream << LABEL_SPATS_ASSET_BIND;
-    hashStream << assetData;
+    hashStream << unsigned_data;
     return hashStream.GetHash();
+}
+
+uint256 GetSpatsAssetTransferReceiverHash(
+    std::uint64_t assetType,
+    const std::string& currentAdmin,
+    const std::string& receiverAddress)
+{
+    CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+    hashStream << LABEL_SPATS_ASSET_TRANSFER_RECEIVER;
+    hashStream << assetType;
+    hashStream << currentAdmin;
+    hashStream << receiverAddress;
+    return hashStream.GetHash();
+}
+
+Scalar GetSpatsAssetTransferReceiverM(
+    std::uint64_t assetType,
+    const std::string& currentAdmin,
+    const std::string& receiverAddress)
+{
+    Scalar m;
+    m.SetHex(GetSpatsAssetTransferReceiverHash(assetType, currentAdmin, receiverAddress).GetHex());
+    return m;
+}
+
+std::string EncodeSpatsAssetReceiveData(
+    const std::string& address,
+    const std::vector<unsigned char>& proof)
+{
+    return address + ":" + HexStr(proof);
+}
+
+bool ParseSpatsAssetReceiveData(
+    const std::string& data,
+    std::string& address,
+    std::vector<unsigned char>& proof)
+{
+    const auto pos = data.rfind(':');
+    if (pos == std::string::npos || pos == 0 || pos + 1 == data.size())
+        return false;
+    std::string parsedAddress = data.substr(0, pos);
+    const std::string hex = data.substr(pos + 1);
+    if (!IsValidAssetAdminAddress(parsedAddress) || !IsHex(hex))
+        return false;
+    std::vector<unsigned char> parsedProof = ParseHex(hex);
+    if (parsedProof.empty())
+        return false;
+    address = std::move(parsedAddress);
+    proof = std::move(parsedProof);
+    return true;
+}
+
+bool VerifySpatsAssetReceiverProof(
+    std::uint64_t assetType,
+    const std::string& currentAdmin,
+    const std::string& dest,
+    const std::vector<unsigned char>& proofBytes)
+{
+    if (!IsValidAssetAdminAddress(dest) || proofBytes.empty())
+        return false;
+
+    Address sparkAddr(Params::get_default());
+    bool isSpark = false;
+    try {
+        isSpark = sparkAddr.decode(dest) == GetNetworkType();
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception&) {
+    }
+    if (isSpark) {
+        try {
+            CDataStream stream(proofBytes, SER_NETWORK, PROTOCOL_VERSION);
+            OwnershipProof proof;
+            stream >> proof;
+            if (!stream.empty() || !IsCanonicalOwnershipProof(proofBytes, proof))
+                return false;
+            return sparkAddr.verify_own(
+                GetSpatsAssetTransferReceiverM(assetType, currentAdmin, dest), proof);
+        } catch (const std::bad_alloc&) {
+            throw;
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+
+    const CBitcoinAddress address(dest);
+    CKeyID keyID;
+    if (!address.IsValid() || !address.GetKeyID(keyID))
+        return false;
+    std::string error;
+    return CHashSigner::VerifyHash(
+        GetSpatsAssetTransferReceiverHash(assetType, currentAdmin, dest),
+        keyID,
+        proofBytes,
+        error);
+}
+
+bool IsValidAssetAdminAddress(const std::string& address)
+{
+    if (address.empty())
+        return false;
+    spark::Address addr(spark::Params::get_default());
+    try {
+        if (addr.decode(address) == spark::GetNetworkType())
+            return true;
+    } catch (const std::exception&) {
+    }
+    CBitcoinAddress bitcoin(address);
+    CKeyID keyID;
+    return bitcoin.IsValid() && bitcoin.GetKeyID(keyID);
 }
 
 CSparkAssetDBEntry::CSparkAssetDBEntry(const CSparkAssetTxData& assetTxData_)
@@ -145,7 +281,8 @@ bool CSparkAssetTxData::isValidSparkAddress(const std::string& address) const
 bool CSparkAssetTxData::isValidRegularAddress() const
 {
     CBitcoinAddress addr(adminPublicAddress);
-    return addr.IsValid();
+    CKeyID keyID;
+    return addr.IsValid() && addr.GetKeyID(keyID);
 }
 
 void CSparkAssetTxData::validateAdminPublicAddress() const
@@ -204,10 +341,7 @@ bool CSparkAssetTxData::Verify(std::string& error) const
      	error = "Identifier should be non-zero for non-fungible asset";
         return false;
     }
-//    if (assetKind == AssetKind::NonFungible && maxSupply != 0) {
-    //TODO levon finilize this idea
-//        return false;
-//    }
+
 
     if (precision > 8) {
      	error = "Precision too large for fungible asset";
@@ -220,12 +354,79 @@ bool CSparkAssetTxData::Verify(std::string& error) const
         error = "Invalid address!";
         return false;
     }
+    if (isTransfer() && !IsValidAssetAdminAddress(transferPublicAddress)) {
+        error = "Invalid transfer address!";
+        return false;
+    }
+    if (isTransfer() && recieverOwnershipProof.empty()) {
+        error = "Missing receiver ownership proof";
+        return false;
+    }
     return true;
+}
+
+void CSparkAssetTxData::setRecieverProof(std::vector<unsigned char> recieverOwnershipProof_)
+{
+    recieverOwnershipProof = std::move(recieverOwnershipProof_);
+}
+
+void CSparkAssetTxData::setRecieverProof(const spark::OwnershipProof& proof)
+{
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << proof;
+    recieverOwnershipProof.assign(serialized.begin(), serialized.end());
+}
+
+void CSparkAssetTxData::setOwnershipProof(std::vector<unsigned char> ownershipProof_)
+{
+    ownershipProof = std::move(ownershipProof_);
 }
 
 void CSparkAssetTxData::setOwnershipProof(const spark::OwnershipProof& proof)
 {
-    ownershipProof = proof;
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << proof;
+    ownershipProof.assign(serialized.begin(), serialized.end());
+}
+
+bool VerifySpatsAssetAdminProof(
+    const std::string& admin,
+    const Scalar& sparkMessage,
+    const uint256& transparentHash,
+    const std::vector<unsigned char>& proofBytes)
+{
+    if (!IsValidAssetAdminAddress(admin) || proofBytes.empty())
+        return false;
+
+    Address sparkAddr(Params::get_default());
+    bool isSpark = false;
+    try {
+        isSpark = sparkAddr.decode(admin) == GetNetworkType();
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception&) {
+    }
+    if (isSpark) {
+        try {
+            CDataStream stream(proofBytes, SER_NETWORK, PROTOCOL_VERSION);
+            OwnershipProof proof;
+            stream >> proof;
+            if (!stream.empty() || !IsCanonicalOwnershipProof(proofBytes, proof))
+                return false;
+            return sparkAddr.verify_own(sparkMessage, proof);
+        } catch (const std::bad_alloc&) {
+            throw;
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+
+    const CBitcoinAddress address(admin);
+    CKeyID keyID;
+    if (!address.IsValid() || !address.GetKeyID(keyID))
+        return false;
+    std::string error;
+    return CHashSigner::VerifyHash(transparentHash, keyID, proofBytes, error);
 }
 
 void CSparkAssetTxData::setOperationType(OperationType operationType_)

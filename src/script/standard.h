@@ -62,6 +62,7 @@ enum txnouttype
     TX_SPARKSMINT,
     TX_EXCHANGEADDRESS,
     TX_SPATSMINT,
+    TX_SPATSBURN,
     TX_SPARKNAMEFEE
 };
 

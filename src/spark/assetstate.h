@@ -47,6 +47,11 @@ public:
      */
     std::optional<std::uint64_t> Put(CSparkAssetTxData data, const uint256& registeringTxid, int nHeight);
     bool Erase(std::uint64_t assetType);
+
+    /** Insert or replace the entry for assetType, keeping the indexes and the counter in sync. */
+    void SetEntry(std::uint64_t assetType, const CSparkAssetDBEntry& entry);
+    /** Undo the registration of the most recently assigned assetType and hand its id back to the counter. */
+    void UndoRegister(std::uint64_t assetType);
     void Clear()
     {
         entries_.clear();

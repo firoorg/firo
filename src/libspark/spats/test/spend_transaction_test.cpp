@@ -214,6 +214,16 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     // Verify
     transaction.setCoverSets(cover_set_data);
     BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));
+
+    // A rewound chain can hand verification a suffix shorter than the proof's
+    // committed size. That must fail closed, not walk off the coin vector.
+    auto shortCoverSets = cover_sets;
+    BOOST_REQUIRE(!shortCoverSets.at(31415).empty());
+    shortCoverSets.at(31415).pop_back();
+    BOOST_CHECK(!SpendTransaction::verify(transaction, shortCoverSets));
+
+    std::unordered_map<uint64_t, std::vector<spark::Coin>> absent;
+    BOOST_CHECK(!SpendTransaction::verify(transaction, absent));
 }
 
 // Test base-only transaction (no asset coins, only base currency)
@@ -466,6 +476,110 @@ BOOST_AUTO_TEST_CASE(transaction_with_burn)
 
     uint64_t fee = 200 - 100; // base: 200 in, 100 out, fee = 100
     uint64_t burn = 500 - 400; // asset: 500 in, 400 out, burn = 100
+
+    SpendTransaction transaction(
+        params, full_view_key, spend_key, spend_coin_data,
+        cover_set_data, cover_sets, fee, 0, burn, out_coin_data);
+
+    transaction.setCoverSets(cover_set_data);
+    BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));
+}
+
+// A full burn has no leftover asset value, so it needs a dummy asset output.
+BOOST_AUTO_TEST_CASE(transaction_with_full_burn)
+{
+    const spark::Params* params = spark::Params::get_test();
+    const std::string memo = "Full burn test";
+
+    spark::SpendKey spend_key(params);
+    spark::FullViewKey full_view_key(spend_key);
+    spark::IncomingViewKey incoming_view_key(full_view_key);
+
+    spark::Address address(incoming_view_key, 5555);
+    std::size_t N = (std::size_t)pow(params->get_n_grootle(), params->get_m_grootle());
+
+    std::vector<spark::Coin> in_coins;
+    for (std::size_t idx = 0; idx < N / 2; idx++) {
+        Scalar k;
+        k.randomize();
+        in_coins.emplace_back(spark::Coin(
+            params, COIN_TYPE_MINT_V2, k, address, 200,
+            memo, random_char_vector(), Scalar(uint64_t(0)), Scalar(uint64_t(0))));
+    }
+    for (std::size_t idx = N / 2; idx < N; idx++) {
+        Scalar k;
+        k.randomize();
+        in_coins.emplace_back(spark::Coin(
+            params, COIN_TYPE_MINT_V2, k, address, 500,
+            memo, random_char_vector(), Scalar(uint64_t(2)), Scalar(uint64_t(0))));
+    }
+
+    std::vector<InputCoinData> spend_coin_data;
+    std::unordered_map<uint64_t, CoverSetData> cover_set_data;
+    std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
+
+    {
+        IdentifiedCoinData id_data = in_coins[1].identify(incoming_view_key);
+        RecoveredCoinData rec_data = in_coins[1].recover(full_view_key, id_data);
+        spend_coin_data.emplace_back();
+        uint64_t cover_set_id = 3001;
+        spend_coin_data.back().cover_set_id = cover_set_id;
+        spend_coin_data.back().index = 1;
+        spend_coin_data.back().k = id_data.k;
+        spend_coin_data.back().s = rec_data.s;
+        spend_coin_data.back().T = rec_data.T;
+        spend_coin_data.back().v = id_data.v;
+        spend_coin_data.back().a = id_data.a;
+        spend_coin_data.back().iota = id_data.iota;
+
+        CoverSetData setData;
+        setData.cover_set_size = in_coins.size();
+        setData.cover_set_representation = random_char_vector();
+        cover_set_data[cover_set_id] = setData;
+        cover_sets[cover_set_id] = in_coins;
+    }
+
+    {
+        std::size_t asset_idx = N / 2 + 1;
+        IdentifiedCoinData id_data = in_coins[asset_idx].identify(incoming_view_key);
+        RecoveredCoinData rec_data = in_coins[asset_idx].recover(full_view_key, id_data);
+        spend_coin_data.emplace_back();
+        spend_coin_data.back().cover_set_id = 3001;
+        spend_coin_data.back().index = asset_idx;
+        spend_coin_data.back().k = id_data.k;
+        spend_coin_data.back().s = rec_data.s;
+        spend_coin_data.back().T = rec_data.T;
+        spend_coin_data.back().v = id_data.v;
+        spend_coin_data.back().a = id_data.a;
+        spend_coin_data.back().iota = id_data.iota;
+    }
+
+    std::vector<OutputCoinData> out_coin_data;
+    out_coin_data.emplace_back();
+    out_coin_data.back().address = address;
+    out_coin_data.back().v = 100;
+    out_coin_data.back().memo = memo;
+    out_coin_data.back().a = ZERO;
+    out_coin_data.back().iota = ZERO;
+
+    uint64_t fee = 200 - 100;
+    uint64_t burn = 500;
+
+    {
+        std::vector<OutputCoinData> noDummy = out_coin_data;
+        SpendTransaction missingDummy(
+            params, full_view_key, spend_key, spend_coin_data,
+            cover_set_data, cover_sets, fee, 0, burn, noDummy);
+        missingDummy.setCoverSets(cover_set_data);
+        BOOST_CHECK(!SpendTransaction::verify(missingDummy, cover_sets));
+    }
+
+    out_coin_data.emplace_back();
+    out_coin_data.back().address = address;
+    out_coin_data.back().v = 0;
+    out_coin_data.back().memo = memo;
+    out_coin_data.back().a = Scalar(uint64_t(2));
+    out_coin_data.back().iota = ZERO;
 
     SpendTransaction transaction(
         params, full_view_key, spend_key, spend_coin_data,

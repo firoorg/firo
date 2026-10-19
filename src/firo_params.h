@@ -113,6 +113,9 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define LELANTUS_PROTOCOL_ENABLEMENT_VERSION	140100
 // Version of the block index enty that introduces evo sporks
 #define EVOSPORK_MIN_VERSION                140200
+// Version of the block index entry that introduces the Spark asset registry.
+// Must exceed every CLIENT_VERSION released without it.
+#define SPATS_ASSET_INDEX_VERSION           141900
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               1
@@ -184,9 +187,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 // Spark
 #define SPARK_START_BLOCK 819300 // Approx Jan 18 2024 8:00 AM UTC
-#define SPATS_START_BLOCK 1200000
+#define SPATS_START_BLOCK 1400000
 #define SPARK_TESTNET_START_BLOCK 107000
-#define SPATS_TESTNET_START_BLOCK 190000
+#define SPATS_TESTNET_START_BLOCK 220000
+#define SPATS_DEVNET_START_BLOCK 4000
 #define LELANTUS_GRACEFUL_PERIOD 1223500 // Approx Jan 30 2026
 #define LELANTUS_TESTNET_GRACEFUL_PERIOD 140000
 

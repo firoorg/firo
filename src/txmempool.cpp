@@ -549,6 +549,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         }
     };
 
+    spark::RemoveSparkAssetTxFromMempool(*this, it->GetTx().GetHash());
+
     if (it->GetTx().nType == TRANSACTION_PROVIDER_REGISTER) {
         CProRegTx proTx;
         if (!GetTxPayload(it->GetTx(), proTx)) {
@@ -1139,6 +1141,8 @@ void CTxMemPool::_clear()
     rollingMinimumFeeRate = 0;
     sparkState.Reset();
     sparkNames.clear();
+    sparkAssetTxs.clear();
+    sparkAssetPending = spark::CSparkAssetPending();
     ++nTransactionsUpdated;
 }
 
