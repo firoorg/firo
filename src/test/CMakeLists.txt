@@ -57,6 +57,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/logging_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq_dkgsessionhandler_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq_signing_shares_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quorums_instantsend_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/main_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mempool_tests.cpp
