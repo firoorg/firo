@@ -5032,7 +5032,7 @@ void CWallet::SetSparkOutputWriteFailureForTesting(int failAfterWrites)
 }
 
 static bool WritePendingSparkOutputsAtomically(
-    const std::string& strWalletFile,
+    WalletDatabase& database,
     const std::vector<std::pair<CScript, CSparkOutputTx>>& records,
     std::vector<CScript>& persistedScripts)
 {
@@ -5044,7 +5044,7 @@ static bool WritePendingSparkOutputsAtomically(
     if (failAfter == 0)
         return false;
 
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(database);
     if (!walletdb.TxnBegin())
         return false;
 
@@ -5072,13 +5072,13 @@ static bool WritePendingSparkOutputsAtomically(
 }
 
 static bool EraseSparkOutputScripts(
-    const std::string& strWalletFile,
+    WalletDatabase& database,
     const std::vector<CScript>& scripts)
 {
     if (scripts.empty())
         return true;
 
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(database);
     if (!walletdb.TxnBegin())
         return false;
 
@@ -5107,7 +5107,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // failed payment while the transaction remained eligible for mining.
         std::vector<CScript> persistedSparkOutputScripts;
         if (!WritePendingSparkOutputsAtomically(
-                strWalletFile,
+                GetDatabase(),
                 wtxNew.pendingSparkOutputRecords,
                 persistedSparkOutputScripts)) {
             LogPrintf("CommitTransaction(): Unable to save Spark transaction output\n");
@@ -5119,7 +5119,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // written above and return without AddToWallet.
         if (fCheckTransaction && !wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
             LogPrintf("CommitTransaction(): Transaction rejected: %s\n", state.GetRejectReason());
-            if (!EraseSparkOutputScripts(strWalletFile, persistedSparkOutputScripts)) {
+            if (!EraseSparkOutputScripts(GetDatabase(), persistedSparkOutputScripts)) {
                 LogPrintf(
                     "CommitTransaction(): failed to drop Spark output metadata after mempool rejection\n");
             }

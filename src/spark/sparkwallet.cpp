@@ -82,6 +82,8 @@ CSparkWallet::CSparkWallet(CWallet& wallet)
     fullViewKey = spark::FullViewKey(params);
     viewKey = spark::IncomingViewKey(params);
 
+    bool fWalletJustUnlocked = false;
+    bool loadMints = false;
     if (m_database.Format() == DatabaseFormat::SQLITE) {
         RelockWalletGuard relockGuard(m_wallet);
         spark::FullViewKey storedFullViewKey(params);
@@ -170,77 +172,70 @@ CSparkWallet::CSparkWallet(CWallet& wallet)
                 addresses[lastDiversifier] = generateNextAddress();
             }
 
-            CWalletDB walletdb(m_database);
-            {
-                LOCK(cs_spark_wallet);
-                coinMeta = walletdb.ListSparkMints();
-                for (auto& coin : coinMeta) {
-                    coin.second.coin.setParams(params);
-                    coin.second.coin.setSerialContext(coin.second.serial_context);
-                }
-            }
+            loadMints = true;
         } else {
             throw std::runtime_error("Spark wallet initialization FAILED, database state is incomplete or unreadable\n");
         }
 
-        unsigned nThreads = std::thread::hardware_concurrency();
-        threadPool = new ParallelOpThreadPool<void>(static_cast<std::size_t>(nThreads));
-        return;
-    }
-
-    bool fWalletJustUnlocked = false;
-    bool hasFullViewKey;
-
-    // try to get incoming view key from db, if it fails, that means it is first start
-    {
-        CWalletDB walletdb(m_database);
-        hasFullViewKey = walletdb.readFullViewKey(fullViewKey);
-    }
-    if (!hasFullViewKey) {
-        if (m_wallet.IsLocked()) {
-            m_wallet.RequestUnlock();
-            if (m_wallet.WaitForUnlock()) {
-                fWalletJustUnlocked = true;
-            } else {
-                throw std::runtime_error("Spark wallet creation FAILED, wallet could not be unlocked\n");
-                return;
-            }
-        }
-
-        // Generating spark key set first time
-        spark::SpendKey spendKey(params);
-        try {
-            spendKey = std::move(
-                generateSpendKey(params, m_wallet));
-        } catch (const WalletLocked&) {
-                throw std::runtime_error("Spark wallet creation FAILED, wallet is locked\n");
-        } catch (const std::exception&) {
-            throw std::runtime_error("Spark wallet creation FAILED, unable to generate spend key\n");
-        }
-        fullViewKey = generateFullViewKey(spendKey);
-        viewKey = generateIncomingViewKey(fullViewKey);
-
-        // Write incoming view key into db, it is safe to be kept in db, it is used to identify incoming coins belonging to the wallet
-        CWalletDB walletdb(m_database);
-        walletdb.writeFullViewKey(fullViewKey);
-        // generate one initial address for wallet
-        lastDiversifier = 0;
-        addresses[lastDiversifier] = getDefaultAddress();
-        // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
-        walletdb.writeDiversifier(lastDiversifier);
     } else {
+        bool hasFullViewKey;
+
+        // try to get incoming view key from db, if it fails, that means it is first start
+        {
+            CWalletDB walletdb(m_database);
+            hasFullViewKey = walletdb.readFullViewKey(fullViewKey);
+        }
+        if (!hasFullViewKey) {
+            if (m_wallet.IsLocked()) {
+                m_wallet.RequestUnlock();
+                if (m_wallet.WaitForUnlock()) {
+                    fWalletJustUnlocked = true;
+                } else {
+                    throw std::runtime_error("Spark wallet creation FAILED, wallet could not be unlocked\n");
+                    return;
+                }
+            }
+
+            // Generating spark key set first time
+            spark::SpendKey spendKey(params);
+            try {
+                spendKey = std::move(
+                    generateSpendKey(params, m_wallet));
+            } catch (const WalletLocked&) {
+                    throw std::runtime_error("Spark wallet creation FAILED, wallet is locked\n");
+            } catch (const std::exception&) {
+                throw std::runtime_error("Spark wallet creation FAILED, unable to generate spend key\n");
+            }
+            fullViewKey = generateFullViewKey(spendKey);
+            viewKey = generateIncomingViewKey(fullViewKey);
+
+            // Write incoming view key into db, it is safe to be kept in db, it is used to identify incoming coins belonging to the wallet
+            CWalletDB walletdb(m_database);
+            walletdb.writeFullViewKey(fullViewKey);
+            // generate one initial address for wallet
+            lastDiversifier = 0;
+            addresses[lastDiversifier] = getDefaultAddress();
+            // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
+            walletdb.writeDiversifier(lastDiversifier);
+        } else {
+            CWalletDB walletdb(m_database);
+            viewKey = generateIncomingViewKey(fullViewKey);
+            int32_t diversifierInDB = 0;
+            // read diversifier from db
+            walletdb.readDiversifier(diversifierInDB);
+            lastDiversifier = -1;
+
+            // generate all used addresses
+             while (lastDiversifier <  diversifierInDB) {
+                 addresses[lastDiversifier] = generateNextAddress();
+             }
+
+            loadMints = true;
+        }
+    }
+
+    if (loadMints) {
         CWalletDB walletdb(m_database);
-        viewKey = generateIncomingViewKey(fullViewKey);
-        int32_t diversifierInDB = 0;
-        // read diversifier from db
-        walletdb.readDiversifier(diversifierInDB);
-        lastDiversifier = -1;
-
-        // generate all used addresses
-         while (lastDiversifier <  diversifierInDB) {
-             addresses[lastDiversifier] = generateNextAddress();
-         }
-
         // Load SMints only when their containing wallet transaction is a Spark spend.
         auto loadedMints = walletdb.ListSparkMints();
         {
@@ -1222,9 +1217,9 @@ void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
         }
         // Balance polling may have consumed the block notification during identification.
         // NotifyTransactionChanged requires cs_wallet; acquire it after releasing Spark's lock.
-        LOCK(m_wallet.cs_wallet);
+        LOCK(pwalletMain->cs_wallet);
         for (const auto& txid : updatedTransactions)
-            m_wallet.NotifyTransactionChanged(&m_wallet, txid, CT_UPDATED);
+            pwalletMain->NotifyTransactionChanged(pwalletMain, txid, CT_UPDATED);
     });
 }
 
@@ -1920,7 +1915,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     std::vector<CAmount> finalRecipientAmounts;
 
     {
-        LOCK2(cs_main, m_wallet.cs_wallet);
+        LOCK2(cs_main, pwalletMain->cs_wallet);
         nHeight = chainActive.Height();
         expectedTipHash = chainActive.Tip()
             ? chainActive.Tip()->GetBlockHash()
@@ -2269,7 +2264,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     {
-        LOCK2(cs_main, m_wallet.cs_wallet);
+        LOCK2(cs_main, pwalletMain->cs_wallet);
         const uint256 currentTipHash = chainActive.Tip()
             ? chainActive.Tip()->GetBlockHash()
             : uint256();

@@ -421,6 +421,58 @@ BOOST_AUTO_TEST_CASE(sqlite_backend_failure_does_not_initialize_spark)
         DatabaseReadStatus::NOT_FOUND);
 }
 
+BOOST_AUTO_TEST_CASE(sqlite_reload_preserves_upstream_spark_checks)
+{
+    auto wallet = MakeSQLiteSparkTestWallet("spark_sqlite_reload_checks.dat");
+    wallet->sparkWallet = std::make_unique<CSparkWallet>(*wallet);
+    CMutableTransaction parent;
+    parent.vin.emplace_back(COutPoint(uint256S("02"), 0));
+    parent.vout.emplace_back(0, CScript() << OP_RETURN);
+    const CTransaction transaction(parent);
+    const auto serialContext = spark::getSerialContext(transaction);
+    const uint256 parentHash = transaction.GetHash();
+    Scalar mintNonce;
+    mintNonce.randomize();
+    Scalar spendNonce;
+    spendNonce.randomize();
+    const auto address = wallet->sparkWallet->getDefaultAddress();
+    const spark::Coin mint(params, spark::COIN_TYPE_MINT, mintNonce,
+        address, COIN, "SQLite reload mint", serialContext);
+    const spark::Coin smint(params, spark::COIN_TYPE_SPEND, spendNonce,
+        address, 2 * COIN, "SQLite reload smint", serialContext);
+    {
+        CWalletDB walletdb(wallet->GetDatabase());
+        wallet->sparkWallet->UpdateMintState({mint, smint}, parentHash, walletdb);
+        BOOST_REQUIRE_EQUAL(walletdb.ListSparkMints().size(), 2U);
+    }
+
+    auto reload = [&]() {
+        wallet->sparkWallet.reset();
+        wallet->sparkWallet = std::make_unique<CSparkWallet>(*wallet);
+        wallet->sparkWallet->WaitForPendingTasks();
+    };
+    // A missing SMint parent is retained on disk but excluded from balances.
+    reload();
+    BOOST_CHECK_EQUAL(wallet->sparkWallet->getFullBalance(), COIN);
+    BOOST_REQUIRE_EQUAL(wallet->sparkWallet->getMintMap().size(), 1U);
+    BOOST_CHECK(wallet->sparkWallet->validateLookupIndexes());
+    {
+        CWalletDB walletdb(wallet->GetDatabase());
+        BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), 2U);
+    }
+
+    // A known parent that is not a spend makes the saved SMint invalid.
+    BOOST_REQUIRE(wallet->AddToWallet(CWalletTx(
+        wallet.get(), MakeTransactionRef(transaction))));
+    reload();
+    BOOST_CHECK_EQUAL(wallet->sparkWallet->getFullBalance(), COIN);
+    BOOST_CHECK(wallet->sparkWallet->validateLookupIndexes());
+    {
+        CWalletDB walletdb(wallet->GetDatabase());
+        BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), 1U);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_failed_initialization_relocks_wallet)
 {
     const SecureString passphrase{
@@ -834,7 +886,7 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
     const CBlock block = GetCBlock(index);
     wallet->FinishTasks();
 
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
     const auto initial = wallet->getMintMap();
     BOOST_REQUIRE_EQUAL(initial.size(), 1);
     const auto lTagHash = initial.begin()->first;
@@ -919,7 +971,7 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_spends)
     const auto lTags = spark::GetSparkUsedTags(spend);
     BOOST_REQUIRE_EQUAL(lTags.size(), 1);
     const uint256 lTagHash = primitives::GetLTagHash(lTags[0]);
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
 
     for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
         txpools.clear();
@@ -1029,7 +1081,7 @@ BOOST_AUTO_TEST_CASE(spend)
         ReloadSparkWallet();
         for (const auto& mint : pwalletMain->sparkWallet->getMintMap())
             BOOST_CHECK(mint.second.txid != spTx.GetHash());
-        CWalletDB walletdb(pwalletMain->strWalletFile);
+        CWalletDB walletdb(pwalletMain->GetDatabase());
         BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), savedMints.size());
         pwalletMain->mapWallet.insert(std::move(parent));
     }
