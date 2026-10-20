@@ -265,7 +265,9 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000017e2cd0ce4d870bd3"); // 1390000
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x156bf05c91cdc4a88c9d993c29402f89a901274797ed98958666b128394353c5"); // 1390000
+        consensus.hashMTPAnchor = uint256S("0x156bf05c91cdc4a88c9d993c29402f89a901274797ed98958666b128394353c5"); // 1390000
+        consensus.nMTPAnchorHeight = 1390000;
+        consensus.defaultAssumeValid = consensus.hashMTPAnchor;
 
         consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
         consensus.nZnodePaymentsBugFixedAtBlock = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK;
@@ -391,6 +393,7 @@ public:
                 (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026"))
                 (121378, uint256S("0xa7d9a56dd2986442b5c10ad036eb4e6555eaa8d9f6645c7b9620597792a153ac"))
                 (341100, uint256S("0x1ca6cbd9f6e13db8e0e1db0b77f8b1a037b01c69558214bc1ae2ce1f81da4890"))
+                (1390000, consensus.hashMTPAnchor)
         };
 
         chainTxData = ChainTxData{
