@@ -5416,6 +5416,9 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         }
     }
 
+    // -wcdate is only for the initial restore scan; later rescans must use their own start block.
+    ForceSetArg("-wcdate", "");
+
     // recover addressbook
     if (fFirstRun)
     {

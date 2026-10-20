@@ -24,6 +24,7 @@ private Q_SLOTS:
     void dialogsFitWithoutScrolling();
     void receiveMnemonics();
     void emptyRecoverySeed();
+    void recoveryRetryUsesFinalInput();
     void confirmationRefresh();
     void manualConsolidation();
     void consolidationResult();
