@@ -99,6 +99,22 @@ BlockMap mapBlockIndex;
 PrevBlockMap mapPrevBlockIndex;
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
+
+bool IsBlockIndexAnchored(const CBlockIndex* pindex, const Consensus::Params& params)
+{
+    if (params.nMTPAnchorHeight == 0 || pindex->nHeight == 0)
+        return true;
+
+    const auto it = mapBlockIndex.find(params.hashMTPAnchor);
+    if (it == mapBlockIndex.end() || it->second->nHeight != params.nMTPAnchorHeight || (it->second->nStatus & BLOCK_FAILED_MASK))
+        return false;
+
+    const CBlockIndex* anchor = it->second;
+    return pindex->nHeight <= params.nMTPAnchorHeight
+        ? anchor->GetAncestor(pindex->nHeight) == pindex
+        : pindex->GetAncestor(params.nMTPAnchorHeight) == anchor;
+}
+
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
@@ -3768,12 +3784,18 @@ void ReprocessBlocks(int nBlocks) {
  * known to be invalid (it's however far from certain to be valid).
  */
 static CBlockIndex* FindMostWorkChain() {
+    const auto& consensus = Params().GetConsensus();
+    if (consensus.nMTPAnchorHeight && mapBlockIndex.count(consensus.hashMTPAnchor) == 0 && chainActive.Tip())
+        return chainActive.Tip();
+
     do {
         CBlockIndex *pindexNew = NULL;
 
         // Find the best candidate header.
         {
-            std::set<CBlockIndex*, CBlockIndexWorkComparator>::reverse_iterator it = setBlockIndexCandidates.rbegin();
+            auto it = setBlockIndexCandidates.rbegin();
+            while (it != setBlockIndexCandidates.rend() && !IsBlockIndexAnchored(*it, consensus))
+                ++it;
             if (it == setBlockIndexCandidates.rend())
                 return NULL;
             pindexNew = *it;
@@ -4198,7 +4220,8 @@ CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
     pindexNew->nTimeMax = (pindexNew->pprev ? std::max(pindexNew->pprev->nTimeMax, pindexNew->nTime) : pindexNew->nTime);
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + GetBlockProof(*pindexNew);
     pindexNew->RaiseValidity(BLOCK_VALID_TREE);
-    if (pindexBestHeader == NULL || pindexBestHeader->nChainWork < pindexNew->nChainWork)
+    if (IsBlockIndexAnchored(pindexNew, Params().GetConsensus()) &&
+        (pindexBestHeader == NULL || pindexBestHeader->nChainWork < pindexNew->nChainWork))
         pindexBestHeader = pindexNew;
 
     setDirtyBlockIndex.insert(pindexNew);
@@ -4547,6 +4570,19 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
     return commitment;
 }
 
+static bool IsProgPowTransitionValid(uint32_t nTime, const CBlockIndex* pindexPrev, const Consensus::Params& params)
+{
+    return !pindexPrev || cmp::less(pindexPrev->nTime, params.nPPSwitchTime) ||
+        cmp::greater_equal(nTime, params.nPPSwitchTime);
+}
+
+static bool CheckProgPowTransition(const CBlockHeader& block, CValidationState& state, const Consensus::Params& params, const CBlockIndex* pindexPrev)
+{
+    if (!IsProgPowTransitionValid(block.nTime, pindexPrev, params))
+        return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
+    return true;
+}
+
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex * const pindexPrev, int64_t nAdjustedTime)
 {
 	// Firo - MTP
@@ -4557,6 +4593,16 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     if (block.IsProgPow() && block.nHeight != static_cast<uint32_t>(pindexPrev->nHeight + 1))
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+
+    if (!CheckProgPowTransition(block, state, consensusParams, pindexPrev))
+        return false;
+
+    if (consensusParams.nMTPAnchorHeight) {
+        const int nHeight = pindexPrev->nHeight + 1;
+        if ((nHeight == consensusParams.nMTPAnchorHeight && block.GetHash() != consensusParams.hashMTPAnchor) ||
+            (nHeight > consensusParams.nMTPAnchorHeight && pindexPrev->GetAncestor(consensusParams.nMTPAnchorHeight)->GetBlockHash() != consensusParams.hashMTPAnchor))
+            return state.DoS(100, false, REJECT_INVALID, "bad-mtp-anchor", "block does not descend from the MTP anchor");
+    }
 
 	// Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
@@ -4612,12 +4658,6 @@ bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     const uint32_t nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
-
-    // once ProgPow always ProgPow
-    if (pindexPrev
-        && cmp::greater_equal(pindexPrev->nTime, consensusParams.nPPSwitchTime)
-        && cmp::less(block.nTime, consensusParams.nPPSwitchTime))
-        return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
 
     if (pindexPrev
         && cmp::greater_equal(pindexPrev->nTime, consensusParams.stage3StartTime)
@@ -4777,6 +4817,11 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
                 *ppindex = pindex;
             if (pindex->nStatus & BLOCK_FAILED_MASK)
                 return state.Invalid(error("%s: block %s is marked invalid", __func__, hash.ToString()), 0, "duplicate");
+            // Older nodes could index this header before checking the ProgPOW transition on its block.
+            if (!CheckProgPowTransition(block, state, chainparams.GetConsensus(), pindex->pprev))
+                return false;
+            if (pindex->nHeight >= chainparams.GetConsensus().nMTPAnchorHeight && !IsBlockIndexAnchored(pindex, chainparams.GetConsensus()))
+                return state.DoS(100, false, REJECT_INVALID, "bad-mtp-anchor", "block does not descend from the MTP anchor");
             return true;
         }
 
@@ -4868,6 +4913,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     // and unrequested blocks.
     if (fAlreadyHave) return true;
     if (!fRequested) {  // If we didn't ask for it:
+        if (!IsBlockIndexAnchored(pindex, chainparams.GetConsensus())) return true;
         if (pindex->nTx != 0) return true;  // This is a previously-processed block that was pruned
         if (!fHasMoreWork) return true;     // Don't process less-work chains
         if (fTooFarAhead) return true;      // Block height is too high
@@ -5228,13 +5274,26 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
                 pindex->nChainTx = pindex->nTx;
             }
         }
+        if (pindex->pprev)
+            pindex->BuildSkip();
+        if (!(pindex->nStatus & BLOCK_FAILED_MASK) && pindex->pprev) {
+            if (pindex->pprev->nStatus & BLOCK_FAILED_MASK)
+                pindex->nStatus |= BLOCK_FAILED_CHILD;
+            else if (!IsProgPowTransitionValid(pindex->nTime, pindex->pprev, chainparams.GetConsensus()) ||
+                     (chainparams.GetConsensus().nMTPAnchorHeight && pindex->nHeight >= chainparams.GetConsensus().nMTPAnchorHeight &&
+                      !IsBlockIndexAnchored(pindex, chainparams.GetConsensus())))
+                pindex->nStatus |= BLOCK_FAILED_VALID;
+            if (pindex->nStatus & BLOCK_FAILED_MASK)
+                setDirtyBlockIndex.insert(pindex);
+        }
         if (pindex->IsValid(BLOCK_VALID_TRANSACTIONS) && (pindex->nChainTx || pindex->pprev == NULL))
             setBlockIndexCandidates.insert(pindex);
         if (pindex->nStatus & BLOCK_FAILED_MASK && (!pindexBestInvalid || pindex->nChainWork > pindexBestInvalid->nChainWork))
             pindexBestInvalid = pindex;
-        if (pindex->pprev)
-            pindex->BuildSkip();
-        if (pindex->IsValid(BLOCK_VALID_TREE) && (pindexBestHeader == NULL || CBlockIndexWorkComparator()(pindexBestHeader, pindex)))
+        if (pindex->IsValid(BLOCK_VALID_TREE) &&
+            (pindex->nHeight == 0 || pindex->nHeight >= chainparams.GetConsensus().nMTPAnchorHeight) &&
+            IsBlockIndexAnchored(pindex, chainparams.GetConsensus()) &&
+            (pindexBestHeader == NULL || CBlockIndexWorkComparator()(pindexBestHeader, pindex)))
             pindexBestHeader = pindex;
     }
 
@@ -5305,6 +5364,18 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     if (it == mapBlockIndex.end())
         return true;
     chainActive.SetTip(it->second);
+
+    if (chainActive.Tip()->nStatus & BLOCK_FAILED_MASK)
+        return error("LoadBlockIndexDB: active chain has an invalid header; restart with -reindex");
+
+    // A tip below the anchor height can only be checked once the anchor header is known;
+    // until then FindMostWorkChain holds the tip and header sync fetches the anchor.
+    const Consensus::Params& consensusParams = chainparams.GetConsensus();
+    if (consensusParams.nMTPAnchorHeight &&
+        chainActive.Height() >= consensusParams.nMTPStartBlock &&
+        (mapBlockIndex.count(consensusParams.hashMTPAnchor) || chainActive.Height() >= consensusParams.nMTPAnchorHeight) &&
+        !IsBlockIndexAnchored(chainActive.Tip(), consensusParams))
+        return error("LoadBlockIndexDB: active chain does not connect to the MTP anchor; restart with -reindex");
 
     PruneBlockIndexCandidates();
 
