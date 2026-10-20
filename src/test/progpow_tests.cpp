@@ -227,6 +227,20 @@ BOOST_AUTO_TEST_CASE(mtp_anchor)
     BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
 }
 
+BOOST_AUTO_TEST_CASE(mtp_anchor_unknown_at_startup)
+{
+    // A node that stopped below the anchor height, before it saw the anchor header, must still start.
+    const uint256 tipHash = chainActive.Tip()->GetBlockHash();
+    mutableParams.nMTPAnchorHeight = chainActive.Height() + 2;
+    mutableParams.hashMTPAnchor = uint256S("01");
+
+    FlushStateToDisk();
+    UnloadBlockIndex();
+    mapPrevBlockIndex.clear();
+    BOOST_REQUIRE(LoadBlockIndex(Params()));
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == tipHash);
+}
+
 BOOST_AUTO_TEST_CASE(limit)
 {
     mutableParams.nPPSwitchTime = INT_MAX;

@@ -5368,9 +5368,13 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     if (chainActive.Tip()->nStatus & BLOCK_FAILED_MASK)
         return error("LoadBlockIndexDB: active chain has an invalid header; restart with -reindex");
 
-    if (chainparams.GetConsensus().nMTPAnchorHeight &&
-        chainActive.Height() >= chainparams.GetConsensus().nMTPStartBlock &&
-        !IsBlockIndexAnchored(chainActive.Tip(), chainparams.GetConsensus()))
+    // A tip below the anchor height can only be checked once the anchor header is known;
+    // until then FindMostWorkChain holds the tip and header sync fetches the anchor.
+    const Consensus::Params& consensusParams = chainparams.GetConsensus();
+    if (consensusParams.nMTPAnchorHeight &&
+        chainActive.Height() >= consensusParams.nMTPStartBlock &&
+        (mapBlockIndex.count(consensusParams.hashMTPAnchor) || chainActive.Height() >= consensusParams.nMTPAnchorHeight) &&
+        !IsBlockIndexAnchored(chainActive.Tip(), consensusParams))
         return error("LoadBlockIndexDB: active chain does not connect to the MTP anchor; restart with -reindex");
 
     PruneBlockIndexCandidates();
