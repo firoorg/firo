@@ -480,7 +480,7 @@ UniValue importwallet(const JSONRPCRequest& request)
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
     CKeyID masterKeyID = pwallet->GetHDChain().masterKeyID;
 
     pwallet->ShowProgress(_("Importing..."), 0); // show progress dialog in GUI

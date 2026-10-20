@@ -1,3 +1,5 @@
+#include "config/bitcoin-config.h"
+
 #include <../../test/fixtures.h>
 #include "../../chainparams.h"
 #include "../../policy/policy.h"
@@ -6,12 +8,23 @@
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
 #include "../../streams.h"
+#ifdef USE_SQLITE
+#include "../../init.h"
+#include "../../utilstrencodings.h"
+#include "../sqlite.h"
+
+#include <sqlite3.h>
+#endif
 #include "../../validation.h"
 #include "../../validationinterface.h"
 
 #include <algorithm>
 #include <boost/test/unit_test.hpp>
 #include <limits>
+
+#ifdef USE_SQLITE
+#include <atomic>
+#endif
 
 static std::vector<unsigned char> random_char_vector()
 {                                                    
@@ -48,10 +61,457 @@ void ExtractSpend(CTransaction const &tx,
 static void ReloadSparkWallet()
 {
     pwalletMain->sparkWallet.reset();
-    pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+    pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(*pwalletMain);
 }
 
+#ifdef USE_SQLITE
+extern std::atomic<bool> fRequestShutdown;
+
+namespace
+{
+class InstallDiversifierFailureExecutor final : public SQLiteStatementExecutor
+{
+private:
+    const std::string m_serialized_key_hex;
+    bool m_installed{false};
+
+public:
+    explicit InstallDiversifierFailureExecutor(
+        std::string serializedKeyHex)
+        : m_serialized_key_hex(std::move(serializedKeyHex))
+    {
+    }
+
+    int Execute(sqlite3* database, const char* statement) override
+    {
+        if (!m_installed &&
+            std::string(statement) == "BEGIN TRANSACTION") {
+            const std::string trigger = strprintf(
+                "CREATE TEMP TRIGGER reject_spark_diversifier "
+                "BEFORE INSERT ON main WHEN NEW.key = X'%s' BEGIN "
+                "SELECT RAISE(FAIL, 'injected Spark diversifier failure'); END",
+                m_serialized_key_hex);
+            const int result = SQLiteStatementExecutor::Execute(
+                database,
+                trigger.c_str());
+            if (result != SQLITE_OK) {
+                return result;
+            }
+            m_installed = true;
+        }
+        return SQLiteStatementExecutor::Execute(
+            database,
+            statement);
+    }
+};
+
+class CommitThenFailSQLiteExecutor final : public SQLiteStatementExecutor
+{
+public:
+    int Execute(sqlite3* database, const char* statement) override
+    {
+        const int result =
+            SQLiteStatementExecutor::Execute(database, statement);
+        if (result == SQLITE_OK &&
+            std::string(statement) == "COMMIT TRANSACTION") {
+            return SQLITE_IOERR;
+        }
+        return result;
+    }
+};
+
+class ShutdownRequestReset
+{
+private:
+    const bool m_previous;
+
+public:
+    ShutdownRequestReset()
+        : m_previous(fRequestShutdown.exchange(false))
+    {
+    }
+
+    ~ShutdownRequestReset()
+    {
+        fRequestShutdown.store(m_previous);
+    }
+};
+
+std::unique_ptr<CWallet> MakeSQLiteSparkTestWallet(
+    const std::string& filename)
+{
+    DatabaseOptions options;
+    options.require_create = true;
+    options.require_format = DatabaseFormat::SQLITE;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> database =
+        MakeSQLiteDatabase(filename, options, status, error);
+    if (!database) {
+        throw std::runtime_error(
+            "Unable to create SQLite Spark test wallet: " + error);
+    }
+
+    auto wallet = std::make_unique<CWallet>(std::move(database));
+    const CPubKey masterKey = wallet->GenerateNewHDMasterKey();
+    if (!wallet->SetHDMasterKey(
+            masterKey,
+            CHDChain().VERSION_WITH_BIP44)) {
+        throw std::runtime_error(
+            "Unable to initialize SQLite Spark test wallet");
+    }
+    return wallet;
+}
+
+void InstallDiversifierFailure(WalletDatabase& database)
+{
+    CDataStream key(SER_DISK, CLIENT_VERSION);
+    key << std::string("div");
+    std::unique_ptr<DatabaseBatch> batch = database.MakeBatch();
+    if (!SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<InstallDiversifierFailureExecutor>(
+                HexStr(key.begin(), key.end()))) ||
+        !batch->TxnBegin() ||
+        !batch->TxnAbort()) {
+        throw std::runtime_error(
+            "Unable to install SQLite Spark failure trigger");
+    }
+}
+
+void CheckSameSparkAddress(
+    const spark::Address& first,
+    const spark::Address& second)
+{
+    BOOST_CHECK(first.get_d() == second.get_d());
+    BOOST_CHECK(first.get_Q1() == second.get_Q1());
+    BOOST_CHECK(first.get_Q2() == second.get_Q2());
+}
+} // namespace
+#endif
+
 BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
+
+#ifdef USE_SQLITE
+BOOST_AUTO_TEST_CASE(sqlite_initialization_state_contract)
+{
+    const spark::Params* params = spark::Params::get_default();
+
+    {
+        auto wallet = MakeSQLiteSparkTestWallet(
+            "spark_sqlite_success.dat");
+        std::string firstViewKey;
+        spark::Address firstDefaultAddress(params);
+        {
+            CSparkWallet sparkWallet(*wallet);
+            firstViewKey = wallet->GetSparkViewKeyStr();
+            firstDefaultAddress = sparkWallet.getDefaultAddress();
+            const auto addresses = sparkWallet.getAllAddresses();
+            BOOST_REQUIRE_EQUAL(addresses.size(), 1U);
+            BOOST_CHECK(addresses.count(0) == 1);
+        }
+
+        {
+            CSparkWallet reloaded(*wallet);
+            BOOST_CHECK_EQUAL(
+                wallet->GetSparkViewKeyStr(),
+                firstViewKey);
+            CheckSameSparkAddress(
+                reloaded.getDefaultAddress(),
+                firstDefaultAddress);
+            const auto addresses = reloaded.getAllAddresses();
+            BOOST_REQUIRE_EQUAL(addresses.size(), 1U);
+            BOOST_CHECK(addresses.count(0) == 1);
+        }
+
+        CWalletDB walletdb(wallet->GetDatabase());
+        spark::FullViewKey fullViewKey(params);
+        int32_t diversifier = -1;
+        BOOST_CHECK(
+            walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK(
+            walletdb.readDiversifierWithStatus(diversifier) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(diversifier, 0);
+    }
+
+    {
+        auto wallet = MakeSQLiteSparkTestWallet(
+            "spark_sqlite_full_view_key_only.dat");
+        {
+            CSparkWallet initialized(*wallet);
+        }
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                wallet->GetDatabase().MakeBatch();
+            BOOST_REQUIRE(batch->Erase(std::string("div")));
+        }
+
+        BOOST_CHECK_THROW(
+            std::make_unique<CSparkWallet>(*wallet),
+            std::runtime_error);
+        CWalletDB walletdb(wallet->GetDatabase());
+        spark::FullViewKey fullViewKey(params);
+        int32_t diversifier = -1;
+        BOOST_CHECK(
+            walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK(
+            walletdb.readDiversifierWithStatus(diversifier) ==
+            DatabaseReadStatus::NOT_FOUND);
+    }
+
+    {
+        auto wallet = MakeSQLiteSparkTestWallet(
+            "spark_sqlite_diversifier_only.dat");
+        {
+            CSparkWallet initialized(*wallet);
+        }
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                wallet->GetDatabase().MakeBatch();
+            BOOST_REQUIRE(
+                batch->Erase(std::string("fullViewKey")));
+        }
+
+        BOOST_CHECK_THROW(
+            std::make_unique<CSparkWallet>(*wallet),
+            std::runtime_error);
+        BOOST_CHECK_THROW(
+            wallet->GetSparkViewKey(),
+            std::runtime_error);
+        CWalletDB walletdb(wallet->GetDatabase());
+        spark::FullViewKey fullViewKey(params);
+        int32_t diversifier = -1;
+        BOOST_CHECK(
+            walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+            DatabaseReadStatus::NOT_FOUND);
+        BOOST_CHECK(
+            walletdb.readDiversifierWithStatus(diversifier) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(diversifier, 0);
+    }
+
+    {
+        auto wallet = MakeSQLiteSparkTestWallet(
+            "spark_sqlite_corrupt_full_view_key.dat");
+        {
+            CSparkWallet initialized(*wallet);
+        }
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                wallet->GetDatabase().MakeBatch();
+            BOOST_REQUIRE(batch->Write(
+                std::string("fullViewKey"),
+                uint8_t{1}));
+        }
+
+        BOOST_CHECK_THROW(
+            std::make_unique<CSparkWallet>(*wallet),
+            std::runtime_error);
+        BOOST_CHECK_THROW(
+            wallet->GetSparkViewKey(),
+            std::runtime_error);
+        CWalletDB walletdb(wallet->GetDatabase());
+        spark::FullViewKey fullViewKey(params);
+        int32_t diversifier = -1;
+        BOOST_CHECK(
+            walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+            DatabaseReadStatus::CORRUPT);
+        BOOST_CHECK(
+            walletdb.readDiversifierWithStatus(diversifier) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(diversifier, 0);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_initialization_write_is_atomic)
+{
+    auto wallet = MakeSQLiteSparkTestWallet(
+        "spark_sqlite_atomic_initialization.dat");
+    InstallDiversifierFailure(wallet->GetDatabase());
+
+    BOOST_CHECK_THROW(
+        std::make_unique<CSparkWallet>(*wallet),
+        std::runtime_error);
+
+    CWalletDB walletdb(wallet->GetDatabase());
+    spark::FullViewKey fullViewKey(spark::Params::get_default());
+    int32_t diversifier = -1;
+    BOOST_CHECK(
+        walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+        DatabaseReadStatus::NOT_FOUND);
+    BOOST_CHECK(
+        walletdb.readDiversifierWithStatus(diversifier) ==
+        DatabaseReadStatus::NOT_FOUND);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_address_persistence_precedes_publication)
+{
+    auto wallet = MakeSQLiteSparkTestWallet(
+        "spark_sqlite_address_persistence.dat");
+    CSparkWallet sparkWallet(*wallet);
+    const auto addressesBefore = sparkWallet.getAllAddresses();
+    BOOST_REQUIRE_EQUAL(addressesBefore.size(), 1U);
+    BOOST_REQUIRE(addressesBefore.count(0) == 1);
+
+    InstallDiversifierFailure(wallet->GetDatabase());
+    BOOST_CHECK_THROW(
+        sparkWallet.generateNewAddress(),
+        std::runtime_error);
+
+    const auto addressesAfter = sparkWallet.getAllAddresses();
+    BOOST_REQUIRE_EQUAL(
+        addressesAfter.size(),
+        addressesBefore.size());
+    BOOST_REQUIRE(addressesAfter.count(0) == 1);
+    CheckSameSparkAddress(
+        addressesAfter.at(0),
+        addressesBefore.at(0));
+    CWalletDB walletdb(wallet->GetDatabase());
+    int32_t diversifier = -1;
+    BOOST_REQUIRE(
+        walletdb.readDiversifierWithStatus(diversifier) ==
+        DatabaseReadStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(diversifier, 0);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_backend_failure_does_not_initialize_spark)
+{
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+    const std::string filename{
+        "spark_sqlite_backend_failure.dat"};
+    auto wallet = MakeSQLiteSparkTestWallet(filename);
+    std::unique_ptr<DatabaseBatch> batch =
+        wallet->GetDatabase().MakeBatch();
+    BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+        *batch,
+        std::make_unique<CommitThenFailSQLiteExecutor>()));
+    BOOST_CHECK_THROW(
+        batch->Write(
+            std::string("failure-probe"),
+            std::string("applied-before-error")),
+        std::runtime_error);
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_THROW(
+        std::make_unique<CSparkWallet>(*wallet),
+        std::runtime_error);
+    batch.reset();
+    wallet.reset();
+
+    DatabaseOptions options;
+    options.require_existing = true;
+    options.require_format = DatabaseFormat::SQLITE;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> reopened =
+        MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE(reopened);
+    CWalletDB walletdb(*reopened);
+    spark::FullViewKey fullViewKey(
+        spark::Params::get_default());
+    int32_t diversifier = -1;
+    BOOST_CHECK(
+        walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+        DatabaseReadStatus::NOT_FOUND);
+    BOOST_CHECK(
+        walletdb.readDiversifierWithStatus(diversifier) ==
+        DatabaseReadStatus::NOT_FOUND);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_reload_preserves_upstream_spark_checks)
+{
+    auto wallet = MakeSQLiteSparkTestWallet("spark_sqlite_reload_checks.dat");
+    wallet->sparkWallet = std::make_unique<CSparkWallet>(*wallet);
+    CMutableTransaction parent;
+    parent.vin.emplace_back(COutPoint(uint256S("02"), 0));
+    parent.vout.emplace_back(0, CScript() << OP_RETURN);
+    const CTransaction transaction(parent);
+    const auto serialContext = spark::getSerialContext(transaction);
+    const uint256 parentHash = transaction.GetHash();
+    Scalar mintNonce;
+    mintNonce.randomize();
+    Scalar spendNonce;
+    spendNonce.randomize();
+    const auto address = wallet->sparkWallet->getDefaultAddress();
+    const spark::Coin mint(params, spark::COIN_TYPE_MINT, mintNonce,
+        address, COIN, "SQLite reload mint", serialContext);
+    const spark::Coin smint(params, spark::COIN_TYPE_SPEND, spendNonce,
+        address, 2 * COIN, "SQLite reload smint", serialContext);
+    {
+        CWalletDB walletdb(wallet->GetDatabase());
+        wallet->sparkWallet->UpdateMintState({mint, smint}, parentHash, walletdb);
+        BOOST_REQUIRE_EQUAL(walletdb.ListSparkMints().size(), 2U);
+    }
+
+    auto reload = [&]() {
+        wallet->sparkWallet.reset();
+        wallet->sparkWallet = std::make_unique<CSparkWallet>(*wallet);
+        wallet->sparkWallet->WaitForPendingTasks();
+    };
+    // A missing SMint parent is retained on disk but excluded from balances.
+    reload();
+    BOOST_CHECK_EQUAL(wallet->sparkWallet->getFullBalance(), COIN);
+    BOOST_REQUIRE_EQUAL(wallet->sparkWallet->getMintMap().size(), 1U);
+    BOOST_CHECK(wallet->sparkWallet->validateLookupIndexes());
+    {
+        CWalletDB walletdb(wallet->GetDatabase());
+        BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), 2U);
+    }
+
+    // A known parent that is not a spend makes the saved SMint invalid.
+    BOOST_REQUIRE(wallet->AddToWallet(CWalletTx(
+        wallet.get(), MakeTransactionRef(transaction))));
+    reload();
+    BOOST_CHECK_EQUAL(wallet->sparkWallet->getFullBalance(), COIN);
+    BOOST_CHECK(wallet->sparkWallet->validateLookupIndexes());
+    {
+        CWalletDB walletdb(wallet->GetDatabase());
+        BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), 1U);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_failed_initialization_relocks_wallet)
+{
+    const SecureString passphrase{
+        "Spark SQLite relock test passphrase"};
+    auto wallet = MakeSQLiteSparkTestWallet(
+        "spark_sqlite_relock.dat");
+    BOOST_REQUIRE(wallet->EncryptWallet(passphrase));
+    BOOST_REQUIRE(wallet->IsLocked());
+    InstallDiversifierFailure(wallet->GetDatabase());
+
+    bool unlockRequested = false;
+    boost::signals2::scoped_connection unlockConnection(
+        UnlockWallet.connect([&](CWallet* requestedWallet) {
+            if (requestedWallet != wallet.get() ||
+                !requestedWallet->Unlock(passphrase)) {
+                throw std::runtime_error(
+                    "Unable to unlock SQLite Spark test wallet");
+            }
+            unlockRequested = true;
+        }));
+    BOOST_CHECK_THROW(
+        std::make_unique<CSparkWallet>(*wallet),
+        std::runtime_error);
+    BOOST_CHECK(unlockRequested);
+    BOOST_CHECK(wallet->IsLocked());
+
+    CWalletDB walletdb(wallet->GetDatabase());
+    spark::FullViewKey fullViewKey(
+        spark::Params::get_default());
+    int32_t diversifier = -1;
+    BOOST_CHECK(
+        walletdb.readFullViewKeyWithStatus(fullViewKey) ==
+        DatabaseReadStatus::NOT_FOUND);
+    BOOST_CHECK(
+        walletdb.readDiversifierWithStatus(diversifier) ==
+        DatabaseReadStatus::NOT_FOUND);
+}
+#endif
+
 
 BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
 {
@@ -146,7 +606,7 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
 
     // Reproduce metadata written by an older wallet for the mixed transaction.
     {
-        CWalletDB walletdb(pwalletMain->strWalletFile);
+        CWalletDB walletdb(pwalletMain->GetDatabase());
         pwalletMain->sparkWallet->UpdateMintState(
             {coin}, mixedTransaction.GetHash(), walletdb);
         BOOST_REQUIRE_EQUAL(walletdb.ListSparkMints().size(), 1U);
@@ -156,7 +616,7 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
     // Missing parents must not make saved metadata authoritative. Keep the
     // database record for recovery, but exclude it from balances and lookups.
     for (int height : {-1, 1}) {
-        CWalletDB walletdb(pwalletMain->strWalletFile);
+        CWalletDB walletdb(pwalletMain->GetDatabase());
         auto savedMints = walletdb.ListSparkMints();
         BOOST_REQUIRE_EQUAL(savedMints.size(), 1U);
         auto& savedMint = *savedMints.begin();
@@ -176,7 +636,7 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
         pwalletMain, MakeTransactionRef(mixedTransaction))));
     ReloadSparkWallet();
     BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getUnconfirmedBalance(), 0);
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
     BOOST_CHECK(walletdb.ListSparkMints().empty());
 }
 
@@ -426,7 +886,7 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
     const CBlock block = GetCBlock(index);
     wallet->FinishTasks();
 
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
     const auto initial = wallet->getMintMap();
     BOOST_REQUIRE_EQUAL(initial.size(), 1);
     const auto lTagHash = initial.begin()->first;
@@ -511,7 +971,7 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_spends)
     const auto lTags = spark::GetSparkUsedTags(spend);
     BOOST_REQUIRE_EQUAL(lTags.size(), 1);
     const uint256 lTagHash = primitives::GetLTagHash(lTags[0]);
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
 
     for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
         txpools.clear();
@@ -621,7 +1081,7 @@ BOOST_AUTO_TEST_CASE(spend)
         ReloadSparkWallet();
         for (const auto& mint : pwalletMain->sparkWallet->getMintMap())
             BOOST_CHECK(mint.second.txid != spTx.GetHash());
-        CWalletDB walletdb(pwalletMain->strWalletFile);
+        CWalletDB walletdb(pwalletMain->GetDatabase());
         BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), savedMints.size());
         pwalletMain->mapWallet.insert(std::move(parent));
     }

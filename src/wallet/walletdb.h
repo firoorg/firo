@@ -9,7 +9,7 @@
 #include "amount.h"
 #include "primitives/transaction.h"
 #include "primitives/mint_spend.h"
-#include "wallet/db.h"
+#include "wallet/database.h"
 #include "mnemoniccontainer.h"
 #include "streams.h"
 #include "key.h"
@@ -20,6 +20,8 @@
 #include "../spark/primitives.h"
 
 #include <list>
+#include <memory>
+#include <stdexcept>
 #include <stdint.h>
 #include <string>
 #include <utility>
@@ -37,6 +39,7 @@ static const uint32_t BIP44_KEYPATH_SIZE = 0x6;    // m/44'/<1/136>'/0'/<c>/<n> 
 class CAccount;
 class CAccountingEntry;
 struct CBlockLocator;
+class CDBEnv;
 class CKeyPool;
 class CMasterKey;
 class CScript;
@@ -64,6 +67,30 @@ enum DBErrors
 
 // {value, isHardened}
 typedef std::pair<uint32_t,bool> Component;
+
+/**
+ * Stateful validator matching the cross-record acceptance rules used by
+ * Berkeley DB key-only wallet salvage.
+ */
+class WalletKeyOnlyRecordValidator
+{
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
+
+public:
+    WalletKeyOnlyRecordValidator();
+    ~WalletKeyOnlyRecordValidator();
+
+    WalletKeyOnlyRecordValidator(
+        const WalletKeyOnlyRecordValidator&) = delete;
+    WalletKeyOnlyRecordValidator& operator=(
+        const WalletKeyOnlyRecordValidator&) = delete;
+
+    bool IsValid(
+        const CDataStream& serialized_key,
+        const CDataStream& serialized_value);
+};
 
 /* simple HD chain data model */
 class CHDChain
@@ -180,11 +207,16 @@ public:
 };
 
 /** Access to the wallet database */
-class CWalletDB : public CDB
+class CWalletDB
 {
 public:
-    CWalletDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnCloseParam = true) : CDB(strFilename, pszMode, fFlushOnCloseParam)
+    explicit CWalletDB(WalletDatabase& database, const DatabaseBatchOptions& options = {})
+        : m_format(database.Format()),
+          m_batch(database.MakeBatch(options))
     {
+        if (!m_batch) {
+            throw std::runtime_error("Wallet database returned no batch");
+        }
     }
 
     bool WriteKV(const std::string& key, const std::string& value);
@@ -240,7 +272,7 @@ public:
     bool WriteCalculatedZCBlock(int height);
 
     DBErrors ReorderTransactions(CWallet* pwallet);
-    DBErrors LoadWallet(CWallet* pwallet);
+    DBErrors LoadWallet(CWallet* pwallet, bool update = true);
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
@@ -255,9 +287,11 @@ public:
     bool WriteMintSeedCount(const int32_t& nCount);
 
     bool readDiversifier(int32_t& nCount);
+    DatabaseReadStatus readDiversifierWithStatus(int32_t& nCount);
     bool writeDiversifier(const int32_t& nCount);
 
     bool readFullViewKey(spark::FullViewKey& viewKey);
+    DatabaseReadStatus readFullViewKeyWithStatus(spark::FullViewKey& viewKey);
     bool writeFullViewKey(const spark::FullViewKey& viewKey);
 
     bool WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash);
@@ -290,41 +324,83 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     static void IncrementUpdateCounter();
-    static unsigned int GetUpdateCounter();    
+    static unsigned int GetUpdateCounter();
+
+    bool TxnBegin() { return m_batch->TxnBegin(); }
+    bool TxnCommit() { return m_batch->TxnCommit(); }
+    bool TxnAbort() { return m_batch->TxnAbort(); }
+    bool HasActiveTxn() const { return m_batch->HasActiveTxn(); }
 
     //bip47 data
     bool WriteBip47Account(bip47::CAccountReceiver const & account);
     bool WriteBip47Account(bip47::CAccountSender const & account);
     void LoadBip47Accounts(bip47::CWallet & wallet);
+
 private:
-    CWalletDB(const CWalletDB&);
-    void operator=(const CWalletDB&);
+    const DatabaseFormat m_format;
+    std::unique_ptr<DatabaseBatch> m_batch;
+
+    CWalletDB(const CWalletDB&) = delete;
+    CWalletDB& operator=(const CWalletDB&) = delete;
+    CWalletDB(CWalletDB&&) = delete;
+    CWalletDB& operator=(CWalletDB&&) = delete;
+
+    template <typename K, typename T>
+    bool Read(const K& key, T& value)
+    {
+        return m_batch->Read(key, value);
+    }
+
+    template <typename K, typename T>
+    bool Write(const K& key, const T& value, bool overwrite = true)
+    {
+        return m_batch->Write(key, value, overwrite);
+    }
+
+    template <typename K>
+    bool Erase(const K& key)
+    {
+        return m_batch->Erase(key);
+    }
+
+    template <typename K>
+    bool Exists(const K& key)
+    {
+        return m_batch->Exists(key);
+    }
+
+    std::unique_ptr<DatabaseCursor> GetCursor()
+    {
+        return m_batch->GetCursor();
+    }
+
+    std::unique_ptr<DatabaseCursor> GetCursor(const CDataStream& startKey)
+    {
+        return m_batch->GetCursor(startKey);
+    }
+
+    bool WriteVersion(int version)
+    {
+        return m_batch->WriteVersion(version);
+    }
 
     template<typename K, typename V, typename InsertF>
     void ListEntries(std::string const &prefix, InsertF insertF)
     {
-        auto cursor = GetCursor();
+        CDataStream startKey(SER_DISK, CLIENT_VERSION);
+        startKey << std::make_pair(prefix, K());
+        auto cursor = GetCursor(startKey);
         if (!cursor) {
             throw std::runtime_error(std::string(__func__) + " : cannot create DB cursor");
         }
 
-        bool setRange = true;
         while (true) {
-
-            // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (setRange) {
-                ssKey << std::make_pair(prefix, K());
-            }
-
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(cursor, ssKey, ssValue, setRange);
-
-            setRange = false;
-            if (ret == DB_NOTFOUND) {
+            const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+            if (status == DatabaseCursor::Status::DONE) {
                 break;
-            } else if (ret != 0) {
-                cursor->close();
+            } else if (status == DatabaseCursor::Status::FAIL) {
                 throw std::runtime_error(std::string(__func__)+" : error scanning DB");
             }
 
@@ -343,8 +419,6 @@ private:
 
             insertF(key, value);
         }
-
-        cursor->close();
     }
 };
 

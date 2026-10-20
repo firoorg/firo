@@ -264,13 +264,20 @@ public:
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
     // Wallet encryption
-    bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
+#ifdef ENABLE_WALLET
+    bool setWalletEncrypted(bool encrypted, const SecureString &passphrase, CWallet::EncryptionStatus* status = nullptr);
+#endif
     // Passphrase only needed when unlocking
     bool setWalletLocked(bool locked, const SecureString &passPhrase=SecureString());
     void lockWalletDelayed(int seconds);
-    bool changePassphrase(const SecureString &oldPass, const SecureString &newPass);
+    bool changePassphrase(
+        const SecureString& oldPass,
+        const SecureString& newPass,
+        bool* indeterminate = nullptr,
+        bool* databaseError = nullptr);
     // Wallet backup
     bool backupWallet(const QString &filename);
+    bool backupWallet(const QString& filename, QString& error);
 
     // RAI object for unlocking wallet, returned by requestUnlock()
     class UnlockContext

@@ -1,0 +1,141 @@
+// Copyright (c) 2020-present The Bitcoin Core developers
+// Copyright (c) 2026 The Firo developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef FIRO_WALLET_SQLITE_H
+#define FIRO_WALLET_SQLITE_H
+
+#include "wallet/database.h"
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
+struct sqlite3;
+struct sqlite3_stmt;
+class BerkeleyDatabase;
+
+enum class SQLiteMigrationPublishResult {
+    SUCCESS,
+    FAILED,
+    INDETERMINATE,
+};
+
+/**
+ * Narrow statement execution seam used to exercise transaction failure
+ * recovery. Production batches use the default implementation.
+ */
+class SQLiteStatementExecutor
+{
+public:
+    virtual ~SQLiteStatementExecutor() = default;
+    virtual int Execute(sqlite3* database, const char* statement);
+};
+
+/** Narrow BLOB-access seam used to exercise point-read allocation failures. */
+class SQLiteColumnReader
+{
+public:
+    virtual ~SQLiteColumnReader() = default;
+    virtual const void* Blob(sqlite3_stmt* statement, int column);
+    virtual int Bytes(sqlite3_stmt* statement, int column);
+    virtual int ErrorCode(sqlite3* database);
+};
+
+/** Construct and verify a SQLite wallet backend. */
+std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
+    const std::string& filename,
+    const DatabaseOptions& options,
+    DatabaseStatus& status,
+    std::string& error);
+
+/** Atomically exchange a completed SQLite migration candidate with its BDB source. */
+SQLiteMigrationPublishResult PublishSQLiteMigrationCandidate(
+    WalletDatabase& candidate,
+    BerkeleyDatabase& source,
+    std::string& error);
+
+#ifdef WIN32
+/** Safely consume and remove an unpublished SQLite migration candidate. */
+SQLiteMigrationPublishResult AbortSQLiteMigrationCandidate(
+    WalletDatabase& candidate,
+    std::string& error);
+#endif
+
+/** Replace transaction statement execution for one SQLite batch. */
+bool SetSQLiteStatementExecutorForTesting(
+    DatabaseBatch& batch,
+    std::unique_ptr<SQLiteStatementExecutor> executor);
+
+/** Replace transaction statement execution for the next batch from one SQLite owner. */
+bool SetSQLiteNextBatchStatementExecutorForTesting(
+    WalletDatabase& database,
+    std::unique_ptr<SQLiteStatementExecutor> executor);
+
+/** Replace BLOB column access for one SQLite batch. */
+bool SetSQLiteColumnReaderForTesting(
+    DatabaseBatch& batch,
+    std::unique_ptr<SQLiteColumnReader> reader);
+
+/** Read the effective synchronous mode from one SQLite batch. */
+bool GetSQLiteSynchronousModeForTesting(
+    DatabaseBatch& batch,
+    int64_t& mode);
+
+/** Fail the next SQLite creation or backup after publishing its candidate. */
+void InjectSQLitePostPublishFailureForTesting();
+
+/** Report a rename error and make its immediate identity probes inconclusive. */
+void InjectSQLiteAmbiguousPublishFailureForTesting();
+
+/** Simulate a concurrent destination collision before the next backup publish. */
+void InjectSQLiteBackupPublicationCollisionForTesting();
+
+/** Simulate a backup publication collision whose candidate cannot be cleaned. */
+void InjectSQLiteBackupCollisionCleanupFailureForTesting();
+
+/** Simulate a recovery-backup collision whose candidates cannot be cleaned. */
+void InjectSQLiteRecoveryCollisionCleanupFailureForTesting();
+
+/** Report an error after the next migration exchange has actually succeeded. */
+void InjectSQLiteMigrationExchangeFailureForTesting();
+
+/** Report an error after the next rewrite commit has actually succeeded. */
+void InjectSQLiteRewriteCommitFailureForTesting();
+
+/** Replace statement execution for one SQLite logical-creation owner. */
+bool SetSQLiteCreationStatementExecutorForTesting(
+    WalletDatabase& database,
+    std::unique_ptr<SQLiteStatementExecutor> executor);
+
+/** Fail one close after the requested number of successful close attempts. */
+void InjectSQLiteCloseFailureForTesting(
+    int successful_closes_before_failure = 0);
+
+/** Fail one directory sync after the requested number of successful syncs. */
+void InjectSQLiteDirectorySyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure = 0);
+
+/** Fail one file sync after the requested number of successful syncs. */
+void InjectSQLiteFileSyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure = 0);
+
+/** Fail one SQLite record erase after the requested number of successful erases. */
+void InjectSQLiteEraseFailureForTesting(
+    int successful_erases_before_failure = 0);
+
+#ifdef WIN32
+/** Fail the next Win32 SQLite candidate's second retained-identity check. */
+void InjectSQLiteCandidateRevalidationFailureForTesting();
+#endif
+
+/** Return SQLite erase attempts since the last erase-failure injection. */
+int GetSQLiteEraseAttemptsForTesting();
+
+/** Recover the deliberately quarantined connection and file handles created by a test. */
+bool ResetSQLiteLifecycleForTesting();
+
+#endif // FIRO_WALLET_SQLITE_H

@@ -6,14 +6,21 @@
 #ifndef BITCOIN_WALLET_DB_H
 #define BITCOIN_WALLET_DB_H
 
-#include "clientversion.h"
-#include "serialize.h"
-#include "streams.h"
-#include "sync.h"
-#include "version.h"
+#include "wallet/database.h"
+#if defined(WIN32) && defined(USE_SQLITE)
+#include "wallet/win32_file_lifecycle.h"
+#endif
 
+#include "serialize.h"
+#include "sync.h"
+
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <optional>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <boost/filesystem/path.hpp>
@@ -39,6 +46,8 @@ public:
     DbEnv *dbenv;
     std::map<std::string, int> mapFileUseCount;
     std::map<std::string, Db*> mapDb;
+    /** Prevent shutdown log removal while a checkpointed migration source still needs the environment. */
+    std::set<std::string> migrationLogPins;
 
     CDBEnv();
     ~CDBEnv();
@@ -87,223 +96,192 @@ public:
 
 extern CDBEnv bitdb;
 
+#if !defined(WIN32) || defined(USE_SQLITE)
+/** Fail one BDB migration sync after the requested number of successful syncs. */
+void InjectBerkeleyMigrationSyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure = 0);
+#endif
 
-/** RAII class that provides access to a Berkeley database */
-class CDB
+enum class MigrationBackupResult {
+    SUCCESS,
+    EXISTS,
+    FAILED,
+    INDETERMINATE,
+};
+
+/**
+ * Persistent identity and lifecycle operations for one Berkeley DB wallet.
+ *
+ * Batches borrow this object, so it must outlive every CDB constructed from
+ * it.
+ */
+class BerkeleyDatabase final : public WalletDatabase
 {
+    friend class CDB;
+
+private:
+    enum class FirstOpenRequirement {
+        NONE,
+        EXISTING,
+        CREATE,
+    };
+
+    CDBEnv* const m_env;
+    const std::string m_filename;
+    FirstOpenRequirement m_first_open_requirement{
+        FirstOpenRequirement::NONE};
+    std::optional<DatabaseFileIdentity> m_first_open_identity;
+#if defined(WIN32) && defined(USE_SQLITE)
+    enum class Win32MigrationState {
+        NONE,
+        BACKUP_READY,
+        READY,
+        MOVE_ATTEMPTED,
+        MOVED_PROVEN,
+        INDETERMINATE,
+        FINALIZED,
+    };
+
+    struct Win32MigrationReceipt {
+        fs::path candidate_path;
+        fs::path source_path;
+        DatabaseFileIdentity candidate_identity;
+        wallet::win32::MoveResult move_result;
+    };
+
+    wallet::win32::File m_migration_source_file;
+    wallet::win32::File m_migration_backup_file;
+    Win32MigrationState m_win32_migration_state{
+        Win32MigrationState::NONE};
+    std::optional<Win32MigrationReceipt> m_win32_migration_receipt;
+    fs::path m_migration_backup_alternate_path;
+#else
+    int m_migration_source_descriptor{-1};
+    int m_migration_backup_descriptor{-1};
+#endif
+    std::optional<DatabaseFileIdentity> m_migration_source_identity;
+    std::optional<DatabaseFileIdentity> m_migration_backup_identity;
+    fs::path m_migration_backup_path;
+
+public:
+    /** Construct an inert database identity for a memory-only wallet. */
+    BerkeleyDatabase()
+        : m_env(nullptr)
+    {
+    }
+
+    BerkeleyDatabase(CDBEnv& env, std::string filename)
+        : m_env(&env),
+          m_filename(std::move(filename))
+    {
+    }
+
+    BerkeleyDatabase(
+        CDBEnv& env,
+        std::string filename,
+        const DatabaseOptions& options,
+        std::optional<DatabaseFileIdentity> first_open_identity)
+        : m_env(&env),
+          m_filename(std::move(filename)),
+          m_first_open_requirement(
+              options.require_create ?
+                  FirstOpenRequirement::CREATE :
+              options.require_existing ?
+                  FirstOpenRequirement::EXISTING :
+                  FirstOpenRequirement::NONE),
+          m_first_open_identity(
+              std::move(first_open_identity))
+    {
+    }
+
+    BerkeleyDatabase(const BerkeleyDatabase&) = delete;
+    BerkeleyDatabase& operator=(const BerkeleyDatabase&) = delete;
+    ~BerkeleyDatabase() noexcept override;
+
+    const std::string& Filename() const override { return m_filename; }
+    DatabaseFormat Format() const override { return DatabaseFormat::BERKELEY; }
+
+    std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) override;
+    bool Rewrite(const char* skip = nullptr) override;
+    bool Backup(const std::string& destination) override;
+    bool Backup(
+        const std::string& destination,
+        std::string& error) override;
+    MigrationBackupResult CreateMigrationBackup(
+        const std::string& backup_filename,
+        std::string& error);
+    bool PrepareForMigrationPublication(std::string& error);
+    bool MigrationSourceMatchesPath(
+        const fs::path& path,
+        std::string& error) const;
+    bool MigrationBackupMatchesPath(std::string& error) const;
+#if defined(WIN32) && defined(USE_SQLITE)
+    wallet::win32::MoveResult ReplaceMigrationSourceWithSQLite(
+        const fs::path& candidate_path,
+        const wallet::win32::File& candidate_file,
+        const DatabaseFileIdentity& candidate_identity,
+        const fs::path& source_path,
+        std::string& error);
+#endif
+    bool ConfirmMigrationSourceRemoved(std::string& error);
+    const fs::path& MigrationBackupPath() const
+    {
+        return m_migration_backup_path;
+    }
+    bool PeriodicFlush() override;
+    void Flush(bool shutdown) override;
+};
+
+
+/** Berkeley DB implementation of a wallet database batch. */
+class CDB : public DatabaseBatch
+{
+    friend class BerkeleyDatabase;
+
 protected:
+    BerkeleyDatabase& m_database;
     Db* pdb;
     std::string strFile;
     DbTxn* activeTxn;
     bool fReadOnly;
     bool fFlushOnClose;
 
-    explicit CDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnCloseIn=true);
-    ~CDB() { Close(); }
-
-public:
-    void Flush();
-    void Close();
+    explicit CDB(BerkeleyDatabase& database, const char* pszMode = "r+", bool fFlushOnCloseIn = true);
+    ~CDB() override { Close(); }
 
 private:
-    CDB(const CDB&);
-    void operator=(const CDB&);
+    DatabaseReadStatus ReadRaw(CDataStream&& key, CDataStream& value) override;
+    bool WriteRaw(CDataStream&& key, CDataStream&& value, bool overwrite) override;
+    bool EraseRaw(CDataStream&& key) override;
+    DatabaseReadStatus HasRaw(CDataStream&& key) override;
 
-protected:
-    template <typename K, typename T>
-    bool Read(const K& key, T& value)
-    {
-        if (!pdb)
-            return false;
-
-        // Key
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.reserve(1000);
-        ssKey << key;
-        Dbt datKey(ssKey.data(), ssKey.size());
-
-        // Read
-        Dbt datValue;
-        datValue.set_flags(DB_DBT_MALLOC);
-        int ret = pdb->get(activeTxn, &datKey, &datValue, 0);
-        memory_cleanse(datKey.get_data(), datKey.get_size());
-        bool success = false;
-        if (datValue.get_data() != NULL) {
-            // Unserialize value
-            try {
-                CDataStream ssValue((char*)datValue.get_data(), (char*)datValue.get_data() + datValue.get_size(), SER_DISK, CLIENT_VERSION);
-                ssValue >> value;
-                success = true;
-            } catch (const std::exception&) {
-                // In this case success remains 'false'
-            }
-
-            // Clear and free memory
-            memory_cleanse(datValue.get_data(), datValue.get_size());
-            free(datValue.get_data());
-        }
-        return ret == 0 && success;
-    }
-
-    template <typename K, typename T>
-    bool Write(const K& key, const T& value, bool fOverwrite = true)
-    {
-        if (!pdb)
-            return false;
-        if (fReadOnly)
-            assert(!"Write called on database in read-only mode");
-
-        // Key
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.reserve(1000);
-        ssKey << key;
-        Dbt datKey(ssKey.data(), ssKey.size());
-
-        // Value
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        ssValue.reserve(10000);
-        ssValue << value;
-        Dbt datValue(ssValue.data(), ssValue.size());
-
-        // Write
-        int ret = pdb->put(activeTxn, &datKey, &datValue, (fOverwrite ? 0 : DB_NOOVERWRITE));
-
-        // Clear memory in case it was a private key
-        memory_cleanse(datKey.get_data(), datKey.get_size());
-        memory_cleanse(datValue.get_data(), datValue.get_size());
-        return (ret == 0);
-    }
-
-    template <typename K>
-    bool Erase(const K& key)
-    {
-        if (!pdb)
-            return false;
-        if (fReadOnly)
-            assert(!"Erase called on database in read-only mode");
-
-        // Key
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.reserve(1000);
-        ssKey << key;
-        Dbt datKey(ssKey.data(), ssKey.size());
-
-        // Erase
-        int ret = pdb->del(activeTxn, &datKey, 0);
-
-        // Clear memory
-        memory_cleanse(datKey.get_data(), datKey.get_size());
-        return (ret == 0 || ret == DB_NOTFOUND);
-    }
-
-    template <typename K>
-    bool Exists(const K& key)
-    {
-        if (!pdb)
-            return false;
-
-        // Key
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.reserve(1000);
-        ssKey << key;
-        Dbt datKey(ssKey.data(), ssKey.size());
-
-        // Exists
-        int ret = pdb->exists(activeTxn, &datKey, 0);
-
-        // Clear memory
-        memory_cleanse(datKey.get_data(), datKey.get_size());
-        return (ret == 0);
-    }
-
-    Dbc* GetCursor()
-    {
-        if (!pdb)
-            return NULL;
-        Dbc* pcursor = NULL;
-        int ret = pdb->cursor(NULL, &pcursor, 0);
-        if (ret != 0)
-            return NULL;
-        return pcursor;
-    }
-
-    int ReadAtCursor(Dbc* pcursor, CDataStream& ssKey, CDataStream& ssValue, bool setRange = false)
-    {
-        // Read at cursor
-        Dbt datKey;
-        unsigned int fFlags = DB_NEXT;
-        if (setRange) {
-            datKey.set_data(ssKey.data());
-            datKey.set_size(ssKey.size());
-            fFlags = DB_SET_RANGE;
-        }
-        Dbt datValue;
-        datKey.set_flags(DB_DBT_MALLOC);
-        datValue.set_flags(DB_DBT_MALLOC);
-        int ret = pcursor->get(&datKey, &datValue, fFlags);
-        if (ret != 0)
-            return ret;
-        else if (datKey.get_data() == NULL || datValue.get_data() == NULL)
-            return 99999;
-
-        // Convert to streams
-        ssKey.SetType(SER_DISK);
-        ssKey.clear();
-        ssKey.write((char*)datKey.get_data(), datKey.get_size());
-        ssValue.SetType(SER_DISK);
-        ssValue.clear();
-        ssValue.write((char*)datValue.get_data(), datValue.get_size());
-
-        // Clear and free memory
-        memory_cleanse(datKey.get_data(), datKey.get_size());
-        memory_cleanse(datValue.get_data(), datValue.get_size());
-        free(datKey.get_data());
-        free(datValue.get_data());
-        return 0;
-    }
+    CDB(const CDB&) = delete;
+    CDB& operator=(const CDB&) = delete;
 
 public:
-    bool TxnBegin()
-    {
-        if (!pdb || activeTxn)
-            return false;
-        DbTxn* ptxn = bitdb.TxnBegin();
-        if (!ptxn)
-            return false;
-        activeTxn = ptxn;
-        return true;
-    }
+    void Flush() override;
+    void Close() override;
 
-    bool TxnCommit()
-    {
-        if (!pdb || !activeTxn)
-            return false;
-        int ret = activeTxn->commit(0);
-        activeTxn = NULL;
-        return (ret == 0);
-    }
+    std::unique_ptr<DatabaseCursor> GetCursor() override;
+    std::unique_ptr<DatabaseCursor> GetCursor(const CDataStream& start_key) override;
 
-    bool TxnAbort()
-    {
-        if (!pdb || !activeTxn)
-            return false;
-        int ret = activeTxn->abort();
-        activeTxn = NULL;
-        return (ret == 0);
-    }
+    bool TxnBegin() override;
+    bool TxnCommit() override;
+    bool TxnAbort() override;
+    bool HasActiveTxn() const override { return activeTxn != nullptr; }
 
-    bool ReadVersion(int& nVersion)
-    {
-        nVersion = 0;
-        return Read(std::string("version"), nVersion);
-    }
-
-    bool WriteVersion(int nVersion)
-    {
-        return Write(std::string("version"), nVersion);
-    }
-
-    bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
+    static bool Rewrite(BerkeleyDatabase& database, const char* pszSkip = NULL);
 };
+
+std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(
+    CDBEnv& env,
+    std::string filename,
+    const DatabaseOptions& options = {},
+    std::optional<DatabaseFileIdentity> first_open_identity =
+        std::nullopt);
+std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase();
+/** Return whether path has BDB B-tree magic; throw if it cannot be inspected. */
+bool IsBerkeleyDatabase(const fs::path& path);
 
 #endif // BITCOIN_WALLET_DB_H

@@ -29,6 +29,7 @@ The Firo repo's [root README](/README.md) contains relevant information on the d
 - [Travis CI](travis-ci.md)
 - [Unauthenticated REST Interface](REST-interface.md)
 - [Shared Libraries](shared-libraries.md)
+- [SQLite Wallet Storage](sqlite-wallet.md)
 - [BIPS](bips.md)
 - [Dnsseed Policy](dnsseed-policy.md)
 - [Benchmarking](benchmarking.md)
