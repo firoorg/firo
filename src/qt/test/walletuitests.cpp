@@ -1835,7 +1835,8 @@ void WalletUiTests::emptyRecoverySeed()
 /**
  * Verify a restore accepted after a failed attempt uses only the final input: no -newwallet left by a failed
  * attempt to create a wallet, the scan date from the last date picked, and the picked date left as entered.
- * The phrase is pasted into the first box, which spreads it over all 24.
+ * The phrase is pasted into the first box, which spreads it over all 24. A paste that doesn't fit, words hidden by
+ * the 12-word choice and a passphrase over the wallet's 256-byte limit are each refused.
  */
 void WalletUiTests::recoveryRetryUsesFinalInput()
 {
@@ -1864,6 +1865,10 @@ void WalletUiTests::recoveryRetryUsesFinalInput()
         clearRecoverArgs();
         bool done = false;
         QString error;
+        QString tooLongError;
+        QString overflowError;
+        bool overflowLeftEmpty = false;
+        QString hiddenError;
         QDate dateAfterError;
         bool timedOut = false;
         QTimer timer;
@@ -1880,6 +1885,8 @@ void WalletUiTests::recoveryRetryUsesFinalInput()
             auto* recoverExisting = dialog->findChild<QAbstractButton*>("recoverExisting");
             auto* back = dialog->findChild<QPushButton*>("backButton");
             auto* ok = dialog->findChild<QPushButton*>("okButton");
+            auto* restore12 = dialog->findChild<QRadioButton*>("restore12");
+            auto* restore24 = dialog->findChild<QRadioButton*>("restore24");
             auto* firstWord = dialog->findChild<QLineEdit*>("word1");
             auto* seventhWord = dialog->findChild<QLineEdit*>("word7");
             auto* date = dialog->findChild<QDateEdit*>("dateInput");
@@ -1887,8 +1894,8 @@ void WalletUiTests::recoveryRetryUsesFinalInput()
             auto* passphrase = dialog->findChild<QLineEdit*>("mnemonicPassPhrase");
             auto* passphrase2 = dialog->findChild<QLineEdit*>("mnemonicPassPhrase2");
             auto* message = dialog->findChild<QLabel*>("errorMessage");
-            if (!createNew || !recoverExisting || !back || !ok || !firstWord || !seventhWord || !date ||
-                !usePassphrase || !passphrase || !passphrase2 || !message || done) {
+            if (!createNew || !recoverExisting || !back || !ok || !restore12 || !restore24 || !firstWord || !seventhWord ||
+                !date || !usePassphrase || !passphrase || !passphrase2 || !message || done) {
                 dialog->reject();
                 return;
             }
@@ -1896,6 +1903,11 @@ void WalletUiTests::recoveryRetryUsesFinalInput()
             if (createFirst) {
                 createNew->click();
                 usePassphrase->click();
+                // 100 characters, but 300 bytes of UTF-8.
+                passphrase->setText(QString(100, QChar(0x20ac)));
+                passphrase2->setText(passphrase->text());
+                ok->click();
+                tooLongError = message->text();
                 passphrase->setText(QStringLiteral("one"));
                 passphrase2->setText(QStringLiteral("two"));
                 ok->click();
@@ -1905,7 +1917,14 @@ void WalletUiTests::recoveryRetryUsesFinalInput()
                 firstWord->insert(seed);
             } else {
                 recoverExisting->click();
+                firstWord->insert(seed + QStringLiteral(" abandon"));
+                overflowError = message->text();
+                overflowLeftEmpty = firstWord->text().isEmpty();
                 firstWord->insert(seed);
+                restore12->click();
+                ok->click();
+                hiddenError = message->text();
+                restore24->click();
                 seventhWord->setText(QStringLiteral("abandn"));
                 date->setDate(firstDate);
                 ok->click();
@@ -1928,8 +1947,14 @@ void WalletUiTests::recoveryRetryUsesFinalInput()
         QVERIFY(!GetBoolArg("-newwallet", false));
         QCOMPARE(QString::fromStdString(GetArg("-mnemonic", "")), seed);
         QCOMPARE(QString::fromStdString(GetArg("-wcdate", "")), QStringLiteral("09-03-2020"));
-        if (!createFirst)
+        if (createFirst) {
+            QCOMPARE(tooLongError, Recover::tr("That passphrase is too long. Shorten it and try again."));
+        } else {
             QCOMPARE(dateAfterError, firstDate);
+            QCOMPARE(overflowError, Recover::tr("That's %1 words, more than the boxes left. Recovery phrases have 12 or 24 words.").arg(25));
+            QVERIFY(overflowLeftEmpty);
+            QCOMPARE(hiddenError, Recover::tr("Boxes 13 to 24 still have words in them. Switch to 24 words to check them."));
+        }
     }
 #endif
 }

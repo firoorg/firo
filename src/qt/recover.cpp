@@ -354,13 +354,20 @@ void Recover::wordEdited(int index)
 
     // Whitespace means a pasted phrase or the end of a typed word: spread the words over the boxes from here on.
     const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (index == 0 && (parts.size() == 12 || parts.size() == MAX_WORDS))
-        (parts.size() == 12 ? ui->restore12 : ui->restore24)->setChecked(true);
+    const int end = index + parts.size();
     word->clear();
+    // Never drop or hide words: refuse more than fit, and show all 24 boxes when the words need them.
+    if (end > MAX_WORDS) {
+        ui->errorMessage->setText(tr("That's %1 words, more than the boxes left. Recovery phrases have 12 or 24 words.").arg(parts.size()));
+        return;
+    }
+    if (end > 12)
+        ui->restore24->setChecked(true);
+    else if (index == 0 && parts.size() == 12)
+        ui->restore12->setChecked(true);
+    ui->errorMessage->clear();
     int next = index;
     for (const QString& part : parts) {
-        if (next == MAX_WORDS)
-            break;
         words[next]->setText(part);
         markWord(words[next], !IsWord(part));
         ++next;
@@ -394,7 +401,21 @@ QString Recover::mnemonic() const
 
 void Recover::submit()
 {
+    // CreateWalletFromFile refuses passphrases over 256 bytes of UTF-8.
+    const auto passphraseError = [](const QString& passphrase) {
+        if (passphrase.isEmpty())
+            return tr("Enter a passphrase, or untick this option.");
+        if (passphrase.toStdString().size() > 256)
+            return tr("That passphrase is too long. Shorten it and try again.");
+        return QString();
+    };
+
     if (ui->pages->currentWidget() == ui->restorePage) {
+        // Restore from everything entered or nothing: words hidden by the 12-word choice still count.
+        for (int i = wordCount(); i < MAX_WORDS; ++i) {
+            if (!words[i]->text().trimmed().isEmpty())
+                return fail(tr("Boxes 13 to 24 still have words in them. Switch to 24 words to check them."), ui->restore24);
+        }
         for (int i = 0; i < wordCount(); ++i) {
             if (words[i]->text().trimmed().isEmpty())
                 return fail(tr("Enter all %1 words.").arg(wordCount()), words[i]);
@@ -406,11 +427,15 @@ void Recover::submit()
         const std::string phrase = mnemonic().toStdString();
         if (!Mnemonic::mnemonic_check(SecureString(phrase.begin(), phrase.end())))
             return fail(tr("These words don't form a valid recovery phrase. Check the spelling and order."), words.first());
-        if (ui->restoreUsePassphrase->isChecked() && ui->restorePassPhrase->text().isEmpty())
-            return fail(tr("Enter a passphrase, or untick this option."), ui->restorePassPhrase);
+        if (ui->restoreUsePassphrase->isChecked()) {
+            const QString error = passphraseError(ui->restorePassPhrase->text());
+            if (!error.isEmpty())
+                return fail(error, ui->restorePassPhrase);
+        }
     } else if (ui->usePassphrase->isChecked()) {
-        if (ui->mnemonicPassPhrase->text().isEmpty())
-            return fail(tr("Enter a passphrase, or untick this option."), ui->mnemonicPassPhrase);
+        const QString error = passphraseError(ui->mnemonicPassPhrase->text());
+        if (!error.isEmpty())
+            return fail(error, ui->mnemonicPassPhrase);
         if (ui->mnemonicPassPhrase->text() != ui->mnemonicPassPhrase2->text())
             return fail(tr("Passphrases don't match."), ui->mnemonicPassPhrase2);
     }

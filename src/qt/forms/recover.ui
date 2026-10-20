@@ -229,9 +229,6 @@
               <layout class="QHBoxLayout" name="passphraseFieldsLayout">
                <item>
                 <widget class="QLineEdit" name="mnemonicPassPhrase">
-                 <property name="maxLength">
-                  <number>256</number>
-                 </property>
                  <property name="echoMode">
                   <enum>QLineEdit::Password</enum>
                  </property>
@@ -242,9 +239,6 @@
                </item>
                <item>
                 <widget class="QLineEdit" name="mnemonicPassPhrase2">
-                 <property name="maxLength">
-                  <number>256</number>
-                 </property>
                  <property name="echoMode">
                   <enum>QLineEdit::Password</enum>
                  </property>
@@ -453,9 +447,6 @@
           </property>
           <item>
            <widget class="QLineEdit" name="restorePassPhrase">
-            <property name="maxLength">
-             <number>256</number>
-            </property>
             <property name="echoMode">
              <enum>QLineEdit::Password</enum>
             </property>
