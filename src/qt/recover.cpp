@@ -10,18 +10,41 @@
 #include "../wallet/wallet.h"
 #endif // ENABLE_WALLET
 #include "../wallet/bip39.h"
+#include "../wallet/bip39_english.h"
 #include "support/allocators/secure.h"
 
 #include <boost/filesystem.hpp>
 
+#include <QAction>
 #include <QCalendarWidget>
-#include <QDialogButtonBox>
+#include <QCompleter>
 #include <QFileDialog>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSettings>
 #include <QMessageBox>
+#include <QStyle>
 #include <QVBoxLayout>
+
+namespace {
+const int MAX_WORDS = 24;
+
+const QStringList& Bip39Words()
+{
+    static const QStringList list = [] {
+        QStringList words;
+        for (const char* const* word = wordlist; *word; ++word)
+            words << QString::fromLatin1(*word);
+        return words;
+    }();
+    return list;
+}
+
+bool IsWord(const QString& text)
+{
+    return Bip39Words().contains(text.trimmed().toLower());
+}
+} // namespace
 
 Recover::Recover(QWidget *parent) :
     QDialog(parent),
@@ -32,6 +55,32 @@ Recover::Recover(QWidget *parent) :
     GUIUtil::loadTheme();
     
     ui->setupUi(this);
+
+    // Each number gets its own grid column, so a word can never run into it.
+    auto* completer = new QCompleter(Bip39Words(), this);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    QWidget* previous = ui->restore24;
+    for (int i = 0; i < MAX_WORDS; ++i) {
+        auto* number = new QLabel(QString::number(i + 1), ui->restorePage);
+        number->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        number->setMinimumWidth(28);
+        number->setProperty("help", true);
+        auto* word = new QLineEdit(ui->restorePage);
+        word->setObjectName(QStringLiteral("word%1").arg(i + 1));
+        word->setAccessibleName(tr("Word %1").arg(i + 1));
+        word->setCompleter(completer);
+        number->setBuddy(word);
+        ui->wordGrid->addWidget(number, i / 4, (i % 4) * 2);
+        ui->wordGrid->addWidget(word, i / 4, (i % 4) * 2 + 1);
+        connect(word, &QLineEdit::textEdited, this, [this, i] { wordEdited(i); });
+        connect(word, &QLineEdit::editingFinished, this, [this, word] {
+            markWord(word, !word->text().trimmed().isEmpty() && !IsWord(word->text()));
+        });
+        setTabOrder(previous, word);
+        previous = word;
+        numbers << number;
+        words << word;
+    }
 
     auto* scrollContents = new QWidget(this);
     scrollContents->setObjectName(QStringLiteral("recoverScrollContents"));
@@ -66,15 +115,77 @@ Recover::Recover(QWidget *parent) :
     resize(qMin(width(), qMax(1, available.width() - 40)),
            qMin(height(), qMax(1, available.height() - 40)));
 
+    // A push button paints its text in one font, so each choice's title and description are child labels.
+    const auto makeChoice = [](QPushButton* button, const QString& icon, const QString& title, const QString& description) {
+        auto* iconLabel = new QLabel(button);
+        iconLabel->setPixmap(GUIUtil::tintedIconPixmap(QIcon(icon), QSize(24, 24), QColor(GUIUtil::themeColors().wineText)));
+        auto* titleLabel = new QLabel(title, button);
+        titleLabel->setObjectName(QStringLiteral("choiceTitle"));
+        auto* descriptionLabel = new QLabel(description, button);
+        descriptionLabel->setObjectName(QStringLiteral("choiceDescription"));
+        auto* layout = new QGridLayout(button);
+        layout->setSizeConstraint(QLayout::SetMinimumSize);
+        layout->setContentsMargins(16, 12, 16, 12);
+        layout->setHorizontalSpacing(14);
+        layout->addWidget(iconLabel, 0, 0, 2, 1);
+        layout->addWidget(titleLabel, 0, 1);
+        layout->addWidget(descriptionLabel, 1, 1);
+        layout->setColumnStretch(1, 1);
+        for (QLabel* label : {iconLabel, titleLabel, descriptionLabel})
+            label->setAttribute(Qt::WA_TransparentForMouseEvents);
+        button->setAccessibleName(title);
+        button->setAccessibleDescription(description);
+    };
+    makeChoice(ui->createNew, QStringLiteral(":/icons/add"), tr("Create a new wallet"), tr("Start fresh with a new recovery phrase."));
+    makeChoice(ui->recoverExisting, QStringLiteral(":/icons/key"), tr("Restore a wallet"), tr("Use a recovery phrase you already have."));
+
+    const auto updateIntro = [this] {
+        ui->createIntro->setText(tr("Next, you'll see your recovery phrase: %1 words that can restore this wallet on any device.")
+                                     .arg(ui->use12->isChecked() ? 12 : 24));
+    };
+    updateIntro();
+    connect(ui->use12, &QRadioButton::toggled, this, updateIntro);
+    connect(ui->restore12, &QRadioButton::toggled, this, [this](bool twelve) { setWordCount(twelve ? 12 : MAX_WORDS); });
+    connect(ui->advancedToggle, &QToolButton::toggled, this, [this](bool open) {
+        ui->advancedOptions->setVisible(open);
+        ui->advancedToggle->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+    });
+    connect(ui->usePassphrase, &QCheckBox::toggled, ui->passphraseFields, &QWidget::setVisible);
+    connect(ui->restoreUsePassphrase, &QCheckBox::toggled, ui->restorePassphraseFields, &QWidget::setVisible);
+
+    QAction* reveal = ui->restorePassPhrase->addAction(QIcon(), QLineEdit::TrailingPosition);
+    GUIUtil::setThemedIcon(reveal, QStringLiteral(":/icons/eye"));
+    reveal->setToolTip(tr("Show passphrase"));
+    connect(reveal, &QAction::triggered, this, [this, reveal] {
+        const bool show = ui->restorePassPhrase->echoMode() == QLineEdit::Password;
+        ui->restorePassPhrase->setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
+        reveal->setToolTip(show ? tr("Hide passphrase") : tr("Show passphrase"));
+    });
+
+    connect(ui->createNew, &QPushButton::clicked, this, [this] { showPage(ui->createPage); });
+    connect(ui->recoverExisting, &QPushButton::clicked, this, [this] { showPage(ui->restorePage); });
+    connect(ui->backButton, &QPushButton::clicked, this, [this] {
+        if (ui->pages->currentWidget() == ui->welcomePage)
+            reject();
+        else
+            showPage(ui->welcomePage);
+    });
+    connect(ui->okButton, &QPushButton::clicked, this, &Recover::submit);
+
+    // The minimum date reads "Not sure" and leaves the scan start where recovery phrases began.
+    ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
+    ui->dateInput->setMaximumDate(QDate::currentDate());
+    ui->dateInput->setSpecialValueText(tr("Not sure"));
+    ui->dateInput->setDate(ui->dateInput->minimumDate());
+    // Only blocks already on disk get rescanned, so the date can't speed up a fresh install.
+    ui->dateRow->setVisible(boost::filesystem::exists(GetDataDir(true) / "blocks"));
+
     applyTheme();
-    setCreateNew();
+    showPage(ui->welcomePage);
     thread = new QThread(this);
 
     connect(this, &Recover::stopThread, thread, &QThread::quit);
     thread->start();
-
-    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
-    ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
 }
 
 void Recover::applyTheme()
@@ -83,10 +194,15 @@ void Recover::applyTheme()
         QDialog#Recover { background: $BG; }
         QDialog#Recover QLabel { background: transparent; color: $INK; }
         QDialog#Recover QLabel#errorMessage { color: $ERROR; font-weight: 700; }
+        QDialog#Recover QLabel#welcomeTitle,
+        QDialog#Recover QLabel#createTitle,
+        QDialog#Recover QLabel#restoreTitle { font: $FONT_H2; }
+        QDialog#Recover QLabel#choiceTitle { font-weight: 700; }
+        QDialog#Recover QLabel#choiceDescription { color: $INK_SOFT; }
+        QDialog#Recover QLabel[help="true"] { color: $INK_SOFT; font-size: 13px; }
         QDialog#Recover QFrame { background: transparent; }
         QDialog#Recover QLineEdit,
-        QDialog#Recover QDateEdit,
-        QDialog#Recover QSpinBox {
+        QDialog#Recover QDateEdit {
             background: $PANEL_SOFT;
             border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
@@ -96,17 +212,36 @@ void Recover::applyTheme()
             selection-color: #FFFFFF;
         }
         QDialog#Recover QLineEdit:focus,
-        QDialog#Recover QDateEdit:focus,
-        QDialog#Recover QSpinBox:focus {
+        QDialog#Recover QDateEdit:focus {
             border: 2px solid $WINE;
             padding: 7px 11px;
         }
+        QDialog#Recover QLineEdit[invalid="true"] {
+            border: 2px solid $ERROR;
+            padding: 7px 11px;
+        }
         QDialog#Recover QLineEdit:disabled,
-        QDialog#Recover QDateEdit:disabled,
-        QDialog#Recover QSpinBox:disabled {
+        QDialog#Recover QDateEdit:disabled {
             color: $INK_FAINT;
         }
         QDialog#Recover QAbstractSpinBox QLineEdit { %1 }
+        QDialog#Recover QPushButton#createNew,
+        QDialog#Recover QPushButton#recoverExisting {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 12px;
+            padding: 0;
+        }
+        QDialog#Recover QPushButton#createNew:hover,
+        QDialog#Recover QPushButton#recoverExisting:hover,
+        QDialog#Recover QPushButton#createNew:focus,
+        QDialog#Recover QPushButton#recoverExisting:focus { border: 1px solid $WINE; }
+        QDialog#Recover QToolButton#advancedToggle {
+            background: transparent;
+            border: none;
+            color: $WINE_TEXT;
+            font-weight: 700;
+        }
         QDialog#Recover QRadioButton,
         QDialog#Recover QCheckBox {
             background: transparent;
@@ -130,12 +265,8 @@ void Recover::applyTheme()
         }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 
-    const QString primaryStyle = GUIUtil::primaryButtonStyle();
-    const QString secondaryStyle = GUIUtil::secondaryButtonStyle();
-    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
-        okButton->setStyleSheet(primaryStyle);
-    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
-        cancelButton->setStyleSheet(secondaryStyle);
+    ui->okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    ui->backButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 
     if (QCalendarWidget* calendar = ui->dateInput->calendarWidget()) {
         calendar->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
@@ -184,50 +315,106 @@ Recover::~Recover()
     thread->wait();
 }
 
-void Recover::setCreateNew()
+void Recover::showPage(QWidget* page)
 {
-    ui->createNew->setChecked(true);
-    ui->textLabel2->setEnabled(false);
-    ui->mnemonicWords->setEnabled(false);
-    ui->mnemonicWords->clear();
-    ui->dateInput->setEnabled(false);
-    ui->dateInput->clear();
-    ui->use24->setChecked(true);
-    ui->usePassphrase->setChecked(false);
-    ui->textLabel3->setEnabled(false);
-    ui->textLabel4->setEnabled(false);
-    ui->mnemonicPassPhrase->setEnabled(false);
-    ui->mnemonicPassPhrase2->setEnabled(false);
+    const bool welcome = page == ui->welcomePage;
+    ui->pages->setCurrentWidget(page);
+    ui->backButton->setText(welcome ? tr("Quit") : tr("Back"));
+    ui->okButton->setVisible(!welcome);
+    ui->okButton->setText(page == ui->restorePage ? tr("Restore wallet") : tr("Create wallet"));
+    ui->errorMessage->clear();
+    if (welcome)
+        ui->createNew->setFocus();
+    else if (page == ui->restorePage)
+        words.first()->setFocus();
+    else
+        ui->okButton->setFocus();
 }
 
-void Recover::on_createNew_clicked()
+void Recover::setWordCount(int count)
 {
-    setCreateNew();
-    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
-    ui->dateInput->setDate(QDate(2019, 12, 11));
+    for (int i = 0; i < MAX_WORDS; ++i) {
+        numbers[i]->setVisible(i < count);
+        words[i]->setVisible(i < count);
+    }
 }
 
-void Recover::on_recoverExisting_clicked()
+int Recover::wordCount() const
 {
-    ui->textLabel2->setEnabled(true);
-    ui->mnemonicWords->setEnabled(true);
-    ui->dateInput->setEnabled(true);
-    ui->dateInput->setEnabled(true);
-    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
-    ui->dateInput->setDate(ui->dateInput->minimumDate());
+    return ui->restore12->isChecked() ? 12 : MAX_WORDS;
 }
 
-void Recover::on_usePassphrase_clicked()
+void Recover::wordEdited(int index)
 {
-    bool isChecked = ui->usePassphrase->isChecked();
+    QLineEdit* word = words[index];
+    markWord(word, false);
+    const QString text = word->text();
+    if (text == text.simplified() && !text.contains(QLatin1Char(' ')))
+        return;
 
-    ui->textLabel3->setEnabled(isChecked);
-    ui->textLabel4->setEnabled(isChecked);
-    ui->mnemonicPassPhrase->setEnabled(isChecked);
-    ui->mnemonicPassPhrase2->setEnabled(isChecked);
+    // Whitespace means a pasted phrase or the end of a typed word: spread the words over the boxes from here on.
+    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (index == 0 && (parts.size() == 12 || parts.size() == MAX_WORDS))
+        (parts.size() == 12 ? ui->restore12 : ui->restore24)->setChecked(true);
+    word->clear();
+    int next = index;
+    for (const QString& part : parts) {
+        if (next == MAX_WORDS)
+            break;
+        words[next]->setText(part);
+        markWord(words[next], !IsWord(part));
+        ++next;
+    }
+    if (next < wordCount())
+        words[next]->setFocus();
+}
 
-    ui->mnemonicPassPhrase->clear();
-    ui->mnemonicPassPhrase2->clear();
+void Recover::markWord(QLineEdit* word, bool invalid)
+{
+    if (word->property("invalid").toBool() == invalid)
+        return;
+    word->setProperty("invalid", invalid);
+    word->style()->unpolish(word);
+    word->style()->polish(word);
+}
+
+void Recover::fail(const QString& message, QWidget* focus)
+{
+    ui->errorMessage->setText(message);
+    focus->setFocus();
+}
+
+QString Recover::mnemonic() const
+{
+    QStringList phrase;
+    for (int i = 0; i < wordCount(); ++i)
+        phrase << words[i]->text().trimmed().toLower();
+    return phrase.join(QLatin1Char(' '));
+}
+
+void Recover::submit()
+{
+    if (ui->pages->currentWidget() == ui->restorePage) {
+        for (int i = 0; i < wordCount(); ++i) {
+            if (words[i]->text().trimmed().isEmpty())
+                return fail(tr("Enter all %1 words.").arg(wordCount()), words[i]);
+            if (!IsWord(words[i]->text())) {
+                markWord(words[i], true);
+                return fail(tr("Word %1 isn't on the recovery word list. Check the spelling.").arg(i + 1), words[i]);
+            }
+        }
+        const std::string phrase = mnemonic().toStdString();
+        if (!Mnemonic::mnemonic_check(SecureString(phrase.begin(), phrase.end())))
+            return fail(tr("These words don't form a valid recovery phrase. Check the spelling and order."), words.first());
+        if (ui->restoreUsePassphrase->isChecked() && ui->restorePassPhrase->text().isEmpty())
+            return fail(tr("Enter a passphrase, or untick this option."), ui->restorePassPhrase);
+    } else if (ui->usePassphrase->isChecked()) {
+        if (ui->mnemonicPassPhrase->text().isEmpty())
+            return fail(tr("Enter a passphrase, or untick this option."), ui->mnemonicPassPhrase);
+        if (ui->mnemonicPassPhrase->text() != ui->mnemonicPassPhrase2->text())
+            return fail(tr("Passphrases don't match."), ui->mnemonicPassPhrase2);
+    }
+    accept();
 }
 
 bool Recover::askRecover(bool& newWallet)
@@ -238,97 +425,32 @@ bool Recover::askRecover(bool& newWallet)
 
     if (!fs::exists(walletFile))
     {
-        newWallet = true;
         Recover recover;
         recover.setWindowIcon(QIcon(":icons/firo"));
-        while(true)
+        if (!recover.exec())
         {
-            if(!recover.exec())
-            {
-                /* Cancel clicked */
-                return false;
-            } else {
-                bool use12 = false;
+            /* Quit clicked */
+            return false;
+        }
 
-                if(recover.ui->use12->isChecked()) {
-                    use12 = true;
-                }
-
-                std::string mnemonic;
-                if(recover.ui->recoverExisting->isChecked()) {
-                    newWallet = false;
-                    if(recover.ui->mnemonicWords->text().trimmed().isEmpty()) {
-                        recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
-                        continue;
-                    }
-                    mnemonic = recover.ui->mnemonicWords->text().toStdString();
-                    const char* str = mnemonic.c_str();
-                    bool space = true;
-                    int n = 0;
-
-                    while (*str != '\0')
-                    {
-                        if (std::isspace(*str))
-                        {
-                            space = true;
-                        }
-                        else if (space)
-                        {
-                            n++;
-                            space = false;
-                        }
-                        ++str;
-                    }
-
-                    if((n == 12 && !use12) || (n != 24 && n != 12) || (n != 12 && use12)) {
-                        recover.ui->errorMessage->setText(tr("Wrong number of words. Please try again."));
-                        continue;
-                    }
-
-                    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
-                    if(!Mnemonic::mnemonic_check(secmnemonic)){
-                        recover.ui->errorMessage->setText(tr("You have entered an invalid recovery seed phrase. Please double check the spelling and order."));
-                        continue;
-                    }
-                } else {
-                    newWallet = true;
-                }
-
-                std::string mnemonicPassPhrase;
-                if(recover.ui->usePassphrase->isChecked()) {
-                    mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
-                    std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
-
-                    if(mnemonicPassPhrase != mnemonicPassPhrase2) {
-                        recover.ui->errorMessage->setText(tr("Passphrases don't match."));
-                        continue;
-                    }
-
-                    if(mnemonicPassPhrase.empty()) {
-                        recover.ui->errorMessage->setText(tr("Passphrase can't be empty."));
-                        continue;
-                    }
-                }
-
-                // Set args only after every check passes: SoftSetArg never overwrites, so a failed attempt's values would stick.
-                if(newWallet) {
-                    SoftSetBoolArg("-newwallet", newWallet);
-                } else {
-                    SoftSetArg("-wcdate", recover.ui->dateInput->date().addDays(-1).toString("dd-MM-yyyy").toStdString());
-                    SoftSetArg("-mnemonic", mnemonic);
-                }
-
-                if(!mnemonicPassPhrase.empty())
-                    SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
-
-                if(use12)
-                    SoftSetBoolArg("-use12", true);
-
-                if(recover.ui->spinBoxPcodes->value() > 0)
-                    SoftSetArg("-defaultrapaddressnumber", std::to_string(recover.ui->spinBoxPcodes->value()));
-
-                break;
-            }
+        // submit() accepts only input that passed every check, so the args come from the final input alone.
+        newWallet = recover.ui->pages->currentWidget() == recover.ui->createPage;
+        if (newWallet) {
+            SoftSetBoolArg("-newwallet", true);
+            if (recover.ui->use12->isChecked())
+                SoftSetBoolArg("-use12", true);
+            if (recover.ui->usePassphrase->isChecked())
+                SoftSetArg("-mnemonicpassphrase", recover.ui->mnemonicPassPhrase->text().toStdString());
+        } else {
+            SoftSetArg("-mnemonic", recover.mnemonic().toStdString());
+            if (recover.wordCount() == 12)
+                SoftSetBoolArg("-use12", true);
+            // Scan from one day before the picked date.
+            const QDate date = recover.ui->dateInput->date();
+            if (date > recover.ui->dateInput->minimumDate())
+                SoftSetArg("-wcdate", date.addDays(-1).toString("dd-MM-yyyy").toStdString());
+            if (recover.ui->restoreUsePassphrase->isChecked())
+                SoftSetArg("-mnemonicpassphrase", recover.ui->restorePassPhrase->text().toStdString());
         }
     }
 #endif // ENABLE_WALLET
