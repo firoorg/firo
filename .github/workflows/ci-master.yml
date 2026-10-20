@@ -264,8 +264,8 @@ jobs:
         $CMAKE_EXTRA_FLAGS \
         -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && ninja
-    - name: Build BDB-only Wallet Tests (Windows Release)
-      if: matrix.is_windows && matrix.build_type == 'Release'
+    - name: Build BDB-only Wallet Tests (Windows RelWithDebInfo)
+      if: matrix.is_windows && matrix.build_type == 'RelWithDebInfo'
       run: |
         set -exo pipefail
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
@@ -282,7 +282,7 @@ jobs:
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
         -DBUILD_CLI=OFF -DBUILD_DAEMON=OFF -DBUILD_GUI=OFF -DBUILD_TESTS=ON \
         -DENABLE_CRASH_HOOKS=ON -DENABLE_SQLITE_WALLET=OFF -DWITH_BDB=ON \
-        -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -S$(realpath .) -B$(realpath build-windows-bdb-only)
         cmake --build build-windows-bdb-only --target test_firo --parallel "$BDB_JOBS"
 
@@ -337,8 +337,8 @@ jobs:
         build/bin/test_firo \
           --run_test=wallet_database_factory_preopen_policy,wallet_database_tests,macos_wallet_permissions_tests \
           --catch_system_error=no --log_level=message -- DEBUG_LOG_OUT
-    - name: Run BDB-only Wallet Database Tests (Mac Release)
-      if: matrix.is_mac && matrix.build_type == 'Release'
+    - name: Run BDB-only Wallet Database Tests (Mac RelWithDebInfo)
+      if: matrix.is_mac && matrix.build_type == 'RelWithDebInfo'
       run: |
         set -exo pipefail
         BDB_JOBS=$NJOBS
@@ -355,7 +355,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake" \
           -DBUILD_CLI=OFF -DBUILD_DAEMON=OFF -DBUILD_GUI=OFF \
           -DBUILD_TESTS=ON -DENABLE_SQLITE_WALLET=OFF -DWITH_BDB=ON \
-          -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=Release \
+          -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -S"$(pwd)" -B"$(pwd)/build-mac-bdb-only"
         cmake --build build-mac-bdb-only --target test_firo --parallel "$BDB_JOBS"
 
@@ -398,7 +398,7 @@ jobs:
         cp -rf build/bin/* build/src/
         qa/pull-tester/rpc-tests.py -extended
     - name: Upload Windows SQLite Wallet Test Runtime
-      if: matrix.is_windows && matrix.build_type == 'Release'
+      if: matrix.is_windows && matrix.build_type == 'RelWithDebInfo'
       uses: actions/upload-artifact@v6
       with:
         name: windows-sqlite-wallet-test-runtime-${{ env.COMMIT_HASH }}
@@ -441,7 +441,7 @@ jobs:
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
 
   windows-native-sqlite-wallet-tests:
-    name: windows-native-sqlite-wallet-tests-Release
+    name: windows-native-sqlite-wallet-tests-RelWithDebInfo
     needs: [get-commit-hash, cmake-build]
     if: ${{ !cancelled() && needs.get-commit-hash.result == 'success' }}
     runs-on: windows-latest
