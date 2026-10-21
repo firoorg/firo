@@ -140,6 +140,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openAction(0),
     showHelpMessageAction(0),
     masternodeAction(0),
+    assetsAction(0),
     logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -391,11 +392,19 @@ void BitcoinGUI::createActions()
     masternodeAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
 #endif
     tabGroup->addAction(masternodeAction);
+    assetsAction = new QAction(tr("&Assets"), this);
+    assetsAction->setStatusTip(tr("Manage Spark assets"));
+    assetsAction->setToolTip(assetsAction->statusTip());
+    assetsAction->setCheckable(true);
+    assetsAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
+    tabGroup->addAction(assetsAction);
 #endif
 
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(masternodeAction, &QAction::triggered, this, &BitcoinGUI::gotoMasternodePage);
+    connect(assetsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(assetsAction, &QAction::triggered, this, &BitcoinGUI::gotoAssetsPage);
 	connect(overviewAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(overviewAction, &QAction::triggered, this, &BitcoinGUI::gotoOverviewPage);
 	connect(sendCoinsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
@@ -732,6 +741,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(sparkNamesAction);
         toolbar->addAction(masternodeAction);
+        toolbar->addAction(assetsAction);
 
         auto* navigationSpacer = new QWidget(toolbar);
         navigationSpacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -806,7 +816,8 @@ void BitcoinGUI::createToolBars()
             receiveCoinsAction,
             historyAction,
             sparkNamesAction,
-            masternodeAction
+            masternodeAction,
+            assetsAction
         };
         for (QAction* action : navigationActions) {
             connect(action, &QAction::toggled, this,
@@ -886,6 +897,7 @@ void BitcoinGUI::applyNavigationTheme()
     historyAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_transactions")));
     sparkNamesAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
     masternodeAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_masternodes")));
+    assetsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
     consoleAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_console")));
     optionsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_options")));
 
@@ -1099,7 +1111,8 @@ void BitcoinGUI::updateNavigationSelectionHighlight()
         receiveCoinsAction,
         historyAction,
         sparkNamesAction,
-        masternodeAction
+        masternodeAction,
+        assetsAction
     };
 
     QWidget* checkedWidget = nullptr;
@@ -1582,6 +1595,12 @@ void BitcoinGUI::gotoMasternodePage()
     QSettings settings;
     masternodeAction->setChecked(true);
     if (walletFrame) walletFrame->gotoMasternodePage();
+}
+
+void BitcoinGUI::gotoAssetsPage()
+{
+    assetsAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoAssetsPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
@@ -2234,6 +2253,8 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
 }
 
 void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
+
+    assetsAction->setVisible(true);
 
     const Consensus::Params& params = ::Params().GetConsensus();
     // Before legacy window

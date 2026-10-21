@@ -97,7 +97,6 @@ private:
     void updateCalendarWidgets();
     void addShadow(QWidget* w);
     bool eventFilter(QObject *obj, QEvent *event) override;
-    void addShadow(QWidget* w);
     void updateEmptyState();
     void updateTableColumnWidths();
     void updateSortDirectionButton(Qt::SortOrder order);

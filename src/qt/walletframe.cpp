@@ -140,6 +140,11 @@ void WalletFrame::gotoMasternodePage()
         i.value()->gotoMasternodePage();
 }
 
+void WalletFrame::gotoAssetsPage()
+{
+    if (WalletView *view = currentWalletView()) view->gotoAssetsPage();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;

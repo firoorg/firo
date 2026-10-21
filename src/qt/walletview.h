@@ -84,6 +84,7 @@ private:
     SendCoinsDialog *sendFiroView;
     TransactionView *firoTransactionList;
     MasternodeList *masternodeListPage;
+    QWidget *assetsPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -101,6 +102,8 @@ public Q_SLOTS:
     void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to masternode page */
     void gotoMasternodePage();
+    /** Switch to Spark assets page */
+    void gotoAssetsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to Spark Names page */

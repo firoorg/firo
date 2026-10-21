@@ -131,6 +131,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *masternodeAction;
+    QAction *assetsAction;
     QAction *logoAction;
     QToolBar *toolbar{nullptr};
     QToolButton *navigationToggleButton{nullptr};
@@ -256,6 +257,7 @@ public Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to masternode page */
     void gotoMasternodePage();
+    void gotoAssetsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to Spark Names page */
