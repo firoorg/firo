@@ -2600,7 +2600,8 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
             throw std::runtime_error(_("Invalid receiver ownership proof"));
     }
 
-    const bool signAdmin = assetData.isModify() || assetData.isTransfer();
+    // Register assigns this address as admin, so it has to sign too.
+    const bool signAdmin = assetData.isRegister() || assetData.isModify() || assetData.isTransfer();
     if (signAdmin) {
         if (isTransparent) {
             CBitcoinAddress address(assetData.getAdminBitcoinAddress());

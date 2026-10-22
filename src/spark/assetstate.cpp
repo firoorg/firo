@@ -219,39 +219,39 @@ std::uint64_t CAssetState::GetCirculatingSupplyAggregated(std::uint64_t assetTyp
     return sum;
 }
 
-void CAssetState::AddCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount)
+bool CAssetState::AddCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount)
 {
     if (amount == 0)
-        return;
+        return true;
     const CirculatingSupplyKey key{assetType, identifier};
-    std::uint64_t& slot = circulating_supply_[key];
-    if (amount > std::numeric_limits<std::uint64_t>::max() - slot) {
+    const auto it = circulating_supply_.find(key);
+    const std::uint64_t current = it == circulating_supply_.end() ? 0 : it->second;
+    if (amount > std::numeric_limits<std::uint64_t>::max() - current) {
         LogPrintf("CAssetState::AddCirculatingSupply: overflow for asset %llu id %llu\n",
             static_cast<unsigned long long>(assetType),
             static_cast<unsigned long long>(identifier));
-        slot = std::numeric_limits<std::uint64_t>::max();
-        return;
+        return false;
     }
-    slot += amount;
+    circulating_supply_[key] = current + amount;
+    return true;
 }
 
-void CAssetState::SubCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount)
+bool CAssetState::SubCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount)
 {
     if (amount == 0)
-        return;
+        return true;
     const CirculatingSupplyKey key{assetType, identifier};
     auto it = circulating_supply_.find(key);
     if (it == circulating_supply_.end() || it->second < amount) {
         LogPrintf("CAssetState::SubCirculatingSupply: underflow for asset %llu id %llu\n",
             static_cast<unsigned long long>(assetType),
             static_cast<unsigned long long>(identifier));
-        if (it != circulating_supply_.end())
-            circulating_supply_.erase(it);
-        return;
+        return false;
     }
     it->second -= amount;
     if (it->second == 0)
         circulating_supply_.erase(it);
+    return true;
 }
 
 bool CAssetState::CanRegister(const CSparkAssetTxData& assetData) const

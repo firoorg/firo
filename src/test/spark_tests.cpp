@@ -1865,7 +1865,20 @@ BOOST_AUTO_TEST_CASE(spats_registry_is_consensus)
     {
         const auto parsed = spark::GetSparkAssetTxData(CTransaction(regTx));
         BOOST_REQUIRE(parsed);
-        BOOST_CHECK(parsed->getOwnershipProof().empty());
+        BOOST_CHECK(!parsed->getOwnershipProof().empty());
+        CMutableTransaction unsignedReg = regTx;
+        CDataStream oldPayload(SER_NETWORK, PROTOCOL_VERSION);
+        oldPayload << *parsed;
+        BOOST_REQUIRE(unsignedReg.vExtraPayload.size() >= oldPayload.size());
+        unsignedReg.vExtraPayload.resize(unsignedReg.vExtraPayload.size() - oldPayload.size());
+        auto stripped = *parsed;
+        stripped.setOwnershipProof(std::vector<unsigned char>{});
+        CDataStream newPayload(SER_NETWORK, PROTOCOL_VERSION);
+        newPayload << stripped;
+        unsignedReg.vExtraPayload.insert(
+            unsignedReg.vExtraPayload.end(), newPayload.begin(), newPayload.end());
+        BOOST_CHECK(!CheckAssetTx(unsignedReg, &reason));
+        BOOST_CHECK_EQUAL(reason, "spats-asset-ownership-invalid");
     }
     BOOST_CHECK(CheckAssetTx(regTx));
     BOOST_CHECK(CheckAssetTx(dupTx));

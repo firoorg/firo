@@ -18,6 +18,8 @@
 #include "script/standard.h"
 #include "streams.h"
 #include "test/test_bitcoin.h"
+
+#include <limits>
 #include "version.h"
 
 #include <boost/test/unit_test.hpp>
@@ -347,6 +349,22 @@ BOOST_AUTO_TEST_CASE(unsupported_version_and_operation_fail)
     raw[4] = 0xff;
     CDataStream badOp(raw, SER_NETWORK, PROTOCOL_VERSION);
     BOOST_CHECK_THROW(badOp >> decoded, std::ios_base::failure);
+}
+
+BOOST_AUTO_TEST_CASE(asset_supply_rejects_underflow_and_overflow)
+{
+    spark::CAssetState state;
+    BOOST_CHECK(state.AddCirculatingSupply(1, 0, 5));
+    BOOST_CHECK(!state.SubCirculatingSupply(1, 0, 6));
+    BOOST_CHECK_EQUAL(state.GetCirculatingSupply(1, 0), 5u);
+    BOOST_CHECK(!state.SubCirculatingSupply(2, 0, 1));
+    BOOST_CHECK_EQUAL(state.GetCirculatingSupply(2, 0), 0u);
+    BOOST_CHECK(state.SubCirculatingSupply(1, 0, 5));
+    BOOST_CHECK_EQUAL(state.GetCirculatingSupply(1, 0), 0u);
+
+    BOOST_CHECK(state.AddCirculatingSupply(1, 0, 1));
+    BOOST_CHECK(!state.AddCirculatingSupply(1, 0, std::numeric_limits<std::uint64_t>::max()));
+    BOOST_CHECK_EQUAL(state.GetCirculatingSupply(1, 0), 1u);
 }
 
 BOOST_AUTO_TEST_CASE(asset_registry_tracks_symbol_admin_and_nft_ids)

@@ -119,9 +119,10 @@ uint256 GetSpatsAssetOwnershipHash(const CTransaction& tx, const CSparkAssetTxDa
 
 /**
  * Check asset operations, mints and burns against the registry at the start of the block.
- * Registry ops ride on a Spark spend (the coin owner spends). Admin ownership
- * is required only for modify and transfer. A burn is a SPATS spend of the
- * asset coins; after it is mined, circulating supply is reduced. A transparent
+ * Registry ops ride on a Spark spend (the coin owner spends). Register, modify,
+ * and transfer must carry an ownership proof for the declared admin address.
+ * A burn is a SPATS spend of the asset coins; after it is mined, circulating
+ * supply is reduced. A transparent
  * admin mint still spends one of its P2PK/P2PKH coins with SIGHASH_ALL.
  * @param[in] inputs Coins spent by tx; unused for Spark spends
  * @param[in] pending Effects of transactions already accepted into the same block or mempool
@@ -170,7 +171,7 @@ bool ConnectBlockSpark(
         bool fJustCheck=false,
         bool isVerifyDB=false);
 
-void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
+bool DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
 
 /** Drop a cached successful proof when the tx leaves the mempool. */
 void EraseCheckedSparkSpendTransaction(const uint256& hashTx);
@@ -307,11 +308,14 @@ public:
     void AddLTagTxHash(const uint256& lTagHash, const uint256& txHash);
     void RemoveSpend(const GroupElement& lTag);
     // Add everything from the block to the state
-    void AddBlock(CBlockIndex *index);
+    bool AddBlock(CBlockIndex *index);
     // Disconnect block from the chain rolling back mints and spends
-    void RemoveBlock(CBlockIndex *index);
-    // Record the block's asset registry changes in its index entry, then apply them
-    void ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info);
+    bool RemoveBlock(CBlockIndex *index);
+    /**
+     * Record the block's asset registry changes in its index entry, then apply them.
+     * A modify or transfer for an unknown symbol fails without changing the registry.
+     */
+    bool ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info);
 
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
@@ -384,8 +388,8 @@ public:
 
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
-    void ApplyAssetBlock(const CBlockIndexPrivacyData& pd);
-    void UndoAssetBlock(const CBlockIndexPrivacyData& pd);
+    bool ApplyAssetBlock(const CBlockIndexPrivacyData& pd);
+    bool UndoAssetBlock(const CBlockIndexPrivacyData& pd);
 
 private:
     // Group Limit

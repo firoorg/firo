@@ -19,8 +19,8 @@ class CSparkAssetTxData;
 
 /**
  * Domain-separated hash of an asset payload without its ownership proof.
- * The Spark spend commits to this value. Modify and transfer attach an admin
- * ownership proof over the finished transaction.
+ * The Spark spend commits to this value. Register, modify, and transfer attach
+ * an admin ownership proof over the finished transaction.
  */
 uint256 GetSpatsAssetBindHash(const CSparkAssetTxData& assetData);
 
@@ -193,7 +193,7 @@ public:
             throw std::ios_base::failure("CSparkAssetTxData: unsupported version");
 
         // Field set depends only on operationType. Admin address is always present.
-        // Ownership proof is serialized for every op and is empty on register.
+        // Every operation carries the admin ownership proof.
         READWRITE(operationType);
         READWRITE(symbol);
 

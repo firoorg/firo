@@ -4464,21 +4464,26 @@ UniValue mintspats(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
-            "mintspats \"address\":{amount,memo...}\n"
-            + HelpRequiringPassphrase(pwallet) + "\n"
-                                                 "\nArguments:\n"
-                                                 " \"address\"   (string) Spark address (in-wallet) for Spark mint, or a transparent Firo address (in-wallet, spendable) to mint via transparent inputs + mint-only vout\n"
-                                                 " \"memo\"   (string) memo\n"
-                                                 " \"amount\"   (numeric) amount to mint\n"
-                                                 " \"a\"   (numeric)\n"
-                                                 " \"iota\"   (numeric)\n"
-                                                 "\nResult:\n"
-                                                 "\"txid\" (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                                                "                                    the number of addresses.\n"
-                                                "\nExamples:\n"
-                                                "\nSend two amounts to two different spark addresses:\n"
-            + HelpExampleCli("mintspats", "\"\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"a\\\":1,\\\"iota\\\":1,\\\"memo\\\":\\\"test_memo\\\"}\"")
-            + HelpExampleRpc("mintspats", "\"\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":1, \\\"a\\\":1,\\\"iota\\\":1,}\"")
+            "mintspats \"address\" {\"amount\":amount, \"a\":n, \"iota\":n, \"memo\":\"memo\"}\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nCreate one Spark asset mint. This wallet must control the asset's registered admin.\n"
+            "A Spark admin authorizes the mint with a Spark spend. A transparent admin authorizes\n"
+            "it by spending one transparent output of that admin address.\n"
+            "\nArguments:\n"
+            "1. \"address\"          (string, required) Spark address that receives the minted coin.\n"
+            "2. output             (object, required)\n"
+            "   {\n"
+            "     \"amount\": amount, (numeric or string, required) Amount in the asset's registered precision\n"
+            "     \"a\": n,           (numeric, required) Asset type from listsparkassets\n"
+            "     \"iota\": n,        (numeric, required) 0 for a fungible asset, otherwise the NFT identifier\n"
+            "     \"memo\": \"memo\"    (string, optional) Memo stored with the minted coin\n"
+            "   }\n"
+            "\nResult:\n"
+            "\"txid\"               (string) The transaction id. One transaction is created.\n"
+            "\nExamples:\n"
+            "\nMint 0.01 units of asset type 1 to a Spark address:\n"
+            + HelpExampleCli("mintspats", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\" \"{\\\"amount\\\":0.01,\\\"a\\\":1,\\\"iota\\\":0,\\\"memo\\\":\\\"test_memo\\\"}\"")
+            + HelpExampleRpc("mintspats", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\", {\"amount\":0.01, \"a\":1, \"iota\":0, \"memo\":\"test_memo\"}")
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
@@ -4495,6 +4500,17 @@ UniValue mintspats(const JSONRPCRequest& request)
 
     UniValue data = request.params[1].get_obj();
     spark::MintedCoinData output;
+
+    spark::Address sparkAddr(params);
+    try {
+        if (sparkAddr.decode(str_addr) != network)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for the wrong network");
+    } catch (const UniValue&) {
+        throw;
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address required to receive the mint");
+    }
+    output.address = sparkAddr;
 
     if (data.exists("a"))
         output.a = Scalar(data["a"].get_uint64());
@@ -4520,28 +4536,6 @@ UniValue mintspats(const JSONRPCRequest& request)
 
     output.memo = memo;
     output.v = nAmount;
-
-    bool sparkInitiator = false;
-    spark::Address sparkAddr(params);
-    try {
-        if (sparkAddr.decode(str_addr) != network)
-            throw std::runtime_error("wrong network");
-        sparkInitiator = true;
-        output.address = sparkAddr;
-    } catch (const std::exception&) {
-    }
-
-    if (!sparkInitiator) {
-        CBitcoinAddress ba(str_addr);
-        if (!ba.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid address: ") + str_addr);
-        if (!pwallet->sparkWallet)
-            throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet not available");
-        CTxOut probe(0, GetScriptForDestination(ba.Get()));
-        if (pwallet->IsMine(probe) != ISMINE_SPENDABLE)
-            throw JSONRPCError(RPC_WALLET_ERROR, "Transparent address not in wallet");
-        output.address = pwallet->sparkWallet->getDefaultAddress();
-    }
 
     CWalletTx wtx;
     try {
@@ -4570,7 +4564,7 @@ UniValue createsparkasset(const JSONRPCRequest& request) {
             "     \"symbol\": \"xxx\",       (string, required) ASCII letters only\n"
             "     \"name\": \"xxx\",         (string, required)\n"
             "     \"maxSupply\": n,          (numeric, required) raw units; 0 = no cap\n"
-            "     \"adminAddress\": \"xxx\", (string, optional) Spark or transparent admin; default is the wallet Spark address\n"
+            "     \"adminAddress\": \"xxx\", (string, optional) Spark or transparent admin controlled by this wallet; default is the wallet Spark address\n"
             "     \"description\": \"xxx\",  (string, optional)\n"
             "     \"metadata\": \"xxx\",     (string, optional)\n"
             "     \"precision\": n,          (numeric, optional, default 8, maximum 8)\n"

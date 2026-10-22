@@ -3546,7 +3546,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
-    spark::DisconnectTipSpark(block, pindexDelete);
+    if (!spark::DisconnectTipSpark(block, pindexDelete))
+        return AbortNode(state, "Failed to roll back Spark asset state");
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
 

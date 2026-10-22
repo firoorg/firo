@@ -85,8 +85,10 @@ public:
 
     const CirculatingSupplyMap& GetCirculatingSupplyMap() const { return circulating_supply_; }
 
-    void AddCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount);
-    void SubCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount);
+    /** @return false when the addition would overflow; the balance is unchanged. */
+    bool AddCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount);
+    /** @return false when the balance is below amount; the balance is unchanged. */
+    bool SubCirculatingSupply(std::uint64_t assetType, std::uint64_t identifier, std::uint64_t amount);
 
     /** Drop only supply tracking (e.g. chain rewind); keeps registration entries and tx history. */
     void ClearCirculatingSupply() { circulating_supply_.clear(); }

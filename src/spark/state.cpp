@@ -80,7 +80,8 @@ CSparkVerifyDBContext::CSparkVerifyDBContext(CBlockIndex* tip) :
     for (CBlockIndex* index = chainActive.Tip();
          index && index != tip;
          index = index->pprev) {
-        state.RemoveBlock(index);
+        if (!state.RemoveBlock(index))
+            throw std::runtime_error("VerifyDB Spark asset rollback failed");
         sparkNameManager.RemoveBlock(index, false);
     }
     activeVerifyDBContext = this;
@@ -894,6 +895,8 @@ bool CheckSparkAssetTransaction(
                 return state.DoS(contextualDoS, false, REJECT_INVALID, "spats-asset-symbol-taken");
             if (!PaysAssetRegistrationFee(tx, params, op->getSymbol()))
                 return state.DoS(100, false, REJECT_INVALID, "bad-spats-asset-fee");
+            // The address being assigned must sign this registration.
+            admin = op->getAdminPublicAddress();
         } else {
             const auto assetType = registry.GetAssetTypeBySymbol(symbol);
             const auto entry = assetType ? registry.Get(*assetType) : std::nullopt;
@@ -918,20 +921,18 @@ bool CheckSparkAssetTransaction(
 
         if (!isSparkSpend)
             return state.DoS(100, false, REJECT_INVALID, "bad-spats-asset-admin-tx");
-        if (op->isModify() || op->isTransfer()) {
-            Scalar m;
-            uint256 transparentHash;
-            try {
-                m = GetSpatsAssetOwnershipM(tx, *op);
-                transparentHash = GetSpatsAssetOwnershipHash(tx, *op);
-            } catch (const std::bad_alloc&) {
-                throw;
-            } catch (const std::exception&) {
-                return state.DoS(100, false, REJECT_INVALID, "bad-spats-asset-payload");
-            }
-            if (!VerifySpatsAssetAdminProof(admin, m, transparentHash, op->getOwnershipProof()))
-                return state.DoS(100, false, REJECT_INVALID, "spats-asset-ownership-invalid");
+        Scalar m;
+        uint256 transparentHash;
+        try {
+            m = GetSpatsAssetOwnershipM(tx, *op);
+            transparentHash = GetSpatsAssetOwnershipHash(tx, *op);
+        } catch (const std::bad_alloc&) {
+            throw;
+        } catch (const std::exception&) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-spats-asset-payload");
         }
+        if (!VerifySpatsAssetAdminProof(admin, m, transparentHash, op->getOwnershipProof()))
+            return state.DoS(100, false, REJECT_INVALID, "spats-asset-ownership-invalid");
         effects.op = op;
     }
 
@@ -1393,7 +1394,8 @@ bool ConnectBlockSpark(
 
         const CSparkTxInfo& info = *pblock->sparkTxInfo;
         if (!info.assetOps.empty() || !info.assetPending.minted.empty() || !info.assetPending.burned.empty()) {
-            sparkState.ConnectAssetBlock(pindexNew, info);
+            if (!sparkState.ConnectAssetBlock(pindexNew, info))
+                return state.DoS(100, error("ConnectBlockSpark: failed to apply spark asset registry"));
 
             // Pending asset transactions were checked against the registry before this block.
             std::set<std::string> symbols;
@@ -1411,7 +1413,8 @@ bool ConnectBlockSpark(
         }
     }
     else if (!fJustCheck) {
-        sparkState.AddBlock(pindexNew);
+        if (!sparkState.AddBlock(pindexNew))
+            return state.DoS(100, error("ConnectBlockSpark: failed to apply indexed spark asset state"));
     }
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
@@ -1469,11 +1472,12 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
     }
 }
 
-void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
+bool DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     sparkNameManager->RemoveBlock(pindexDelete);
 
-    sparkState.RemoveBlock(pindexDelete);
+    if (!sparkState.RemoveBlock(pindexDelete))
+        return error("DisconnectTipSpark: spark asset supply rollback failed");
 
     {
         std::set<std::string> symbols;
@@ -1498,6 +1502,7 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
+    return true;
 }
 
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight) {
@@ -2850,7 +2855,7 @@ void CSparkState::RemoveSpend(const GroupElement& lTag) {
     }
 }
 
-void CSparkState::AddBlock(CBlockIndex *index) {
+bool CSparkState::AddBlock(CBlockIndex *index) {
     const auto& pd = index->privacyData();
     for (auto const& coins : pd.sparkMintedCoins) {
         if (coins.second.empty())
@@ -2885,13 +2890,12 @@ void CSparkState::AddBlock(CBlockIndex *index) {
         }
     }
 
-    ApplyAssetBlock(pd);
+    return ApplyAssetBlock(pd);
 }
 
-void CSparkState::ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info)
+bool CSparkState::ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info)
 {
-    auto& pd = index->ensurePrivacyData();
-    pd.sparkAssetOps.clear();
+    std::vector<CSparkAssetIndexOp> ops;
     std::uint64_t nextAssetType = asset_state_.GetNextAssetTypeCounter();
     for (const auto& [txid, data] : info.assetOps) {
         CSparkAssetIndexOp op;
@@ -2905,7 +2909,7 @@ void CSparkState::ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info
             const auto assetType = asset_state_.GetAssetTypeBySymbol(data.getSymbol());
             const auto entry = assetType ? asset_state_.Get(*assetType) : std::nullopt;
             if (!entry)
-                continue;
+                return error("ConnectAssetBlock: asset operation for unknown symbol %s", data.getSymbol());
             op.assetType = *assetType;
             op.before = *entry;
             op.after = *entry;
@@ -2917,39 +2921,67 @@ void CSparkState::ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info
                 op.after.metadata = data.getMetadata();
             else if (data.isTransfer())
                 op.after.adminPublicAddress = data.getTransferAddress();
+            else
+                return error("ConnectAssetBlock: unknown asset operation for symbol %s", data.getSymbol());
         }
-        pd.sparkAssetOps.push_back(std::move(op));
+        ops.push_back(std::move(op));
     }
-    pd.sparkAssetMinted = info.assetPending.minted;
-    pd.sparkAssetBurned = info.assetPending.burned;
-    ApplyAssetBlock(pd);
+
+    CBlockIndexPrivacyData staged;
+    staged.sparkAssetOps = std::move(ops);
+    staged.sparkAssetMinted = info.assetPending.minted;
+    staged.sparkAssetBurned = info.assetPending.burned;
+    if (!ApplyAssetBlock(staged))
+        return error("ConnectAssetBlock: spark asset supply change rejected");
+
+    auto& pd = index->ensurePrivacyData();
+    pd.sparkAssetOps = std::move(staged.sparkAssetOps);
+    pd.sparkAssetMinted = std::move(staged.sparkAssetMinted);
+    pd.sparkAssetBurned = std::move(staged.sparkAssetBurned);
+    return true;
 }
 
-void CSparkState::ApplyAssetBlock(const CBlockIndexPrivacyData& pd)
+bool CSparkState::ApplyAssetBlock(const CBlockIndexPrivacyData& pd)
 {
+    CAssetState next = asset_state_;
     for (const auto& op : pd.sparkAssetOps)
-        asset_state_.SetEntry(op.assetType, op.after);
-    for (const auto& [key, amount] : pd.sparkAssetMinted)
-        asset_state_.AddCirculatingSupply(key.first, key.second, amount);
-    for (const auto& [key, amount] : pd.sparkAssetBurned)
-        asset_state_.SubCirculatingSupply(key.first, key.second, amount);
+        next.SetEntry(op.assetType, op.after);
+    for (const auto& [key, amount] : pd.sparkAssetMinted) {
+        if (!next.AddCirculatingSupply(key.first, key.second, amount))
+            return false;
+    }
+    for (const auto& [key, amount] : pd.sparkAssetBurned) {
+        if (!next.SubCirculatingSupply(key.first, key.second, amount))
+            return false;
+    }
+    asset_state_ = std::move(next);
+    return true;
 }
 
-void CSparkState::UndoAssetBlock(const CBlockIndexPrivacyData& pd)
+bool CSparkState::UndoAssetBlock(const CBlockIndexPrivacyData& pd)
 {
-    for (const auto& [key, amount] : pd.sparkAssetBurned)
-        asset_state_.AddCirculatingSupply(key.first, key.second, amount);
-    for (const auto& [key, amount] : pd.sparkAssetMinted)
-        asset_state_.SubCirculatingSupply(key.first, key.second, amount);
+    CAssetState next = asset_state_;
+    for (const auto& [key, amount] : pd.sparkAssetBurned) {
+        if (!next.AddCirculatingSupply(key.first, key.second, amount))
+            return false;
+    }
+    for (const auto& [key, amount] : pd.sparkAssetMinted) {
+        if (!next.SubCirculatingSupply(key.first, key.second, amount))
+            return false;
+    }
     for (auto op = pd.sparkAssetOps.rbegin(); op != pd.sparkAssetOps.rend(); ++op) {
         if (op->fRegister)
-            asset_state_.UndoRegister(op->assetType);
+            next.UndoRegister(op->assetType);
         else
-            asset_state_.SetEntry(op->assetType, op->before);
+            next.SetEntry(op->assetType, op->before);
     }
+    asset_state_ = std::move(next);
+    return true;
 }
 
-void CSparkState::RemoveBlock(CBlockIndex *index) {
+bool CSparkState::RemoveBlock(CBlockIndex *index) {
+    if (!UndoAssetBlock(index->privacyData()))
+        return false;
     // roll back coin group updates
     const auto& pd = index->privacyData();
     for (auto &coins : pd.sparkMintedCoins)
@@ -3017,7 +3049,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
         RemoveSpend(lTag.first);
     }
 
-    UndoAssetBlock(pd);
+    return true;
 }
 
 bool CSparkState::AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash) {
