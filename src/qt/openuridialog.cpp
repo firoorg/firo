@@ -34,17 +34,16 @@ void OpenURIDialog::applyTheme()
         "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }")));
     ui->uriEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QValidatedLineEdit {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 8px 12px; color: $INK;"
         "}"
-        "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit:focus { border: 2px solid $WINE; padding: 7px 11px; }"
         "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }")));
 
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(primaryButtonStyle);
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(secondaryButtonStyle);

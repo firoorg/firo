@@ -212,6 +212,18 @@ static inline void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
     mapValue["n"] = i64tostr(nOrderPos);
 }
 
+/** An affordable batch has at least two inputs and no error. Amounts are estimates until construction. */
+struct ConsolidationPlan
+{
+    std::vector<COutPoint> inputs;
+    CAmount total{0}; //!< Selected value before deducting the fee.
+    CAmount fee{0};
+    unsigned int signedBytes{0};
+    size_t eligibleCount{0};
+    bool sizeLimited{false}; //!< All eligible outputs exceed the weight or sigop limit.
+    std::string error;
+};
+
 struct COutputEntry
 {
     CTxDestination destination;
@@ -845,6 +857,15 @@ public:
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = nullptr, bool fIncludeZeroValue=false, bool fForUseInInstantSend = false) const;
 
+    /** Confirmed, spendable, unlocked non-collateral coins grouped by their exact destination script. */
+    std::map<CTxDestination, std::vector<COutPoint>> GetConsolidationCoins(const CTxDestination& destination = CNoDestination()) const;
+
+    /** Plan affordable batches without private keys, key reservation, or wallet changes. */
+    std::map<CTxDestination, ConsolidationPlan> GetConsolidationPlans(const CTxDestination& destination = CNoDestination()) const;
+
+    /** The plan for one destination; its error is set when the destination has no eligible outputs. */
+    ConsolidationPlan GetConsolidationPlan(const CTxDestination& destination) const;
+
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
     bool IsHDSeedAvailable() { return !hdChain.masterKeyID.IsNull(); }
@@ -985,6 +1006,10 @@ public:
             CAmount& feeRet,
             const CCoinControl* coinControl = nullptr);
 
+    /** Prepare one size-limited self-transfer, optionally returning its fresh plan. Does not commit. */
+    bool CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
+                                       CReserveKey& reserveKey, CAmount& fee, std::string& error, ConsolidationPlan* usedPlan = nullptr);
+
     /**
      * Add Mint and Spend functions
      */
@@ -1081,6 +1106,16 @@ public:
             const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
             const CCoinControl *coinControl = nullptr);
 
+    /**
+     * Spark spend without SPATS outputs. Forwards to the full overload with an
+     * empty SPATS recipient list and no burn.
+     */
+    CWalletTx SpendAndStoreSpark(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            CAmount& fee,
+            const CCoinControl* coinControl = nullptr);
+
     CWalletTx CreateAndStoreAsset(
         spark::CSparkAssetTxData &assetData,
         CAmount &txFee,
@@ -1123,7 +1158,7 @@ public:
     bool AddAccountingEntry(const CAccountingEntry&);
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB *pwalletdb);
     template <typename ContainerType>
-    bool DummySignTx(CMutableTransaction &txNew, const ContainerType &coins);
+    bool DummySignTx(CMutableTransaction &txNew, const ContainerType &coins) const;
 
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;
@@ -1494,7 +1529,7 @@ void ShutdownWallet();
 // ContainerType is meant to hold pair<CWalletTx *, int>, and be iterable
 // so that each entry corresponds to each vIn, in order.
 template <typename ContainerType>
-bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins)
+bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins) const
 {
     // Fill in dummy signatures for fee calculation.
     int nIn = 0;

@@ -1078,7 +1078,8 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
         std::vector<unsigned char> serial_context = getSerialContext(tx);
         for (const auto& vout : tx.vout) {
             const auto& script = vout.scriptPubKey;
-            if (script.IsSparkMintType()) {
+            if (script.IsSparkMint() || script.IsSpatsMint() ||
+                    (script.IsSparkSMint() && tx.IsSparkSpend())) {
                 try {
                     spark::Coin coin(Params::get_default());
                     ParseSparkMintCoin(script, coin);
@@ -1997,7 +1998,7 @@ bool CheckSparkSpendTransaction(
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
+    const bool fCanBatch = !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
         const uint64_t wireGroupId = idAndHash.first;
@@ -2216,34 +2217,32 @@ bool CheckSparkSpendTransaction(
         return loadedCoverSet;
     };
     
-    // if we are collecting proofs, skip verification and collect proofs
-    // add proofs into container
-    if (useBatching) {
-        passVerify = true;
+    // Recent blocks retain the mempool cache fast path. Historical batches
+    // still collect every proof, and VerifyDB always re-verifies its own view.
+    // The txid cache stores Spark spends only.
+    bool haveCachedSuccess = false;
+    if (!isVerifyDB && !spend->isSpats() && (!fCanBatch || !batchProofContainer->is_deferred())) {
+        LOCK(cs_checkedSparkSpendTransactions);
+        haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
+    }
+    bool fAddedToBatch = false;
+    if (!haveCachedSuccess && fCanBatch) {
         if (spend->isSpats()) {
-            batchProofContainer->add(
+            fAddedToBatch = batchProofContainer->add(
                 *static_cast<spats::SpendTransaction*>(spend.get()), hashTx);
         } else if (isChaumV2 || requireChaumV1SingleInput) {
-            batchProofContainer->add(
+            fAddedToBatch = batchProofContainer->add(
                 *static_cast<spark::SpendTransaction*>(spend.get()), hashTx);
         } else {
-            batchProofContainer->addHistorical(
+            fAddedToBatch = batchProofContainer->addHistorical(
                 *static_cast<spark::SpendTransaction*>(spend.get()), hashTx);
         }
+    }
+    if (haveCachedSuccess || fAddedToBatch) {
+        passVerify = true;
     } else {
         try {
-            bool haveCachedSuccess = false;
-            // The cache is txid-only. VerifyDB reconstructs cover sets at the
-            // historical height, so a mempool success must not skip re-verify.
-            if (!isVerifyDB && !spend->isSpats()) {
-                LOCK(cs_checkedSparkSpendTransactions);
-                haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
-            }
-            if (haveCachedSuccess) {
-                LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
-                passVerify = true;
-            }
-            else if (spend->isSpats()) {
+            if (spend->isSpats()) {
                 std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
                 for (uint64_t id : ids) {
                     cover_sets.emplace(id, coverSetProvider(id));
@@ -2251,8 +2250,7 @@ bool CheckSparkSpendTransaction(
                 passVerify = spats::SpendTransaction::verify(
                     *static_cast<spats::SpendTransaction*>(spend.get()),
                     cover_sets);
-            }
-            else if (isMempoolAcceptance) {
+            } else if (isMempoolAcceptance) {
                 passVerify = spark::SpendTransaction::verify(
                     spark::Params::get_default(),
                     {*static_cast<spark::SpendTransaction*>(spend.get())},
@@ -2543,7 +2541,8 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
     for (CTransactionRef tx : block.vtx){
         uint32_t nIndex = 0;
         for (const CTxOut &txout : tx->vout) {
-            if (txout.scriptPubKey.IsSparkMintType()) {
+            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSpatsMint() ||
+                    (txout.scriptPubKey.IsSparkSMint() && tx->IsSparkSpend())) {
                 try {
                     ParseSparkMintCoin(txout.scriptPubKey, txCoin);
                 }
@@ -2660,6 +2659,8 @@ void CSparkState::Reset() {
     }
     usedLTags.clear();
     mobileUsedLTags.clear();
+    ltagTxhash.clear();
+    extendedMintMetaInfo.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
     asset_state_.Clear();

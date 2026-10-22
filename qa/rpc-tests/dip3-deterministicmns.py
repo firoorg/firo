@@ -164,20 +164,36 @@ class DIP3Test(BitcoinTestFramework):
             self.sync_all()
 
         self.log.info("test that MNs disappear from the list when the ProTx collateral is spent")
+        # ChainLocks can restore an invalidated spend block. Disable them only
+        # before spending collateral, after the earlier deterministic-MN checks.
+        spork_fee_address = self.nodes[0].getnewaddress()
+        self.nodes[0].sendtoaddress(spork_fee_address, 1)
+        self.nodes[0].generate(1)
+        self.nodes[0].spork('cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ',
+                            spork_fee_address, {'disable': {'chainlocks': 0}})
+        self.nodes[0].generate(1)
+        self.sync_all()
+        assert any(spork['feature'] == 'chainlocks' for spork in self.nodes[0].spork('list')['blockchain'])
+        self.assert_mnlists(mns)
+
         spend_mns_count = 3
         mns_tmp = [] + mns
         dummy_txins = []
+        spend_blocks = []
         for i in range(spend_mns_count):
             dummy_txin = self.spend_mn_collateral(mns[i], with_dummy_input_output=True)
             dummy_txins.append(dummy_txin)
-            self.nodes[0].generate(1)
+            spend_blocks.append(self.nodes[0].generate(1)[0])
             self.sync_all()
             mns_tmp.remove(mns[i])
             self.assert_mnlists(mns_tmp)
 
         self.log.info("test that reverting the blockchain on a single node results in the mnlist to be reverted as well")
         for i in range(spend_mns_count):
-            self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
+            block_hash = spend_blocks[-1 - i]
+            previous_hash = self.nodes[0].getblock(block_hash)['previousblockhash']
+            self.nodes[0].invalidateblock(block_hash)
+            assert_equal(self.nodes[0].getbestblockhash(), previous_hash)
             mns_tmp.append(mns[spend_mns_count - 1 - i])
             self.assert_mnlist(self.nodes[0], mns_tmp)
 

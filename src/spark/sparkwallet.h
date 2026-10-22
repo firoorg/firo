@@ -205,6 +205,20 @@ public:
             const uint256& extraDataHash = uint256(),
             const std::optional<std::pair<spark::MintedCoinData, spark::Address>>& spatsMintRecipient = std::nullopt);
 
+    /**
+     * Spark spend without SPATS outputs. Forwards to the full overload with an
+     * empty SPATS recipient list and no burn.
+     */
+    CWalletTx CreateSparkSpendTransaction(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            CAmount& fee,
+            const CCoinControl* coinControl = nullptr,
+            std::size_t additionalTxSize = 0,
+            const uint256& extensionCommitment = uint256(),
+            int expectedNextBlockHeight = -1,
+            std::vector<CAmount>* recipientAmounts = nullptr);
+
     CWalletTx CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         CAmount &fee,

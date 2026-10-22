@@ -92,6 +92,7 @@ private:
     AutomintSparkNotification *automintSparkNotification;
 
 public Q_SLOTS:
+    void consolidateCoins();
     /** Switch to overview (home) page */
     void gotoOverviewPage();
     /** Switch to history (transactions) page */

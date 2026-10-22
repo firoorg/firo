@@ -74,6 +74,21 @@
         <file alias="ic_info">res/icons/ic_info.png</file>
         <file alias="ic_warning">res/icons/ic_warning.png</file>
         <file alias="spark">res/icons/spark.png</file>
+        <file alias="archive">res/icons/archive.png</file>
+        <file alias="coins">res/icons/coins.png</file>
+        <file alias="firo_mark">res/icons/firo_mark.png</file>
+        <file alias="hash">res/icons/hash.png</file>
+        <file alias="help">res/icons/help.png</file>
+        <file alias="link">res/icons/link.png</file>
+        <file alias="logout">res/icons/logout.png</file>
+        <file alias="message">res/icons/message.png</file>
+        <file alias="moon">res/icons/moon.png</file>
+        <file alias="pen">res/icons/pen.png</file>
+        <file alias="search">res/icons/search.png</file>
+        <file alias="shield">res/icons/shield.png</file>
+        <file alias="sun">res/icons/sun.png</file>
+        <file alias="tag">res/icons/tag.png</file>
+        <file alias="trash">res/icons/trash.png</file>
         <file alias="refresh">res/icons/refresh.png</file>
     </qresource>
     <qresource prefix="/movies">
@@ -116,8 +131,6 @@
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
-        <file alias="splash">res/images/splash.png</file>
-        <file alias="splash_testnet">res/images/splash_testnet.png</file>
         <file alias="arrow_down_dark">res/images/arrow_down_dark.png</file>
         <file alias="arrow_down_light">res/images/arrow_down_light.png</file>
         <file alias="arrow_left_dark">res/images/arrow_left_dark.png</file>
@@ -172,6 +185,7 @@
     </qresource>
     <qresource prefix="/fonts">
         <file alias="Saira_SemiCondensed-Bold">res/fonts/Saira_SemiCondensed-Bold.ttf</file>
+        <file alias="Saira_SemiCondensed-Light">res/fonts/Saira_SemiCondensed-Light.ttf</file>
         <file alias="SourceSansPro-Regular">res/fonts/SourceSansPro-Regular.ttf</file>
         <file alias="SourceSansPro-Bold">res/fonts/SourceSansPro-Bold.ttf</file>
     </qresource>

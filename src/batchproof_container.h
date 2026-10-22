@@ -5,60 +5,74 @@
 #include "chain.h"
 #include "libspark/spend_transaction.h"
 #include "libspark/spats/spend_transaction.h"
-
+#include "sync.h"
 
 extern CChain chainActive;
 
 class BatchProofContainer {
 public:
+    enum class Mode { Disabled, Deferred, Block };
+
     static BatchProofContainer* get_instance();
 
-    void init();
-
-    void finalize();
+    /** Discard this block's temps and select a mode; retain pending proofs and their failure state. */
+    void init(Mode mode = Mode::Disabled);
 
     /**
-     * Verify the finalized pending Spark batch when proofs are not being
-     * collected. Matches master's verify() gate: a no-op while fCollectProofs
-     * is set, so IBD keeps accumulating until a recent tip.
+     * Append deferred block proofs, then disable collection. Does not verify proofs.
+     * Block mode must be verified with verify_block_batch() first.
+     */
+    void finalize();
+
+    bool is_deferred() const;
+
+    /** Verify this block's temps under cs_main, without touching pending proofs. */
+    bool verify_block_batch();
+
+    /**
+     * Verify a retained snapshot, retrying if the pending batch or active tip
+     * changes. Concurrent callers wait for the current verifier. Call without
+     * cs_main: only snapshot preparation and verdict publication hold it.
      *
-     * @return true if collecting, if no batch is pending, or if the batch
-     *         verifies; false on verification failure (pending proofs kept).
+     * While collecting, returns true without checking pending proofs.
+     * @return true if no batch is pending or it verifies; false on verification
+     *         failure (pending proofs kept).
      */
     bool verify_pending();
 
     static bool HasRecoveryMarker();
     static void RemoveRecoveryMarker();
 
-    void add(const spark::SpendTransaction& tx, const uint256& txHash);
-    void addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
-    void add(const spats::SpendTransaction& tx, const uint256& txHash);
+    bool add(const spark::SpendTransaction& tx, const uint256& txHash);
+    /** Use legacy proof rules; separate from Deferred mode's accumulation of old blocks. */
+    bool addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
+    /** Collect a SPATS spend into the same batch window as Spark spends. */
+    bool add(const spats::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
     void remove(const spats::SpendTransaction& tx);
-public:
-    bool fCollectProofs = 0;
 
 private:
-    bool batch_spark();
-
-    static std::unique_ptr<BatchProofContainer> instance;
-    // a pending batch failed verification; fail fast until the batch changes
+    // Lock order: cs_verify -> cs_main. Collection never takes cs_verify.
+    CCriticalSection cs_verify;
+    // All remaining mutable state is protected by cs_main.
+    Mode mode = Mode::Disabled;
+    uint64_t generation = 0;
+    // Fail fast until proofs are removed from the failed pending batch.
     bool fBatchFailed = false;
     // temp spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> tempSparkTransactions;
     std::vector<uint256> tempSparkTxIds;
     std::vector<spark::SpendTransaction> tempHistoricalSparkTransactions;
     std::vector<uint256> tempHistoricalSparkTxIds;
+    std::vector<spats::SpendTransaction> tempSpatsTransactions;
+    std::vector<uint256> tempSpatsTxIds;
 
     // spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> sparkTransactions;
     std::vector<uint256> sparkTxIds;
     std::vector<spark::SpendTransaction> historicalSparkTransactions;
     std::vector<uint256> historicalSparkTxIds;
-
-    // Spats spends are verified in the same batch window as Spark spends.
-    std::vector<spats::SpendTransaction> tempSpatsTransactions;
-    std::vector<uint256> tempSpatsTxIds;
+    // SPATS spends are verified in the same batch window as Spark spends.
     std::vector<spats::SpendTransaction> spatsTransactions;
     std::vector<uint256> spatsTxIds;
 };

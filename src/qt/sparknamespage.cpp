@@ -22,6 +22,7 @@
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVariant>
 #include <QVBoxLayout>
 
@@ -40,29 +41,14 @@ QString elideMiddle(const QString& text, int keepLeft, int keepRight)
     return text.left(keepLeft) + QStringLiteral("..") + text.right(keepRight);
 }
 
-QPainterPath sparklePath(const QPointF& center, qreal outerR, qreal innerR)
-{
-    QPainterPath star;
-    for (int i = 0; i < 8; ++i) {
-        const qreal angle = i * M_PI / 4.0 - M_PI / 2.0;
-        const qreal r = (i % 2 == 0) ? outerR : innerR;
-        const QPointF pt(center.x() + r * std::cos(angle), center.y() + r * std::sin(angle));
-        if (i == 0)
-            star.moveTo(pt);
-        else
-            star.lineTo(pt);
-    }
-    star.closeSubpath();
-    return star;
-}
-
 QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
 {
     const qreal dpr = qMax<qreal>(1.0, devicePixelRatio);
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     const QString cacheKey = QStringLiteral("spark-name-glyph:%1:%2:%3")
                                  .arg(size)
                                  .arg(dpr, 0, 'f', 2)
-                                 .arg(GUIUtil::isDarkMode());
+                                 .arg(tc.wineText);
     QPixmap pm;
     if (QPixmapCache::find(cacheKey, &pm))
         return pm;
@@ -70,56 +56,77 @@ QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
     pm = QPixmap(qRound(size * dpr), qRound(size * dpr));
     pm.setDevicePixelRatio(dpr);
     pm.fill(Qt::transparent);
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    QLinearGradient g(0, 0, 0, size);
-    g.setColorAt(0, QColor(tc.wine));
-    g.setColorAt(1, QColor(tc.wineDeep));
+    // The sidebar Spark mark on a soft tint tile, like the masternode glyph.
     p.setPen(Qt::NoPen);
-    p.setBrush(g);
+    p.setBrush(QColor(tc.wineTint));
     const qreal radius = size * 0.28;
     p.drawRoundedRect(QRectF(0, 0, size, size), radius, radius);
-
-    p.setBrush(QColor("#FFFFFF"));
-
-    const QPointF mainCenter(size * 0.42, size * 0.44);
-    QPainterPath mainStar = sparklePath(mainCenter, size * 0.30, size * 0.105);
-    QPainterPath hole;
-    hole.addEllipse(mainCenter, size * 0.075, size * 0.075);
-    p.drawPath(mainStar.subtracted(hole));
-
-    const QPointF smallCenter(size * 0.76, size * 0.24);
-    p.drawPath(sparklePath(smallCenter, size * 0.135, size * 0.045));
-
-    const qreal badgeSize = size * 0.4;
-    const qreal badgeMargin = size * 0.06;
-    QRectF badgeRect(size - badgeSize - badgeMargin, size - badgeSize - badgeMargin, badgeSize, badgeSize);
-    p.setBrush(QColor(tc.wineDeep));
-    p.drawEllipse(badgeRect);
-    QFont font = p.font();
-    font.setPixelSize(qRound(badgeSize * 0.6));
-    font.setBold(true);
-    p.setFont(font);
-    p.setPen(QColor("#FFFFFF"));
-    p.drawText(badgeRect, Qt::AlignCenter, QStringLiteral("@"));
+    const int mark = qRound(size * 0.55);
+    const QRect markRect((size - mark) / 2, (size - mark) / 2, mark, mark);
+    p.drawPixmap(markRect, GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), markRect.size(), QColor(tc.wineText)));
+    p.end();
 
     QPixmapCache::insert(cacheKey, pm);
     return pm;
 }
 
-QToolButton* cardActionButton(const QString& text, const QString& icon, const QString& tooltip, QWidget* parent)
+//! A Spark Name status drawn by the shared pill painter, so it matches the list badges.
+class StatusPill : public QWidget
+{
+public:
+    explicit StatusPill(QWidget* parent) : QWidget(parent) {}
+
+    void setStatus(const QString& text, GUIUtil::PillTone tone)
+    {
+        text_ = text;
+        tone_ = tone;
+        updateGeometry();
+        update();
+    }
+    QString text() const { return text_; }
+
+    QSize sizeHint() const override
+    {
+        const QFontMetrics metrics(GUIUtil::pillFont());
+        return QSize(GUIUtil::pillWidth(metrics, text_), metrics.height() + 7);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setFont(GUIUtil::pillFont());
+        GUIUtil::paintPill(&painter, rect(), text_, tone_);
+    }
+
+private:
+    QString text_;
+    GUIUtil::PillTone tone_{GUIUtil::PillTone::Neutral};
+};
+
+QToolButton* cardActionButton(const QString& text, const QString& icon, const QString& tooltip, bool primary, QWidget* parent)
 {
     auto* btn = new QToolButton(parent);
     btn->setObjectName(QStringLiteral("cardActionButton"));
+    btn->setProperty("primaryAction", primary);
     btn->setText(text);
     btn->setToolTip(tooltip);
-    btn->setIcon(QIcon(icon));
-    btn->setIconSize(QSize(13, 13));
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    GUIUtil::setTintedIcon(btn, icon, QSize(16, 16), QColor(primary ? tc.wineText : tc.inkSoft));
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setAutoRaise(true);
     return btn;
+}
+
+//! Copy text and say so under the button, since nothing on the card changes.
+void copyWithConfirmation(QToolButton* button, const QString& text)
+{
+    GUIUtil::setClipboard(text);
+    QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), SparkNamesPage::tr("Copied to clipboard"), button);
 }
 
 QLabel* metricCaption(const QString& text, QWidget* parent)
@@ -225,7 +232,6 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     namesScroll->viewport()->installEventFilter(this);
 
     ui->createSparkNameButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-    GUIUtil::applyPrimaryButtonShadow(ui->createSparkNameButton);
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, &SparkNamesPage::applyTheme);
@@ -394,11 +400,9 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     titleCol->addWidget(addressLab);
     header->addLayout(titleCol, 1);
 
-    auto* statusLab = new QLabel(frame);
-    statusLab->setObjectName(QStringLiteral("cardStatusBadge"));
-    statusLab->setAlignment(Qt::AlignCenter);
-    statusLab->setMinimumHeight(22);
-    header->addWidget(statusLab, 0, Qt::AlignVCenter);
+    auto* statusPill = new StatusPill(frame);
+    statusPill->setObjectName(QStringLiteral("cardStatusBadge"));
+    header->addWidget(statusPill, 0, Qt::AlignVCenter);
 
     root->addLayout(header);
     root->addSpacing(12);
@@ -428,17 +432,17 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     actionsRow->addStretch();
 
     auto* copyNameBtn = cardActionButton(tr("Copy Name"), QStringLiteral(":/icons/editcopy"),
-                                          tr("Copy the Spark Name to the clipboard"), frame);
-    connect(copyNameBtn, &QToolButton::clicked, this, [name]() { GUIUtil::setClipboard(name); });
+                                          tr("Copy the Spark Name to the clipboard"), false, frame);
+    connect(copyNameBtn, &QToolButton::clicked, this, [copyNameBtn, name]() { copyWithConfirmation(copyNameBtn, name); });
     actionsRow->addWidget(copyNameBtn);
 
     auto* copyAddressBtn = cardActionButton(tr("Copy Address"), QStringLiteral(":/icons/editcopy"),
-                                             tr("Copy the resolved Spark address to the clipboard"), frame);
-    connect(copyAddressBtn, &QToolButton::clicked, this, [address]() { GUIUtil::setClipboard(address); });
+                                             tr("Copy the resolved Spark address to the clipboard"), false, frame);
+    connect(copyAddressBtn, &QToolButton::clicked, this, [copyAddressBtn, address]() { copyWithConfirmation(copyAddressBtn, address); });
     actionsRow->addWidget(copyAddressBtn);
 
     auto* extendBtn = cardActionButton(tr("Extend"), QStringLiteral(":/icons/refresh"),
-                                        tr("Extend the validity of this Spark Name"), frame);
+                                        tr("Extend the validity of this Spark Name"), true, frame);
     const QString rawName = name.startsWith('@') ? name.mid(1) : name;
     connect(extendBtn, &QToolButton::clicked, this, [this, rawName, address]() { extendSparkName(rawName, address); });
     actionsRow->addWidget(extendBtn);
@@ -463,12 +467,13 @@ void SparkNamesPage::updateCardStatuses(int currentHeight)
 void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
 {
     const QVariant validity = card->property("validityHeight");
-    auto* statusLabel = card->findChild<QLabel*>(QStringLiteral("cardStatusBadge"));
+    // StatusPill has no meta-object of its own, so look it up by name.
+    auto* statusPill = static_cast<StatusPill*>(card->findChild<QWidget*>(QStringLiteral("cardStatusBadge")));
     auto* expiryMetric = card->findChild<QWidget*>(QStringLiteral("cardExpiryMetric"));
     auto* expiryLabel = expiryMetric
         ? expiryMetric->findChild<QLabel*>(QStringLiteral("cardMetricValue"))
         : nullptr;
-    if (!validity.isValid() || !statusLabel || !expiryLabel)
+    if (!validity.isValid() || !statusPill || !expiryLabel)
         return;
 
     constexpr int blocksPerHour = 24;
@@ -478,13 +483,12 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
     QString expiry;
     QString statusText;
     int statusKind;
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    QString badgeBackground;
+    GUIUtil::PillTone tone;
     if (remainingBlocks <= 0) {
         expiry = tr("Expired");
         statusText = tr("Expired");
         statusKind = 2;
-        badgeBackground = tc.wineTint;
+        tone = GUIUtil::PillTone::Danger;
     } else {
         const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
             remainingBlocks * 3600 / blocksPerHour);
@@ -492,26 +496,22 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
         if (remainingBlocks < blocksPerMonth) {
             statusText = tr("Expiring Soon");
             statusKind = 1;
-            badgeBackground = tc.goldTint;
+            tone = GUIUtil::PillTone::Warning;
         } else {
             statusText = tr("Active");
             statusKind = 0;
-            badgeBackground = tc.tealTint;
+            tone = GUIUtil::PillTone::Positive;
         }
     }
 
     if (expiryLabel->text() != expiry)
         expiryLabel->setText(expiry);
 
-    const QVariant displayedStatusKind = statusLabel->property("statusKind");
+    const QVariant displayedStatusKind = statusPill->property("statusKind");
     if (!displayedStatusKind.isValid() || displayedStatusKind.toInt() != statusKind
-        || statusLabel->text() != statusText) {
-        statusLabel->setText(statusText);
-        statusLabel->setStyleSheet(QStringLiteral(
-            "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-            " padding: 2px 10px; font-size: 12px; font-weight: 700; }")
-                                       .arg(badgeBackground, tc.ink));
-        statusLabel->setProperty("statusKind", statusKind);
+        || statusPill->text() != statusText) {
+        statusPill->setStatus(statusText, tone);
+        statusPill->setProperty("statusKind", statusKind);
     }
 }
 
@@ -556,15 +556,12 @@ QWidget#SparkNamesPage {
   background: $BG;
 }
 QFrame#sparkNamesContentCard {
-  background: $PANEL;
-  border: 1px solid $BORDER;
-  border-radius: 16px;
+  background: transparent;
+  border: none;
 }
 QLabel#headerLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 14px;
-  font-weight: 600;
 }
 QScrollArea#sparkNamesScroll,
 QScrollArea#sparkNamesScroll > QWidget,
@@ -573,51 +570,54 @@ QWidget#sparkNamesCardsHost {
   border: none;
 }
 QFrame#sparkNameCard {
-  background: $PANEL_SOFT;
+  background: $PANEL;
   border: 1px solid $BORDER;
-  border-radius: 16px;
+  border-radius: 14px;
 }
 QFrame#sparkNameCard QLabel#cardTitle {
-  color: $INK; font-size: 16px; font-weight: 700;
+  color: $INK; font: $FONT_H3;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardSubtitle {
-  color: $INK_SOFT; font-size: 12px; font-weight: 500;
+  color: $INK_FAINT; font-weight: 400; font-family: '%1'; font-size: 13px;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_SOFT; font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_FAINT; font: $FONT_CAPTION;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {
-  color: $INK; font-size: 14px; font-weight: 700;
+  color: $INK; font-weight: 400;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
-  color: $INK_SOFT; background: $PANEL; border: 1px solid $BORDER; border-radius: 8px;
-  padding: 4px 10px; font-size: 12px; font-weight: 600;
+  color: $INK_SOFT; background: transparent; border: 1px solid transparent; border-radius: 10px;
+  padding: 4px 10px; font-weight: 700;
 }
-QFrame#sparkNameCard QToolButton#cardActionButton:hover {
-  color: $INK; border-color: $WINE;
+QFrame#sparkNameCard QToolButton#cardActionButton:hover,
+QFrame#sparkNameCard QToolButton#cardActionButton:focus {
+  color: $INK; background: $HOVER;
 }
-    )")));
+QFrame#sparkNameCard QToolButton#cardActionButton[primaryAction="true"] {
+  color: $WINE_TEXT;
+}
+    )").arg(GUIUtil::fixedPitchFont().family())));
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-        emptyIcon_->setPixmap(sparkNameGlyph(48, emptyIcon_->devicePixelRatioF()));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/spark"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK; font-size: 14px; font-weight: 700;")));
+            "color: $INK; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 12px;")));
+            "color: $INK_SOFT;")));
     }
 
     if (model)

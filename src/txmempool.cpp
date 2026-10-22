@@ -612,20 +612,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             }
         }
 
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsSparkMintType()) {
-                try {
-                    const spark::Params* params = spark::Params::get_default();
-
-                    spark::Coin txCoin(params);
-                    spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    sparkState.RemoveMintFromMempool(txCoin);
-                }
-                catch (std::invalid_argument&) {
-                }
-            }
-        }
+        for (const auto& coin : spark::GetSparkMintCoins(tx))
+            sparkState.RemoveMintFromMempool(coin);
     }
 
     totalTxSize -= it->GetTxSize();

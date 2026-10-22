@@ -95,7 +95,7 @@ private:
 
     QWidget *createDateRangeWidget();
     void updateCalendarWidgets();
-    void addShadow(QWidget* w);
+
     bool eventFilter(QObject *obj, QEvent *event) override;
     void updateEmptyState();
     void updateTableColumnWidths();

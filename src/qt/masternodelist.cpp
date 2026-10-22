@@ -27,7 +27,6 @@
 #include <QDialogButtonBox>
 #include <QFrame>
 #include <QGridLayout>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QLabel>
@@ -76,15 +75,11 @@ QPixmap masternodeGlyph(qreal devicePixelRatio)
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    QLinearGradient g(0, 0, 0, 36);
-    g.setColorAt(0, QColor(tc.wine));
-    g.setColorAt(1, QColor(tc.wineDeep));
     p.setPen(Qt::NoPen);
-    p.setBrush(g);
+    p.setBrush(QColor(tc.hover));
     p.drawRoundedRect(QRectF(0, 0, 36, 36), 10, 10);
-    p.setBrush(QColor("#FFFFFF"));
-    p.drawRoundedRect(QRectF(9, 11, 18, 5), 1.5, 1.5);
-    p.drawRoundedRect(QRectF(9, 20, 18, 5), 1.5, 1.5);
+    p.drawPixmap(QRect(8, 8, 20, 20), GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_masternodes")),
+                                                              QSize(20, 20), QColor(tc.inkSoft)));
     return pm;
 }
 
@@ -93,7 +88,6 @@ enum MasternodeRole {
     StatusRole,
     StatusKindRole,
     PoseScoreRole,
-    MaxPoseRole,
     RegisteredHeightRole,
     LastPaidHeightRole,
     NextPaymentHeightRole,
@@ -120,9 +114,8 @@ public:
 
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
     {
-        Q_UNUSED(option);
         Q_UNUSED(index);
-        return QSize(0, 96);
+        return QSize(0, 4 * option.fontMetrics.height() + 32);
     }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
@@ -134,139 +127,99 @@ public:
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
         const QRect card = option.rect.adjusted(5, 4, -5, -4);
-        painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-        painter->setBrush(QColor(selected ? tc.panelSoft : tc.panel));
-        painter->drawRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
+        const int lineHeight = option.fontMetrics.height();
+        // Nodes are rows in the list card, like every other list.
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         const qreal dpr = option.widget ? option.widget->devicePixelRatioF() : 1.0;
         painter->drawPixmap(QRect(card.left() + 14, card.top() + 4, 36, 36), glyph(dpr));
 
         const QString service = index.data(ServiceRole).toString();
         const QString status = index.data(StatusRole).toString();
-        const int statusKind = index.data(StatusKindRole).toInt();
-        QColor statusBackground(tc.tealTint);
-        const QColor statusForeground(tc.ink);
-        if (statusKind == 1) {
-            statusBackground = QColor(tc.goldTint);
-        } else if (statusKind == 2) {
-            statusBackground = QColor(tc.wineTint);
-        }
-
-        QFont statusFont = option.font;
-        statusFont.setPixelSize(12);
-        statusFont.setBold(true);
-        const QFontMetrics statusMetrics(statusFont);
+        const auto statusKind = static_cast<MasternodeList::StatusKind>(index.data(StatusKindRole).toInt());
+        QFont boldFont = option.font;
+        boldFont.setBold(true);
+        const QFontMetrics boldMetrics(boldFont);
         const int headerLeft = card.left() + 62;
         const int headerRight = card.right() - 14;
         const int headerWidth = std::max(0, headerRight - headerLeft);
-        const int statusWidth = std::min(statusMetrics.horizontalAdvance(status) + 20,
-                                         std::max(0, headerWidth / 3));
-        const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, 24);
+        const QFont pillFont = GUIUtil::pillFont();
+        const QFontMetrics pillMetrics(pillFont);
+        const int statusWidth = std::min(GUIUtil::pillWidth(pillMetrics, status), std::max(0, headerWidth / 3));
+        const int statusHeight = pillMetrics.height() + 7;
+        const QRect statusRect(headerRight - statusWidth, card.top() + 10 + (lineHeight + 6 - statusHeight) / 2,
+                               statusWidth, statusHeight);
         if (statusWidth > 0) {
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(statusBackground);
-            painter->drawRoundedRect(statusRect, 12, 12);
-            painter->setFont(statusFont);
-            painter->setPen(statusForeground);
-            painter->drawText(statusRect.adjusted(6, 0, -6, 0), Qt::AlignCenter,
-                              statusMetrics.elidedText(status, Qt::ElideRight,
-                                                       std::max(0, statusRect.width() - 12)));
+            // The pill carries the node's PoSe health: teal with no penalty, gold once
+            // penalties accrue, red when banned.
+            painter->setFont(pillFont);
+            GUIUtil::paintPill(painter, statusRect, status,
+                               statusKind == MasternodeList::StatusKind::Banned      ? GUIUtil::PillTone::Danger
+                               : statusKind == MasternodeList::StatusKind::Penalised ? GUIUtil::PillTone::Warning
+                                                                                     : GUIUtil::PillTone::Positive);
         }
 
-        QFont titleFont = option.font;
-        titleFont.setPixelSize(14);
-        titleFont.setBold(true);
-        painter->setFont(titleFont);
+        painter->setFont(boldFont);
         painter->setPen(QColor(tc.ink));
-        const bool showPose = headerWidth >= 300;
-        const int poseWidth = showPose ? 80 : 0;
-        const int titleRight = statusRect.left() - (showPose ? poseWidth + 16 : 8);
+        const int titleRight = statusRect.left() - 16;
         const QRect titleRect(headerLeft, card.top() + 3,
-                              std::max(0, titleRight - headerLeft), 20);
+                              std::max(0, titleRight - headerLeft), lineHeight);
         if (titleRect.width() > 0) {
             painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(titleFont).elidedText(service, Qt::ElideMiddle, titleRect.width()));
+                              boldMetrics.elidedText(service, Qt::ElideMiddle, titleRect.width()));
 
-            QFont subtitleFont = option.font;
-            subtitleFont.setPixelSize(12);
-            painter->setFont(subtitleFont);
-            painter->setPen(QColor(tc.inkSoft));
+            // Where the collateral is held, in the muted monospace face like Spark Name addresses.
+            // The outpoint stays in the tooltip and the context menu, and stands in when the
+            // collateral coin is not known.
+            QFont addressFont = GUIUtil::fixedPitchFont();
+            addressFont.setPixelSize(13);
+            painter->setFont(addressFont);
+            painter->setPen(QColor(tc.inkFaint));
+            const QString collateralAddress = index.data(CollateralAddressRole).toString();
             const QString collateral = masternodeText(
                 QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
-                .arg(index.data(CollateralOutpointRole).toString());
-            const QRect subtitleRect(titleRect.left(), card.top() + 23, titleRect.width(), 18);
+                .arg(collateralAddress == QLatin1String("-") ? index.data(CollateralOutpointRole).toString()
+                                                              : collateralAddress);
+            const QRect subtitleRect(titleRect.left(), titleRect.bottom() + 1, titleRect.width(), lineHeight);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(subtitleFont).elidedText(collateral, Qt::ElideMiddle,
-                                                                   subtitleRect.width()));
+                              QFontMetrics(addressFont).elidedText(collateral, Qt::ElideMiddle,
+                                                                  subtitleRect.width()));
         }
 
-        QFont poseFont = option.font;
-        poseFont.setPixelSize(12);
-        painter->setFont(poseFont);
-        painter->setPen(QColor(tc.inkSoft));
-        if (showPose) {
-            const QRect poseRect(titleRight + 8, card.top() + 3, poseWidth, 24);
-            painter->drawText(poseRect, Qt::AlignRight | Qt::AlignVCenter,
-                              masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PoSe %1"))
-                                  .arg(index.data(PoseScoreRole).toInt()));
+        const int dividerY = card.top() + 2 * lineHeight + 8;
 
-            const int trackWidth = std::min(64, poseRect.width());
-            const QRect trackRect(poseRect.right() - trackWidth + 1, card.top() + 33, trackWidth, 4);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.border));
-            painter->drawRoundedRect(trackRect, 2, 2);
-
-            const int poseScore = index.data(PoseScoreRole).toInt();
-            const int maxPose = std::max(1, index.data(MaxPoseRole).toInt());
-            const int fillWidth = statusKind == 2
-                ? std::max(18, std::min(trackWidth, trackWidth * poseScore / maxPose))
-                : (poseScore <= 0
-                       ? std::min(22, trackWidth)
-                       : std::max(10, std::min(trackWidth, trackWidth * poseScore / maxPose)));
-            painter->setBrush(QColor(statusKind == 2 ? tc.wine : tc.teal));
-            painter->drawRoundedRect(QRect(trackRect.left(), trackRect.top(), fillWidth, trackRect.height()), 2, 2);
-        }
-
-        painter->setPen(QPen(QColor(tc.border), 1));
-        painter->drawLine(card.left() + 14, card.top() + 44,
-                          card.right() - 14, card.top() + 44);
-
+        const QFont captionFont = GUIUtil::brandFont(GUIUtil::TextStyle::Caption);
+        const QFontMetrics captionMetrics(captionFont);
+        const QFontMetrics valueMetrics(option.font);
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
-            QFont captionFont = option.font;
-            captionFont.setPixelSize(12);
-            captionFont.setBold(true);
+            // Small caption over a regular-weight value, so the service address stays the headline.
             painter->setFont(captionFont);
-            painter->setPen(QColor(tc.inkSoft));
-            const QRect captionRect = rect.adjusted(0, 0, -8, -16);
-            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
-                                                                  std::max(0, captionRect.width())));
+            painter->setPen(QColor(tc.inkFaint));
+            const QRect captionRect = rect.adjusted(0, 0, -8, -lineHeight);
+            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignBottom,
+                              captionMetrics.elidedText(caption, Qt::ElideRight, std::max(0, captionRect.width())));
 
-            QFont valueFont = option.font;
-            valueFont.setPixelSize(12);
-            valueFont.setBold(true);
-            painter->setFont(valueFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.ink));
-            const QRect valueRect = rect.adjusted(0, 16, -8, 0);
+            const QRect valueRect = rect.adjusted(0, lineHeight, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(valueFont).elidedText(value, Qt::ElideMiddle, valueRect.width()));
+                              valueMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
 
-        const int contentLeft = card.left() + 16;
-        const int contentWidth = card.width() - 32;
-        const int quarterWidth = contentWidth / 4;
-        const int rowOneTop = card.top() + 48;
-        for (int column = 0; column < 4; ++column) {
-            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 32);
-            if (column == 0)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
-            else if (column == 1)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID")), formatBlockHeight(index.data(LastPaidHeightRole).toInt(), index.data(LastPaidHeightRole).toInt() < 0));
-            else if (column == 2)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT")), formatBlockHeight(index.data(NextPaymentHeightRole).toInt(), index.data(NextPaymentHeightRole).toInt() < 0));
-            else
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL")), index.data(CollateralAmountRole).toString());
-        }
+        // Five metrics left to right on a six-unit grid; the payout address takes two units.
+        const int unitWidth = (card.width() - 32) / 6;
+        int metricLeft = card.left() + 16;
+        const auto metric = [&](const char* caption, const QString& value, int units = 1) {
+            drawMetric(QRect(metricLeft, dividerY + 4, units * unitWidth, 2 * lineHeight), masternodeText(caption), value);
+            metricLeft += units * unitWidth;
+        };
+        const int lastPaid = index.data(LastPaidHeightRole).toInt();
+        const int nextPayment = index.data(NextPaymentHeightRole).toInt();
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED"), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID"), formatBlockHeight(lastPaid, lastPaid < 0));
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT"), formatBlockHeight(nextPayment, nextPayment < 0));
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL"), index.data(CollateralAmountRole).toString());
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS"), index.data(PayoutAddressRole).toString(), 2);
 
         painter->restore();
     }
@@ -324,6 +277,7 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 
     ui->label_filter_2->hide();
     ui->filterLineEditDIP3->setAccessibleName(tr("Filter masternodes"));
+    GUIUtil::setThemedIcon(ui->filterLineEditDIP3->addAction(QIcon(), QLineEdit::LeadingPosition), QStringLiteral(":/icons/search"));
     filterLayout->addWidget(ui->filterLineEditDIP3, 0, 0, 1, 3);
     filterLayout->addWidget(ui->checkBoxMyMasternodesOnly, 1, 0);
 
@@ -363,6 +317,10 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     filterLayout->addWidget(countPill, 0, 3);
 
     ui->topLayout->insertWidget(0, filterCard);
+    syncWarning = new QLabel(tr("Masternode information may be out of date while the wallet is syncing."), this);
+    syncWarning->setObjectName(QStringLiteral("masternodeSyncWarning"));
+    syncWarning->setWordWrap(true);
+    ui->topLayout->insertWidget(1, syncWarning);
     ui->masternodeContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->masternodeContentCard, 1);
 
@@ -403,7 +361,7 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     emptyLayout->setSpacing(5);
     emptyLayout->addStretch();
 
-    emptyIcon_ = new QLabel(QStringLiteral("▤"), emptyState);
+    emptyIcon_ = new QLabel(emptyState);
     emptyIcon_->setFixedSize(48, 48);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyLayout->addWidget(emptyIcon_, 0, Qt::AlignHCenter);
@@ -418,20 +376,25 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     emptyLayout->addWidget(emptyDescription_);
     emptyLayout->addStretch();
 
-    auto* filterShadow = new QGraphicsDropShadowEffect(filterCard);
-    filterShadow->setBlurRadius(20);
-    filterShadow->setOffset(0, 5);
-    filterShadow->setColor(QColor(65, 37, 52, 24));
-    filterCard->setGraphicsEffect(filterShadow);
-
     QAction* detailsAction = new QAction(tr("Details..."), this);
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
+    QAction* copyPayoutAddressAction = new QAction(tr("Copy Payout Address"), this);
+    QAction* copyCollateralAddressAction = new QAction(tr("Copy Collateral Address"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
+    GUIUtil::setThemedIcon(detailsAction, QStringLiteral(":/icons/info"));
+    GUIUtil::setThemedIcon(copyProTxHashAction, QStringLiteral(":/icons/hash"));
+    GUIUtil::setThemedIcon(copyPayoutAddressAction, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(copyCollateralAddressAction, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(copyCollateralOutpointAction, QStringLiteral(":/icons/editcopy"));
     masternodeView->addAction(detailsAction);
     masternodeView->addAction(copyProTxHashAction);
+    masternodeView->addAction(copyPayoutAddressAction);
+    masternodeView->addAction(copyCollateralAddressAction);
     masternodeView->addAction(copyCollateralOutpointAction);
     connect(detailsAction, &QAction::triggered, this, &MasternodeList::extraInfoDIP3_clicked);
     connect(copyProTxHashAction, &QAction::triggered, this, &MasternodeList::copyProTxHash_clicked);
+    connect(copyPayoutAddressAction, &QAction::triggered, this, [this] { copyAddress(PayoutAddressRole); });
+    connect(copyCollateralAddressAction, &QAction::triggered, this, [this] { copyAddress(CollateralAddressRole); });
     connect(copyCollateralOutpointAction, &QAction::triggered, this, &MasternodeList::copyCollateralOutpoint_clicked);
     connect(masternodeSort, qOverload<int>(&QComboBox::activated),
             this, &MasternodeList::sortMasternodes);
@@ -465,49 +428,43 @@ QFrame#masternodeFilterCard,
 QFrame#masternodeContentCard {
   background: $PANEL;
   border: 1px solid $BORDER;
-  border-radius: 16px;
+  border-radius: 14px;
+}
+QLabel#masternodeSyncWarning {
+  background: $GOLD_TINT;
+  color: $INK;
+  border: 1px solid $GOLD;
+  border-radius: 10px;
+  padding: 8px 12px;
 }
 QLineEdit#filterLineEditDIP3 {
   min-height: 34px;
   background: $PANEL_SOFT;
-  border: 1px solid $BORDER;
-  border-radius: 9px;
+  border: 1px solid $FIELD_BORDER;
+  border-radius: 10px;
   padding: 0 11px;
   color: $INK_SOFT;
-  font-size: 12px;
   selection-background-color: $WINE_DEEP;
   selection-color: #FFFFFF;
 }
 QLineEdit#filterLineEditDIP3:focus {
   background: $PANEL;
-  border-color: $WINE;
+  border: 2px solid $WINE;
+  padding: 0 10px;
 }
 QCheckBox#checkBoxMyMasternodesOnly {
   color: $INK_SOFT;
-  font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   spacing: 7px;
   background: transparent;
-}
-QCheckBox#checkBoxMyMasternodesOnly::indicator {
-  width: 14px;
-  height: 14px;
-  border: 1px solid $INK_FAINT;
-  border-radius: 4px;
-  background: $PANEL;
-}
-QCheckBox#checkBoxMyMasternodesOnly::indicator:checked {
-  image: url(:/images/checkbox_checked_$ASSET_THEME);
-  border: none;
 }
 QComboBox {
   min-height: 34px;
   background: $PANEL_SOFT;
-  border: 1px solid $BORDER;
-  border-radius: 9px;
+  border: 1px solid $FIELD_BORDER;
+  border-radius: 10px;
   padding: 0 10px;
   color: $INK_SOFT;
-  font-size: 12px;
 }
 QComboBox:focus {
   background: $PANEL;
@@ -519,10 +476,9 @@ QComboBox::drop-down {
 }
 QToolButton#masternodeSortDirection {
   background: $PANEL_SOFT;
-  border: 1px solid $BORDER;
-  border-radius: 9px;
+  border: 1px solid $FIELD_BORDER;
+  border-radius: 10px;
   color: $INK;
-  font-size: 16px;
   font-weight: 700;
 }
 QToolButton#masternodeSortDirection:hover,
@@ -533,13 +489,12 @@ QToolButton#masternodeSortDirection:focus {
 QFrame#nodeCountPill {
   background: $PANEL_SOFT;
   border: 1px solid $BORDER;
-  border-radius: 9px;
+  border-radius: 10px;
 }
 QFrame#nodeCountPill QLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 QListView#masternodeView,
 QListView#masternodeView::viewport {
@@ -551,41 +506,20 @@ QListView#masternodeView::item {
   background: transparent;
   border: none;
 }
-QScrollBar:vertical {
-  background: $PANEL_SOFT;
-  width: 12px;
-  border-radius: 6px;
-}
-QScrollBar::handle:vertical {
-  background: $INK_FAINT;
-  border-radius: 6px;
-  margin: 2px;
-  min-height: 32px;
-}
-QScrollBar::handle:vertical:hover {
-  background: $INK_SOFT;
-}
-QScrollBar::add-line,
-QScrollBar::sub-line {
-  width: 0;
-  height: 0;
-}
     )")));
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "background: $WINE_TINT; color: $WINE; border-radius: 12px;"
-            "font-size: 20px; font-weight: 700;")));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_masternodes"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK; font-size: 14px; font-weight: 700;")));
+            "color: $INK; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 12px;")));
+            "color: $INK_SOFT;")));
     }
 
     if (masternodeView && masternodeView->viewport())
@@ -623,8 +557,17 @@ void MasternodeList::setWalletModel(WalletModel* model)
     updateDIP3ListScheduled();
 }
 
+void MasternodeList::showOutOfSyncWarning(bool fShow)
+{
+    syncWarning->setVisible(fShow);
+}
+
 bool MasternodeList::eventFilter(QObject* watched, QEvent* event)
 {
+    // The viewport settles after this page's own resize, so follow it directly.
+    if (masternodeView && watched == masternodeView->viewport() && event->type() == QEvent::Resize) {
+        updateEmptyState();
+    }
     if (event->type() != QEvent::ContextMenu || !masternodeView ||
         (watched != masternodeView && watched != masternodeView->viewport()))
         return QWidget::eventFilter(watched, event);
@@ -717,6 +660,14 @@ void MasternodeList::updateDIP3ListScheduled()
     }
 }
 
+MasternodeList::Status MasternodeList::statusFor(bool banned, int poseScore)
+{
+    // A node is either valid or PoSe-banned; a valid one may still carry penalties.
+    if (banned) return {tr("PoSe banned"), StatusKind::Banned};
+    if (poseScore > 0) return {tr("Enabled · PoSe %1").arg(poseScore), StatusKind::Penalised};
+    return {tr("Enabled"), StatusKind::Enabled};
+}
+
 bool MasternodeList::updateDIP3List()
 {
     if (!clientModel || ShutdownRequested()) {
@@ -769,7 +720,6 @@ bool MasternodeList::updateDIP3List()
     }
 
     const Consensus::Params& params = ::Params().GetConsensus();
-    const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
     QList<QStandardItem*> modelRows;
 
     auto processMN = [&](const CDeterministicMNCPtr& dmn) {
@@ -782,15 +732,8 @@ bool MasternodeList::updateDIP3List()
         }
 
         const QString address = QString::fromStdString(dmn->pdmnState->addr.ToString());
-        int statusKind = 1;
-        QString status = tr("Pre-enabled");
-        if (mnList.IsMNValid(dmn)) {
-            statusKind = 0;
-            status = tr("Enabled");
-        } else if (mnList.IsMNPoSeBanned(dmn)) {
-            statusKind = 2;
-            status = tr("PoSe Banned");
-        }
+        const Status nodeStatus = statusFor(mnList.IsMNPoSeBanned(dmn), dmn->pdmnState->nPoSePenalty);
+        const QString& status = nodeStatus.text;
 
         const QString registered = formatBlockHeight(dmn->pdmnState->nRegisteredHeight, false);
         const bool lastPaidNone = dmn->pdmnState->nLastPaidHeight < params.DIP0003EnforcementHeight;
@@ -861,9 +804,8 @@ bool MasternodeList::updateDIP3List()
         item->setEditable(false);
         item->setData(address, ServiceRole);
         item->setData(status, StatusRole);
-        item->setData(statusKind, StatusKindRole);
+        item->setData(static_cast<int>(nodeStatus.kind), StatusKindRole);
         item->setData(dmn->pdmnState->nPoSePenalty, PoseScoreRole);
-        item->setData(maxPose, MaxPoseRole);
         item->setData(dmn->pdmnState->nRegisteredHeight, RegisteredHeightRole);
         item->setData(lastPaidNone ? -1 : dmn->pdmnState->nLastPaidHeight, LastPaidHeightRole);
         item->setData(nextUnknown ? -1 : nextPaymentIt->second, NextPaymentHeightRole);
@@ -1057,6 +999,19 @@ void MasternodeList::copyProTxHash_clicked()
     }
 
     QApplication::clipboard()->setText(index.data(ProTxHashRole).toString());
+}
+
+void MasternodeList::copyAddress(int role)
+{
+    const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
+    if (!index.isValid()) {
+        return;
+    }
+
+    // "-" marks an address that could not be resolved; there is nothing to copy.
+    const QString address = index.data(role).toString();
+    if (address != QLatin1String("-"))
+        QApplication::clipboard()->setText(address);
 }
 
 void MasternodeList::copyCollateralOutpoint_clicked()

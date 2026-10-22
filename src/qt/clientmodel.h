@@ -9,6 +9,8 @@
 #include <QDateTime>
 
 #include <atomic>
+#include <optional>
+#include <tuple>
 
 #include "evo/deterministicmns.h"
 
@@ -72,6 +74,8 @@ public:
 
     double getVerificationProgress(const CBlockIndex *tip) const;
     QDateTime getLastBlockDate() const;
+    //! Cache tip notifications from validation threads for the next model update.
+    void updateBlockTip(bool initialSync, const CBlockIndex *tip, bool header);
 
     //! Return the cached initial block download state without waiting for validation.
     bool inInitialBlockDownload() const;
@@ -96,6 +100,7 @@ public:
 
     mutable std::atomic<int> cachedNumBlocks;
     mutable QDateTime cachedLastBlockDate;
+    mutable std::atomic<double> cachedVerificationProgress{0.0};
     mutable std::atomic<bool> cachedInitialBlockDownload{true};
 
 
@@ -105,6 +110,9 @@ private:
     BanTableModel *banTableModel;
 
     QTimer *pollTimer;
+    CCriticalSection cs_pendingTips;
+    std::optional<std::tuple<int, QDateTime, double>> pendingBlockTip;
+    std::optional<std::tuple<int, QDateTime, double>> pendingHeaderTip;
 
     // The cache for mn list is not technically needed because CDeterministicMNManager
     // caches it internally for recent blocks but it's not enough to get consistent

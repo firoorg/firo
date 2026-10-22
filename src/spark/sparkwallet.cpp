@@ -82,14 +82,35 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile)
              addresses[lastDiversifier] = generateNextAddress();
          }
 
-         // get the list of coin metadata from db
+        // Load SMints only when their containing wallet transaction is a Spark spend.
+        auto loadedMints = walletdb.ListSparkMints();
+        {
+            LOCK(pwalletMain->cs_wallet);
+            std::erase_if(loadedMints, [&](const auto& entry) {
+                const auto& mint = entry.second;
+                if (mint.type != spark::COIN_TYPE_SPEND)
+                    return false;
+
+                const auto parent = pwalletMain->mapWallet.find(mint.txid);
+                if (parent == pwalletMain->mapWallet.end()) {
+                    // Keep missing-parent records on disk so a rescan can recover valid mints.
+                    LogPrintf("CSparkWallet: skipping saved SMint with missing wallet transaction %s; rescan to recover\n", mint.txid.ToString());
+                    return true;
+                }
+                if (parent->second.tx->IsSparkSpend())
+                    return false;
+                if (!walletdb.EraseSparkMint(entry.first))
+                    throw std::runtime_error("Failed to remove unauthenticated Spark mint from wallet");
+                return true;
+            });
+        }
         {
             LOCK(cs_spark_wallet);
-            coinMeta = walletdb.ListSparkMints();
-            for (auto& coin : coinMeta) {
-                coin.second.coin.setParams(params);
-                coin.second.coin.setSerialContext(coin.second.serial_context);
-                addToLookups(coin.first, coin.second);
+            coinMeta = std::move(loadedMints);
+            for (auto& mint : coinMeta) {
+                mint.second.coin.setParams(params);
+                mint.second.coin.setSerialContext(mint.second.serial_context);
+                addToLookups(mint.first, mint.second);
             }
         }
 
@@ -336,10 +357,6 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) const
 bool CSparkWallet::isAddressMine(const spark::Address& address) const
 {
     LOCK(cs_spark_wallet);
-    for (const auto& itr : addresses) {
-        if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
-            return true;
-    }
 
     uint64_t d;
 
@@ -349,7 +366,9 @@ bool CSparkWallet::isAddressMine(const spark::Address& address) const
         return false;
     }
 
-    spark::Address newAddr = getAddress(int32_t(d));
+    spark::Address newAddr = d <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max())
+        ? getAddress(static_cast<int32_t>(d))
+        : spark::Address(viewKey, d);
     if (newAddr.get_Q1() == address.get_Q1() && newAddr.get_Q2() == address.get_Q2())
         return true;
 
@@ -1143,11 +1162,24 @@ bool CSparkWallet::CreateSparkMintTransactions(
     std::vector<spark::MintedCoinData> outputs_ = outputs;
     CAmount valueToMint = 0;
 
-    for (auto& output : outputs_)
-        valueToMint += output.v;
+    for (const auto& output : outputs_) {
+        if (output.v > static_cast<uint64_t>(MAX_MONEY - valueToMint)) {
+            strFailReason = _("Spark mint amount out of range");
+            return false;
+        }
+        valueToMint += static_cast<CAmount>(output.v);
+    }
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
+        // CFeeRate::GetFee multiplies by transaction size before dividing by 1000.
+        const CFeeRate maxSafeFeeRate(std::numeric_limits<CAmount>::max() / MAX_NEW_TX_WEIGHT);
+        if (payTxFee < CFeeRate(0) || payTxFee > maxSafeFeeRate ||
+            (coinControl && coinControl->fOverrideFeeRate &&
+             (coinControl->nFeeRate < CFeeRate(0) || coinControl->nFeeRate > maxSafeFeeRate))) {
+            strFailReason = _("Spark mint fee out of range");
+            return false;
+        }
         {
             std::list<CWalletTx> cacheWtxs;
             // vector pairs<available amount, outputs> for each transparent address
@@ -1198,8 +1230,13 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     mintedValue = valueToMintInTx;
                     if (subtractFeeFromAmount)
                         nValueToSelect = mintedValue;
-                    else
+                    else {
+                        if (nFeeRet > 0 && mintedValue > std::numeric_limits<CAmount>::max() - nFeeRet) {
+                            strFailReason = _("Spark mint fee out of range");
+                            return false;
+                        }
                         nValueToSelect = mintedValue + nFeeRet;
+                    }
 
                     // if no enough coins in this group then subtract fee from mint
                     if (nValueToSelect > itr->first && !subtractFeeFromAmount) {
@@ -1403,7 +1440,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     // Limit size
                     CTransaction txConst(tx);
                     if (GetTransactionWeight(txConst) >= MAX_NEW_TX_WEIGHT) {
-                        strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
+                        strFailReason = _("Transaction is too large (size limit: 250Kb). Select fewer inputs. If many inputs belong to one transparent address, use File > Consolidate outputs in the GUI or the consolidateaddress RPC, then retry after confirmation.");
                         return false;
                     }
                     dPriority = txConst.ComputePriority(dPriority, nBytes);
@@ -1608,6 +1645,31 @@ static CScript BuildSpatsBurnScript(const std::pair<Scalar, Scalar>& assetId, CA
     serializedBurn << amount;
     script.insert(script.end(), serializedBurn.begin(), serializedBurn.end());
     return script;
+}
+
+CWalletTx CSparkWallet::CreateSparkSpendTransaction(
+        const std::vector<CRecipient>& recipients,
+        const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+        CAmount& fee,
+        const CCoinControl* coinControl,
+        size_t additionalTxSize,
+        const uint256& extensionCommitment,
+        int expectedNextBlockHeight,
+        std::vector<CAmount>* recipientAmounts)
+{
+    const std::vector<spark::OutputCoinData> spatsRecipients;
+    const std::pair<CAmount, std::pair<Scalar, Scalar>> burnAsset;
+    return CreateSparkSpendTransaction(
+        recipients,
+        privateRecipients,
+        spatsRecipients,
+        fee,
+        burnAsset,
+        coinControl,
+        additionalTxSize,
+        extensionCommitment,
+        expectedNextBlockHeight,
+        recipientAmounts);
 }
 
 CWalletTx CSparkWallet::CreateSparkSpendTransaction(

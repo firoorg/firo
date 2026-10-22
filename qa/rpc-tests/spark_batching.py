@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Test deferred Spark batch proof verification (-batching) across reindex.
+"""Test historical and recent Spark batch proof verification across reindex.
 
-All blocks are mined with timestamps more than a day in the past, so a
-later reindex takes the old-block batching path: Spark spend proofs are
-collected into the batch container and must batch-verify before the node
-persists validation state and clears the reindex flag.
+Old blocks share an accumulated batch; spends in a recent block share a
+separate per-block batch. Reindex must verify both before completing and
+reach the same chain and wallet balance with batching disabled.
 """
 import os
 import time
@@ -92,10 +91,27 @@ class SparkBatchingTest(BitcoinTestFramework):
         assert BATCH_SUCCESS_LOG in log, \
             "batched reindex did not batch verify Spark proofs"
         assert "Spark batch verification failed." not in log
+        assert_equal(log.count(BATCH_SUCCESS_LOG), 1)
+        self.wait_spark_balance(spark_balance)
+
+        # Put two spends in one recent block. Reindex clears the mempool proof
+        # cache, so these must share one per-block batch, separate from the
+        # accumulated historical batch above.
+        set_node_times(self.nodes, int(time.time()))
+        for amount in (1, 2):
+            self.nodes[0].spendspark({self.nodes[0].getnewaddress(): {
+                "amount": amount, "subtractFee": False}})
+        self.nodes[0].generate(6)
+        spark_balance = self.nodes[0].getsparkbalance()
+        self.reindex(batching=True)
+        log = self.read_debug_log()
+        assert_equal(log.count(BATCH_SUCCESS_LOG), 2)
+        assert "Spark batch verification failed." not in log
         self.wait_spark_balance(spark_balance)
 
         # Control: block-by-block verification reaches the same chain.
         self.reindex(batching=False)
+        assert BATCH_SUCCESS_LOG not in self.read_debug_log()
         self.wait_spark_balance(spark_balance)
 
         print("Success")
