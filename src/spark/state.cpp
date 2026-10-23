@@ -970,6 +970,8 @@ bool CheckSparkAssetTransaction(
         const std::uint64_t current = registry.GetCirculatingSupply(*assetType, *identifier);
         const std::uint64_t pendingMinted = PendingAmount(pending.minted, key) + PendingAmount(effects.minted, key);
         if (entry->assetKind == static_cast<uint8_t>(AssetKind::NonFungible)) {
+            if (amount != 1)
+                return state.DoS(100, false, REJECT_INVALID, "spats-nft-value");
             if (*identifier != entry->identifier)
                 return state.DoS(contextualDoS, false, REJECT_INVALID, "spats-mint-wrong-identifier");
             if (current != 0 || pendingMinted != 0)
@@ -1656,6 +1658,14 @@ bool CheckSpatsMintTransaction(
                          false,
                          PUBCOIN_NOT_VALIDATE,
                          "CheckSpatsMintTransaction : Invalid asset type");
+
+    // A nonzero identifier is an NFT. The Spats mint rule requires its value to be 1
+    // so the token cannot be split by a later spend.
+    if (!coin.iota.isZero() && coin.v != 1)
+        return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CheckSpatsMintTransaction : nft value must be 1");
 
     if (sparkTxInfo != nullptr && !sparkTxInfo->fInfoIsComplete) {
         // Update coin list in the info

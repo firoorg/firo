@@ -2402,6 +2402,8 @@ CWalletTx CSparkWallet::CreateSpatsMintTransaction(
 
     if (spatsRecipient.first.a == Scalar(uint64_t(0)))
         throw std::runtime_error(_("Invalid asset type, please use spark mint creation."));
+    if (!spatsRecipient.first.iota.isZero() && spatsRecipient.first.v != 1)
+        throw std::runtime_error(_("NFT mint value must be 1"));
 
     CAmount additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequired() + 8;
     std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;

@@ -1628,6 +1628,7 @@ BOOST_AUTO_TEST_CASE(spats_asset_rpcs)
     spendParams.push_back(spend);
     expectError(::spendspark, spendParams, "subtractFee cannot be taken from a SPATS asset amount");
 
+    expectError(::mintspats, mintParams("2", nftType, 7), "NFT mint value must be 1");
     rejectMint(call(::mintspats, mintParams("1.00", rpcxType, 1)).get_str(), "spats-mint-wrong-identifier");
     rejectMint(call(::mintspats, mintParams("1", nftType, 0)).get_str(), "spats-mint-wrong-identifier");
 

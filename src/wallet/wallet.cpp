@@ -4335,6 +4335,8 @@ CWalletTx CWallet::CreateSpatsMintTransparentTransaction(
 
     if (mintData.a == Scalar(uint64_t(0)))
         throw std::runtime_error(_("Invalid asset type"));
+    if (!mintData.iota.isZero() && mintData.v != 1)
+        throw std::runtime_error(_("NFT mint value must be 1"));
 
     CWalletTx wtxNew;
     CReserveKey reservekey(this);

@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(transfer_receiver_proof_is_checked)
     spark::SpendKey currentKey(params);
     spark::Address currentAddr(spark::IncomingViewKey(spark::FullViewKey(currentKey)), 1);
     spark::SpendKey receiverKey(params);
-    spark::IncomingViewKey receiverView(spark::FullViewKey(receiverKey));
+    spark::IncomingViewKey receiverView{spark::FullViewKey(receiverKey)};
     spark::Address receiverAddr(receiverView, 1);
 
     const std::uint64_t assetType = 7;
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(admin_proof_is_checked)
 {
     const auto* params = spark::Params::get_default();
     spark::SpendKey adminKey(params);
-    spark::IncomingViewKey adminView(spark::FullViewKey(adminKey));
+    spark::IncomingViewKey adminView{spark::FullViewKey(adminKey)};
     spark::Address adminAddr(adminView, 1);
     const std::string admin = adminAddr.encode(spark::GetNetworkType());
     const secp_primitives::Scalar m(uint64_t(42));
@@ -288,7 +288,7 @@ BOOST_AUTO_TEST_CASE(transparent_admin_must_be_p2pkh)
     BOOST_CHECK(spark::IsValidAssetAdminAddress(p2pkh.ToString()));
 
     const CScript redeem = GetScriptForDestination(key.GetPubKey().GetID());
-    const CBitcoinAddress p2sh(CScriptID(redeem));
+    const CBitcoinAddress p2sh{CScriptID(redeem)};
     BOOST_REQUIRE(p2sh.IsValid());
     BOOST_CHECK(p2sh.IsScript());
     BOOST_CHECK(!spark::IsValidAssetAdminAddress(p2sh.ToString()));
@@ -477,6 +477,43 @@ BOOST_AUTO_TEST_CASE(registry_ops_require_spark_spend)
         CTransaction(tx), view, state, consensus.nSpatsStartBlock + 1,
         false, true, pending, effects));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-spats-asset-admin-tx");
+}
+
+BOOST_AUTO_TEST_CASE(spats_mint_rejects_nft_value_other_than_one)
+{
+    const auto* params = spark::Params::get_default();
+    const spark::SpendKey spendKey(params);
+    const spark::FullViewKey fullViewKey(spendKey);
+    const spark::IncomingViewKey incomingViewKey(fullViewKey);
+    const spark::Address address(incomingViewKey, 1);
+    std::vector<unsigned char> serialContext(spark::SCALAR_ENCODING, 0);
+    const int height = Params().GetConsensus().nSpatsStartBlock + 1;
+
+    spark::MintedCoinData minted;
+    minted.address = address;
+    minted.v = 2;
+    minted.memo = "nft";
+    minted.a = Scalar(uint64_t(3));
+    minted.iota = Scalar(uint64_t(4));
+    spark::MintTransaction mint(params, {minted}, serialContext);
+    const std::vector<CDataStream> serialized = mint.getMintedCoinsSerialized();
+    BOOST_REQUIRE_EQUAL(serialized.size(), 1U);
+    CScript script;
+    script << OP_SPATSMINT;
+    script.insert(script.end(), serialized[0].begin(), serialized[0].end());
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_SPARK;
+    tx.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    tx.vout.emplace_back(0, script);
+
+    CValidationState state;
+    spark::CSparkTxInfo info;
+    BOOST_CHECK(!spark::CheckSparkTransaction(
+        CTransaction(tx), state, tx.GetHash(),
+        false, height, false, true, &info));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "CheckSpatsMintTransaction : nft value must be 1");
+    BOOST_CHECK(info.mints.empty());
 }
 
 BOOST_AUTO_TEST_CASE(spark_mint_rejects_asset_type)
