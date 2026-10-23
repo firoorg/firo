@@ -300,6 +300,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/spats/bpplus.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/spats/spend_transaction.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/spats/type.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/spats/nft_holding.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_blockprocessor.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_chainlocks.cpp

@@ -286,6 +286,9 @@ public:
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const spark::Coin& coin);
 
+    /** True when a minted coin with this serial commitment and value commitment is in the chain state. */
+    bool HasCoinSerialAndCommitment(const secp_primitives::GroupElement& serial, const secp_primitives::GroupElement& commitment) const;
+
     // Query if there is a coin with given hash of a coin value.
     bool HasCoinHash(spark::Coin& coin, const uint256& coinHash);
 
@@ -405,6 +408,8 @@ private:
     // Set of all minted coins
     mutable CCriticalSection cs_minted_coins;
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins GUARDED_BY(cs_minted_coins);
+    // Serial commitment S to value commitment C, kept beside mintedCoins.
+    std::unordered_map<secp_primitives::GroupElement, secp_primitives::GroupElement, spark::CLTagHash> mintedSerialCommitments GUARDED_BY(cs_minted_coins);
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
     // Set of all used linking tags, used only when -mobile=true

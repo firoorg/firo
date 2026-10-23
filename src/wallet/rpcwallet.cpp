@@ -32,6 +32,7 @@
 #include "rpcdump.h"
 #include "spark/assetstate.h"
 #include "spark/state.h"
+#include "libspark/spats/nft_holding.h"
 
 #include <stdint.h>
 
@@ -4858,6 +4859,170 @@ UniValue modifysparkassetdescription(const JSONRPCRequest& request) {
     return wtx.GetHash().GetHex();
 }
 
+static bool LedgerHasSparkCoin(const secp_primitives::GroupElement& serial, const secp_primitives::GroupElement& commitment)
+{
+    return spark::CSparkState::GetState()->HasCoinSerialAndCommitment(serial, commitment);
+}
+
+static bool SparkTagIsSpent(const secp_primitives::GroupElement& tag)
+{
+    LOCK2(cs_main, mempool.cs);
+    return spark::CSparkState::GetState()->IsUsedLTag(tag) || mempool.sparkState.HasLTag(tag);
+}
+
+UniValue provespatsnftholding(const JSONRPCRequest& request)
+{
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "provespatsnftholding \"symbol\" \"message\"\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nProve that this wallet currently holds the NFT with this symbol.\n"
+            "The proof is bound to the message. It reveals the coin's link tag, so a verifier\n"
+            "can see a later spend of that same NFT, but not who received it.\n"
+            "\nArguments:\n"
+            "1. \"symbol\"     (string, required) NFT ticker\n"
+            "2. \"message\"    (string, required) Message the proof is bound to\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"holding\": \"hex\",     (string) Proof and coin statement\n"
+            "  \"assetType\": n,        (numeric) Asset type\n"
+            "  \"identifier\": n        (numeric) NFT identifier\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("provespatsnftholding", "\"ART\" \"ticket-17\"")
+            + HelpExampleRpc("provespatsnftholding", "\"ART\", \"ticket-17\"")
+        );
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    const std::string symbol = request.params[0].get_str();
+    const std::string messageText = request.params[1].get_str();
+    std::optional<spark::CSparkAssetDBEntry> entry;
+    std::optional<std::uint64_t> assetType;
+    {
+        LOCK(cs_main);
+        const spark::CAssetState& registry = spark::CSparkState::GetState()->GetAssetState();
+        assetType = registry.GetAssetTypeBySymbol(symbol);
+        if (assetType)
+            entry = registry.Get(*assetType);
+    }
+    if (!entry || !assetType)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Asset is not registered");
+    if (entry->assetKind != static_cast<std::uint8_t>(spark::AssetKind::NonFungible))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Holding proofs are for NFTs");
+
+    const std::list<CSparkMintMeta> held = pwallet->sparkWallet->GetAvailableSparkCoins(
+        std::make_pair(Scalar(*assetType), Scalar(entry->identifier)));
+    const CSparkMintMeta* nft = nullptr;
+    for (const CSparkMintMeta& meta : held) {
+        if (meta.v != 1)
+            continue;
+        if (nft)
+            throw JSONRPCError(RPC_WALLET_ERROR, "More than one unspent coin of this NFT");
+        nft = &meta;
+    }
+    if (!nft)
+        throw JSONRPCError(RPC_WALLET_ERROR, "This wallet does not hold that NFT");
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+    } catch (const WalletLocked&) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Unable to generate spend key");
+    }
+    const spark::FullViewKey fullView(spendKey);
+    const Scalar serial = spark::SparkUtils::hash_ser(nft->k, nft->serial_context) +
+        spark::SparkUtils::hash_Q2(spendKey.get_s1(), Scalar(uint64_t(nft->i))) +
+        spendKey.get_s2();
+    const secp_primitives::GroupElement tag = (params->get_U() + fullView.get_D().inverse()) * serial.inverse();
+    const Scalar asset = Scalar(*assetType);
+    const Scalar identifier = Scalar(entry->identifier);
+    const std::vector<unsigned char> message(messageText.begin(), messageText.end());
+
+    spark::NftHoldingProof proof;
+    try {
+        proof = spark::ProveNftHolding(
+            params,
+            nft->coin.S,
+            nft->coin.C,
+            tag,
+            asset,
+            identifier,
+            serial,
+            spendKey.get_r(),
+            spark::SparkUtils::hash_val(nft->k),
+            message);
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << proof;
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("holding", HexStr(stream.begin(), stream.end())));
+    result.push_back(Pair("assetType", *assetType));
+    result.push_back(Pair("identifier", entry->identifier));
+    return result;
+}
+
+UniValue verifyspatsnftholding(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "verifyspatsnftholding \"holding\" \"message\"\n"
+            "\nVerify an NFT holding proof. The coin must be on this node's ledger and its link tag\n"
+            "must be unspent. The message must be the one the proof was bound to.\n"
+            "\nArguments:\n"
+            "1. \"holding\"    (string, required) Hex proof from provespatsnftholding\n"
+            "2. \"message\"    (string, required) Message the proof must be bound to\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"valid\": true|false,   (boolean) Proof, coin, and unspent tag all check\n"
+            "  \"spent\": true|false,   (boolean) The link tag has already been published in a spend\n"
+            "  \"assetType\": n,        (numeric) Asset type bound by the proof\n"
+            "  \"identifier\": n        (numeric) NFT identifier bound by the proof\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("verifyspatsnftholding", "\"hex\" \"ticket-17\"")
+            + HelpExampleRpc("verifyspatsnftholding", "\"hex\", \"ticket-17\"")
+        );
+
+    spark::NftHoldingProof proof;
+    try {
+        const std::vector<unsigned char> bytes = ParseHex(request.params[0].get_str());
+        CDataStream stream(bytes, SER_NETWORK, PROTOCOL_VERSION);
+        stream >> proof;
+        if (!stream.empty())
+            throw std::runtime_error("trailing data");
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Holding proof is not valid hex");
+    }
+
+    const std::string messageText = request.params[1].get_str();
+    const std::vector<unsigned char> message(messageText.begin(), messageText.end());
+    const bool proofOk = spark::VerifyNftHolding(spark::Params::get_default(), proof, message);
+    const auto assetType = spark::GetSpatsScalarAsUint64(proof.a);
+    const auto identifier = spark::GetSpatsScalarAsUint64(proof.iota);
+    const bool named = assetType.has_value() && identifier.has_value();
+    const bool onLedger = proofOk && named && LedgerHasSparkCoin(proof.S, proof.C);
+    const bool spent = SparkTagIsSpent(proof.T);
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("valid", proofOk && named && onLedger && !spent));
+    result.push_back(Pair("spent", spent));
+    result.push_back(Pair("assetType", named ? UniValue(*assetType) : NullUniValue));
+    result.push_back(Pair("identifier", named ? UniValue(*identifier) : NullUniValue));
+    return result;
+}
+
 UniValue sparkassetreceive(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -6735,6 +6900,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "modifysparkassetmetadata", &modifysparkassetmetadata, false, {} },
     { "wallet",             "modifysparkassetdescription", &modifysparkassetdescription, false, {} },
     { "wallet",             "sparkassetreceive",      &sparkassetreceive,  false, {"symbol","address"} },
+    { "wallet",             "provespatsnftholding",   &provespatsnftholding,   false, {"symbol","message"} },
+    { "wallet",             "verifyspatsnftholding",  &verifyspatsnftholding,  false, {"holding","message"} },
     { "wallet",             "sparkassettransfer",     &sparkassettransfer, false, {} },
     { "wallet",             "automintspark",          &automintspark,          false, {} },
     { "wallet",             "spendspark",             &spendspark,             false, {} },

@@ -2654,6 +2654,9 @@ void CSparkState::CopyFrom(const CSparkState& other)
     latestCoinId = other.latestCoinId;
     coinGroups = other.coinGroups;
     mintedCoins = std::move(coins);
+    mintedSerialCommitments.clear();
+    for (const auto& minted : mintedCoins)
+        mintedSerialCommitments.emplace(minted.first.S, minted.first.C);
     usedLTags = other.usedLTags;
     mobileUsedLTags = other.mobileUsedLTags;
     ltagTxhash = other.ltagTxhash;
@@ -2671,6 +2674,7 @@ void CSparkState::Reset() {
     {
         LOCK(cs_minted_coins);
         mintedCoins.clear();
+        mintedSerialCommitments.clear();
     }
     usedLTags.clear();
     mobileUsedLTags.clear();
@@ -2695,6 +2699,12 @@ bool CSparkState::HasCoin(const spark::Coin& coin) {
     LOCK(cs_minted_coins);
     return mintedCoins.find(coin) != mintedCoins.end();
 
+}
+
+bool CSparkState::HasCoinSerialAndCommitment(const secp_primitives::GroupElement& serial, const secp_primitives::GroupElement& commitment) const {
+    LOCK(cs_minted_coins);
+    const auto it = mintedSerialCommitments.find(serial);
+    return it != mintedSerialCommitments.end() && it->second == commitment;
 }
 
 bool CSparkState::HasCoinHash(spark::Coin& coin, const uint256& coinHash) {
@@ -2754,6 +2764,7 @@ bool CSparkState::AddMint(
     LOCK(cs_minted_coins);
     const auto inserted = mintedCoins.emplace(coin, coinInfo).second;
     if (inserted) {
+        mintedSerialCommitments.emplace(coin.S, coin.C);
         mintMetaInfo[coinInfo.coinGroupId] += 1;
     }
     return inserted;
@@ -2778,6 +2789,9 @@ bool CSparkState::RemoveMint(
     }
 
     mintedCoins.erase(iter);
+    const auto serial = mintedSerialCommitments.find(coin.S);
+    if (serial != mintedSerialCommitments.end() && serial->second == coin.C)
+        mintedSerialCommitments.erase(serial);
     return true;
 }
 

@@ -38,6 +38,7 @@ const std::string LABEL_TRANSCRIPT_TYPE = "TYPEEQUALITY_V1";
 const std::string LABEL_TRANSCRIPT_BALANCE = "BALANCE_V1";
 const std::string LABEL_TRANSCRIPT_SPATS_MINT = "SPATS_MINT_V1";
 const std::string LABEL_TRANSCRIPT_SPATS_ASSET_OWNERSHIP = "SPATS_ASSET_OWNERSHIP_V1";
+const std::string LABEL_TRANSCRIPT_NFT_HOLDING = "NFT_HOLDING_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";
