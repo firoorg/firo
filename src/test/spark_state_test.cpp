@@ -111,7 +111,7 @@ public:
         k.randomize();
 
         spark::Coin coin(
-            params, type, k, address, value, "memo", random_char_vector());
+            params, type, k, address, value, "memo", random_char_vector(), {}, {});
         // Spend coins do not serialize v, but keep local copies initialized.
         coin.v = value;
         return coin;

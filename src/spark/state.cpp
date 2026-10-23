@@ -313,7 +313,6 @@ void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTrans
     if (!script.IsSpatsMint())
         throw std::invalid_argument("Script is not a Spats coin mint");
 
-    const spark::Params* params = spark::Params::get_default();
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
     CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION);
     std::vector<CDataStream> serializedCoins = { stream };
@@ -539,7 +538,7 @@ spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
             })) {
         throw std::invalid_argument("Non-canonical Spats spend payload");
     }
-    return std::move(spendTransaction);
+    return spendTransaction;
 }
 
 

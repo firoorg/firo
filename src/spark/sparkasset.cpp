@@ -328,7 +328,7 @@ bool CSparkAssetTxData::Verify(std::string& error) const
      	error = "Private address too long";
         return false;
     }
-    if (maxSupply < 0 || maxSupply > static_cast<std::uint64_t>(MAX_ASSET_MONEY)) {
+    if (maxSupply > static_cast<std::uint64_t>(MAX_ASSET_MONEY)) {
      	error = "Maximum money too high";
         return false;
     }

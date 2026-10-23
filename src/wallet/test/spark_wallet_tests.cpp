@@ -71,7 +71,9 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
         pwalletMain->sparkWallet->getDefaultAddress(),
         100 * COIN,
         "standalone smint regression",
-        serialContext);
+        serialContext,
+        {},
+        {});
 
     CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
     encoded << coin;
@@ -909,6 +911,12 @@ BOOST_AUTO_TEST_CASE(spark_balance_skips_spats_coins)
         meta.k.randomize();
         meta.i = 1;
         meta.memo = "balance";
+        // Wallet storage serializes the coin, and a default coin has no type.
+        const auto* params = spark::Params::get_default();
+        const spark::SpendKey spendKey(params);
+        const spark::Address address(spark::IncomingViewKey(spark::FullViewKey(spendKey)), 1);
+        meta.coin = spark::Coin(
+            params, meta.type, meta.k, address, static_cast<uint64_t>(value), meta.memo, {}, meta.a, meta.iota);
         return meta;
     };
 

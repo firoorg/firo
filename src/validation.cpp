@@ -960,7 +960,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             try {
-                sparkUsedLTags = spark::ParseSparkSpend(tx).getUsedLTags();
+                if (!tx.vin.empty() && !tx.vin[0].scriptSig.empty() &&
+                    tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
+                    sparkUsedLTags = spark::ParseSpatsSpend(tx).getUsedLTags();
+                } else {
+                    sparkUsedLTags = spark::ParseSparkSpend(tx).getUsedLTags();
+                }
             }
             catch (const std::bad_alloc &) {
                 return state.Error(

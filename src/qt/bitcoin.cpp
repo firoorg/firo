@@ -582,8 +582,12 @@ void BitcoinApplication::initializeResult(int retval)
         });
         QTimer::singleShot(100, paymentServer, &PaymentServer::uiReady);
 #endif
-    } else {
-        quit(); // Exit main loop
+    } else if (!ShutdownRequested()) {
+        // A failed init still continues into requestShutdown(). A shutdown
+        // requested while init is running must not quit that loop: doing so
+        // returns from main before the core thread runs Shutdown(), and the
+        // embedded Tor thread keeps the process alive.
+        quit();
     }
 }
 

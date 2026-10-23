@@ -1079,7 +1079,7 @@ void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
 std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t i, bool fUnusedOnly) const
 {
     std::vector<CSparkMintMeta> listMints;
-    VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && meta.i == i; },
+    VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && meta.i == static_cast<uint64_t>(i); },
                         [&listMints] (const CSparkMintMeta& meta) { listMints.push_back(meta); });
     return listMints;
 }
@@ -1779,7 +1779,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             SER_NETWORK,
             PROTOCOL_VERSION);
         if (dummyAssetOutput)
-            additionalTxSize += 322;
+            // A full burn still publishes one zero-value asset coin, which is
+            // larger than a base Spark output.
+            additionalTxSize += 322 + 160;
     }
     if (mintVOut > MAX_MONEY - vOut) {
         throw std::runtime_error(_(
@@ -2292,13 +2294,21 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
     if (!spatsMintScript.empty()) {
         tx.vout.push_back(CTxOut(0, spatsMintScript));
+        // GetSpatsMintM clears the proof but keeps its bytes in the script.
+        // Reserve them first so the signed message is the one consensus checks.
+        const std::size_t proofSize = spark::OwnershipProof::memoryRequired();
+        tx.vout.back().scriptPubKey.insert(
+            tx.vout.back().scriptPubKey.end(), proofSize, 0);
         const Scalar m = spark::GetSpatsMintM(tx);
         spark::OwnershipProof ownershipProof;
         spatsMintRecipient->second.prove_own(m, spendKey, viewKey, ownershipProof);
         CDataStream serializedOwn(SER_NETWORK, PROTOCOL_VERSION);
         serializedOwn << ownershipProof;
-        tx.vout.back().scriptPubKey.insert(
-            tx.vout.back().scriptPubKey.end(), serializedOwn.begin(), serializedOwn.end());
+        if (serializedOwn.size() != proofSize)
+            throw std::runtime_error(_("Unexpected Spark ownership proof size"));
+        auto& mintScript = tx.vout.back().scriptPubKey;
+        mintScript.erase(mintScript.end() - static_cast<std::ptrdiff_t>(proofSize), mintScript.end());
+        mintScript.insert(mintScript.end(), serializedOwn.begin(), serializedOwn.end());
     }
 
     if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
@@ -2402,7 +2412,16 @@ CWalletTx CSparkWallet::CreateSpatsMintTransaction(
 
     if (spatsRecipient.first.a == Scalar(uint64_t(0)))
         throw std::runtime_error(_("Invalid asset type, please use spark mint creation."));
-    if (!spatsRecipient.first.iota.isZero() && spatsRecipient.first.v != 1)
+    // A nonzero identifier on a fungible asset is a consensus failure, not an
+    // NFT whose value must be 1. Only a registered NFT is forced to value 1 here.
+    bool nftMint = !spatsRecipient.first.iota.isZero();
+    if (const auto assetType = spark::GetSpatsScalarAsUint64(spatsRecipient.first.a)) {
+        LOCK(cs_main);
+        const auto entry = spark::CSparkState::GetState()->GetAssetState().Get(*assetType);
+        if (entry)
+            nftMint = entry->assetKind == static_cast<uint8_t>(spark::AssetKind::NonFungible);
+    }
+    if (nftMint && spatsRecipient.first.v != 1)
         throw std::runtime_error(_("NFT mint value must be 1"));
 
     CAmount additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequired() + 8;
@@ -2956,7 +2975,10 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
         // 1803 is for the first grootle proof/aux data
         // 322 for each private output, 34 for each utxo, 1571 for constant parts of tx
         // Burn and other SPATS scripts are included in additionalTxSize.
-        size = 1571 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum + 1 + (sChangeToMint > 0)) + 34*utxoNum + additionalTxSize;
+        // Asset coins publish the type and identifier, so each SPATS output is
+        // larger than the base Spark output the 322-byte term covers.
+        const std::size_t spatsOutputs = mintNum + (sChangeToMint > 0 ? 1 : 0);
+        size = 1571 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum + 1 + (sChangeToMint > 0)) + 80*spatsOutputs + 34*utxoNum + additionalTxSize;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
         if (fee >= feeNeeded) {
             break;

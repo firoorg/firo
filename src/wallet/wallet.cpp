@@ -4335,7 +4335,14 @@ CWalletTx CWallet::CreateSpatsMintTransparentTransaction(
 
     if (mintData.a == Scalar(uint64_t(0)))
         throw std::runtime_error(_("Invalid asset type"));
-    if (!mintData.iota.isZero() && mintData.v != 1)
+    bool nftMint = !mintData.iota.isZero();
+    if (const auto assetType = spark::GetSpatsScalarAsUint64(mintData.a)) {
+        LOCK(cs_main);
+        const auto entry = spark::CSparkState::GetState()->GetAssetState().Get(*assetType);
+        if (entry)
+            nftMint = entry->assetKind == static_cast<uint8_t>(spark::AssetKind::NonFungible);
+    }
+    if (nftMint && mintData.v != 1)
         throw std::runtime_error(_("NFT mint value must be 1"));
 
     CWalletTx wtxNew;

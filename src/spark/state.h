@@ -101,9 +101,6 @@ Scalar GetSpatsMintM(const CTransaction& tx);
 uint256 GetSpatsMintSpendBindHash(CAmount nValue, const std::vector<unsigned char>& scriptPrefix);
 CAmount GetSparkSpendFee(const CTransaction& tx);
 
-/** The uint64 an asset type or identifier scalar encodes, or nullopt if it is larger. */
-std::optional<std::uint64_t> GetSpatsScalarAsUint64(const Scalar& value);
-
 /**
  * Asset operation carried at the end of the payload, if any.
  * @throws std::invalid_argument if the payload has trailing bytes that are not a canonical asset operation

@@ -801,15 +801,6 @@ BOOST_AUTO_TEST_CASE(build_new_spark_state)
 
 BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 {
-    // util function
-    auto reconnect = [](CBlock const &block) {
-        std::shared_ptr<CBlock const> sharedBlock =
-                std::make_shared<CBlock const>(block);
-
-        CValidationState state;
-        ActivateBestChain(state, ::Params(), sharedBlock);
-    };
-
     pwalletMain->SetBroadcastTransactions(true);
     GenerateBlocks(500);
 
@@ -856,8 +847,6 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     auto connect_disconnect = [this](Checker& checker, Checker& emptyChecker) {
         // util function
         auto reconnect = [](CBlock const &block) {
-            LOCK(cs_main);
-
             std::shared_ptr<CBlock const> sharedBlock =
                     std::make_shared<CBlock const>(block);
 
@@ -1134,13 +1123,12 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     GenerateBlocks(10);
 
     auto outputAmount = 1 * COIN;
-    auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
     std::pair<CAmount, std::pair<Scalar, Scalar>> burn;
     CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx(wtx);
-    auto spend = ParseSpatsSpend(spendTx);
+    auto spend = ParseSparkSpend(spendTx);
 
     // test get join split amounts
     BOOST_CHECK_EQUAL(1, GetSpendInputs(spendTx));
@@ -1157,7 +1145,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
         bool hasLTag = false;
         BOOST_CHECK_MESSAGE(hasLTag = (info.spentLTags.count(lTags[i]) > 0), "No linking tag as expected");
         if (hasLTag) {
-            BOOST_CHECK_MESSAGE(ids[i] == info.spentLTags[lTags[i]], "linking tag group id is invalid");
+            BOOST_CHECK_MESSAGE(ids[i] == static_cast<uint64_t>(info.spentLTags[lTags[i]]), "linking tag group id is invalid");
         }
     }
 
@@ -1335,6 +1323,11 @@ BOOST_AUTO_TEST_CASE(spats_balance_is_separate_from_firo)
     GenerateBlocks(2000);
     BOOST_REQUIRE(IsSpatsStarted());
     pwalletMain->SetBroadcastTransactions(true);
+    std::vector<CMutableTransaction> funding;
+    GenerateMints({10 * COIN, 10 * COIN, 10 * COIN}, funding);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(funding));
+    GenerateBlocks(10);
     auto* wallet = pwalletMain->sparkWallet.get();
 
     const uint64_t assetType = RegisterSparkAsset("BALANCE");
@@ -1660,8 +1653,8 @@ BOOST_AUTO_TEST_CASE(spats_asset_rpcs)
 
     UniValue burn(UniValue::VARR);
     burn.push_back("0.40");
-    burn.push_back(rpcxType);
-    burn.push_back(int64_t(0));
+    burn.push_back(UniValue(rpcxType));
+    burn.push_back(UniValue(int64_t(0)));
     UniValue burnRequest(UniValue::VOBJ);
     burnRequest.pushKV("burn", burn);
     UniValue burnParams(UniValue::VARR);
@@ -1764,7 +1757,8 @@ BOOST_AUTO_TEST_CASE(spats_mint_bound_to_spend)
 
     // Swap in another well-formed mint coin with the same value.
     {
-        const auto& tags = ParseSpatsSpend(mintTx).getUsedLTags();
+        const auto spend = ParseSpatsSpend(mintTx);
+        const auto& tags = spend.getUsedLTags();
         CDataStream serialContext(SER_NETWORK, PROTOCOL_VERSION);
         serialContext << tags;
         spark::MintTransaction otherMint(
@@ -2050,6 +2044,7 @@ BOOST_AUTO_TEST_CASE(spats_registry_is_consensus)
     BOOST_CHECK(CheckAssetTx(modifyTx));
 
     // The registry rebuilt from the block index matches the connected one.
+    sparkState->Reset();
     BOOST_REQUIRE(BuildSparkStateFromIndex(&chainActive));
     {
         const auto entry = registry.Get(*assetType);
@@ -2434,14 +2429,18 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         false,
         activationHeight));
 
+    // The type byte is allowed. This output is still not a mint: it has no
+    // value proof, so parsing fails for a reason other than coin type.
+    // A real v2 mint is accepted below as validMintTransaction.
     CValidationState consistentMintV2State;
-    BOOST_CHECK(CheckTransaction(
+    BOOST_CHECK(!CheckTransaction(
         CTransaction(consistentMintV2),
         consistentMintV2State,
         true,
         consistentMintV2.GetHash(),
         false,
         activationHeight));
+    BOOST_CHECK_NE(consistentMintV2State.GetRejectReason(), "bad-spark-coin-type");
 
     CValidationState mismatchedSMintV2State;
     BOOST_CHECK(!CheckTransaction(
@@ -4822,20 +4821,24 @@ BOOST_AUTO_TEST_CASE(spats_burn_failures_are_scored)
         BOOST_CHECK_EQUAL(state.GetRejectReason(), reason);
     };
 
-    CMutableTransaction duplicate(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    // One spend is enough. Each call selects the confirmed coins, and the
+    // private change is not confirmed yet, so a second call has no funds.
+    CMutableTransaction spend(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+
+    CMutableTransaction duplicate = spend;
     duplicate.vout.emplace_back(0, burnScript(2, 0));
     duplicate.vout.emplace_back(0, burnScript(2, 0));
     rejected(duplicate, "CheckSparkSpendTransaction: multiple spats burn outputs");
 
-    CMutableTransaction badIdentifier(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    CMutableTransaction badIdentifier = spend;
     badIdentifier.vout.emplace_back(0, burnScript(2, 1));
     rejected(badIdentifier, "CheckSparkSpendTransaction: spats burn identifier is not zero");
 
-    CMutableTransaction valued(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    CMutableTransaction valued = spend;
     valued.vout.emplace_back(COIN, burnScript(2, 0));
     rejected(valued, "bad-spats-burn-nvalue");
 
-    CMutableTransaction truncated(GenerateSparkSpend({1 * COIN}, {}, nullptr));
+    CMutableTransaction truncated = spend;
     CScript shortBurn;
     shortBurn << OP_SPATSBURN;
     truncated.vout.emplace_back(0, shortBurn);

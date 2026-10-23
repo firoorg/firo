@@ -599,6 +599,7 @@ AssetsPage::AssetsPage(const PlatformStyle *, QWidget *parent) :
 
     resupply = new QComboBox();
     resupply->addItems({tr("Unlimited"), tr("Fixed")});
+    resupply->setCurrentIndex(1);
     styleField(resupply);
     auto *form = new QGridLayout();
     form->setContentsMargins(0, 0, 0, 0);
@@ -2399,8 +2400,9 @@ void AssetsPage::applyCreateFieldState()
 {
     const bool isFungible = fungible->isChecked();
     const bool unlimited = resupply->currentIndex() == 0;
-    precision->setEnabled(isFungible);
-    resupply->setEnabled(isFungible);
+    precision->parentWidget()->setVisible(isFungible);
+    supply->parentWidget()->setVisible(isFungible);
+    resupply->parentWidget()->setVisible(isFungible);
     supply->setEnabled(isFungible && !unlimited);
 }
 
@@ -2411,7 +2413,7 @@ void AssetsPage::clearCreateForm()
     name->clear();
     precision->setCurrentIndex(8);
     supply->clear();
-    resupply->setCurrentIndex(0);
+    resupply->setCurrentIndex(1);
     description->clear();
     metadata->clear();
     useDefaultAdmin->setChecked(true);
