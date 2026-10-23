@@ -27,6 +27,7 @@ class SparkNamesPage;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
+class AssetsPage;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -84,7 +85,7 @@ private:
     SendCoinsDialog *sendFiroView;
     TransactionView *firoTransactionList;
     MasternodeList *masternodeListPage;
-    QWidget *assetsPage;
+    AssetsPage *assetsPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;

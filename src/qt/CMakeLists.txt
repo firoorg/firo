@@ -110,6 +110,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/addressbookpage.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/addresstablemodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/askpassphrasedialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/assetspage.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/automintdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/automintnotification.cpp
@@ -237,6 +238,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/automintnotification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/addresstablemodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/askpassphrasedialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/assetspage.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/coincontroldialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/coincontroltreewidget.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/editaddressdialog.cpp
