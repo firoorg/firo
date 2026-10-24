@@ -48,12 +48,16 @@ struct CSparkMintMeta
 
     bool IsUsed() const noexcept { return isUsed; }
 
-    // TODO what does 1 fall under - confirmed or unconfirmed or neither?
-    bool IsConfirmed() const noexcept { return nHeight > 1; }
-    bool IsUnconfirmed() const noexcept { return nHeight < 1; }
+    // nHeight is the mint's block, or -1 while it is not in a block yet.
+    bool IsConfirmed() const noexcept { return nHeight >= 0; }
+    bool IsUnconfirmed() const noexcept { return nHeight < 0; }
 
-    // TODO any need to check `type` as well? Perhaps just for better performance?
-    bool IsSpats() const noexcept { return !(a.isZero() && coin.a.isZero()); }
+    // V2 is the asset encoding. A zero asset id is still a FIRO coin.
+    bool IsSpats() const noexcept
+    {
+        return (type == spark::COIN_TYPE_MINT_V2 || type == spark::COIN_TYPE_SPEND_V2) &&
+               !(a.isZero() && coin.a.isZero());
+    }
 
     std::optional<std::uint64_t> GetAssetType() const
     {

@@ -450,6 +450,56 @@ BOOST_AUTO_TEST_CASE(spats_spend_before_spats_activation)
     BOOST_CHECK_EQUAL(mintMempoolState.GetRejectReason(),
         "CheckSparkTransaction: spats mint before spats activation");
 
+    CMutableTransaction burnTx;
+    burnTx.vin.emplace_back(COutPoint(uint256S("11"), 0));
+    burnTx.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 5 * COIN));
+
+    CValidationState burnState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(burnTx), burnState, true, burnTx.GetHash(), false, chainActive.Height()));
+    int burnDos = 0;
+    BOOST_CHECK(burnState.IsInvalid(burnDos));
+    BOOST_CHECK_EQUAL(burnDos, 100);
+    BOOST_CHECK_EQUAL(burnState.GetRejectReason(), "bad-spats-burn");
+
+    CValidationState burnMempoolState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(burnTx), burnMempoolState, true, burnTx.GetHash(), false, INT_MAX));
+    int burnMempoolDos = -1;
+    BOOST_REQUIRE(burnMempoolState.IsInvalid(burnMempoolDos));
+    BOOST_CHECK_EQUAL(burnMempoolDos, 100);
+    BOOST_CHECK_EQUAL(burnMempoolState.GetRejectReason(), "bad-spats-burn");
+
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vin[0].scriptSig = CScript() << 1 << OP_0;
+    coinbase.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 1 * COIN));
+    const int activeHeight = ::Params().GetConsensus().nSpatsStartBlock;
+    CValidationState transparentBurnState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(burnTx), transparentBurnState, true, burnTx.GetHash(), false, activeHeight));
+    BOOST_CHECK_EQUAL(transparentBurnState.GetRejectReason(), "bad-spats-burn");
+
+    CValidationState coinbaseBurnState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(coinbase), coinbaseBurnState, true, coinbase.GetHash(), false, activeHeight));
+    BOOST_CHECK_EQUAL(coinbaseBurnState.GetRejectReason(), "bad-spats-burn");
+
+    CScript coinbaseMint;
+    coinbaseMint << OP_SPATSMINT;
+    coinbase.vout[0].scriptPubKey = coinbaseMint;
+    CValidationState coinbaseMintState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(coinbase), coinbaseMintState, true, coinbase.GetHash(), false, chainActive.Height()));
+    BOOST_CHECK_EQUAL(coinbaseMintState.GetRejectReason(), "bad-spats-before-activation");
+
+    CMutableTransaction sparkBurn = spend;
+    sparkBurn.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 1 * COIN));
+    CValidationState sparkBurnState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(sparkBurn), sparkBurnState, true, sparkBurn.GetHash(), false, chainActive.Height()));
+    BOOST_CHECK_NE(sparkBurnState.GetRejectReason(), "bad-spats-burn");
+
     mempool.clear();
     sparkState->Reset();
 }
@@ -1422,7 +1472,7 @@ BOOST_AUTO_TEST_CASE(spats_listtransactions_categories)
     transfer.setSymbol("HIST");
     transfer.setAdminPublicAddress(admin);
     transfer.setTransferAddress(receiveAddress);
-    transfer.setRecieverProof(std::move(receiveProof));
+    transfer.setReceiverProof(std::move(receiveProof));
     const CWalletTx transferWtx = pwalletMain->CreateAndStoreAsset(transfer, fee);
     BOOST_CHECK_EQUAL(sentCategory(transferWtx), "spatstransfer");
 
@@ -2003,7 +2053,7 @@ BOOST_AUTO_TEST_CASE(spats_registry_is_consensus)
     BOOST_REQUIRE(spark::VerifySpatsAssetReceiverProof(
         *assetType, admin, receiveAddress, receiveProof));
     transfer.setTransferAddress(receiveAddress);
-    transfer.setRecieverProof(std::move(receiveProof));
+    transfer.setReceiverProof(std::move(receiveProof));
     CMutableTransaction transferTx = CreateAssetTx(transfer);
     BOOST_CHECK(CheckAssetTx(transferTx));
 
@@ -2028,7 +2078,7 @@ BOOST_AUTO_TEST_CASE(spats_registry_is_consensus)
             foreignSpend,
             foreignView,
             receiverProof);
-        foreignTransfer.setRecieverProof(receiverProof);
+        foreignTransfer.setReceiverProof(receiverProof);
         BOOST_CHECK(CheckAssetTx(CreateAssetTx(foreignTransfer)));
     }
 

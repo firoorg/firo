@@ -2336,7 +2336,7 @@ void AssetsPage::transferSelectedAsset()
             assetData.setSymbol(symbolText.toStdString());
             assetData.setOperationType(spark::CSparkAssetTxData::opTransfer);
             assetData.setTransferAddress(receiveAddress);
-            assetData.setRecieverProof(receiveProof);
+            assetData.setReceiverProof(receiveProof);
 
             std::optional<spark::CSparkAssetDBEntry> entry;
             {

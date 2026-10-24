@@ -133,14 +133,14 @@ BOOST_AUTO_TEST_CASE(fields_follow_operation)
     transfer.setAdminPublicAddress(kTransparentAdmin);
     transfer.setTransferAddress("aDifferentAdminAddress111111111111");
     const std::vector<unsigned char> receiverProof{0x01, 0x02, 0x03};
-    transfer.setRecieverProof(receiverProof);
+    transfer.setReceiverProof(receiverProof);
     const spark::CSparkAssetTxData transferOut = RoundTrip(transfer);
     BOOST_CHECK(transferOut.isTransfer());
     BOOST_CHECK_EQUAL(transferOut.getAdminPublicAddress(), kTransparentAdmin);
     BOOST_CHECK_EQUAL(transferOut.getTransferAddress(), "aDifferentAdminAddress111111111111");
     BOOST_CHECK_EQUAL_COLLECTIONS(
-        transferOut.getRecieverOwnershipProof().begin(),
-        transferOut.getRecieverOwnershipProof().end(),
+        transferOut.getReceiverOwnershipProof().begin(),
+        transferOut.getReceiverOwnershipProof().end(),
         receiverProof.begin(),
         receiverProof.end());
 
@@ -179,10 +179,10 @@ BOOST_AUTO_TEST_CASE(transfer_receiver_proof_is_checked)
         receiverView,
         proof);
     spark::CSparkAssetTxData signedProof;
-    signedProof.setRecieverProof(proof);
-    const std::vector<unsigned char>& proofBytes = signedProof.getRecieverOwnershipProof();
+    signedProof.setReceiverProof(proof);
+    const std::vector<unsigned char>& proofBytes = signedProof.getReceiverOwnershipProof();
     BOOST_CHECK(spark::VerifySpatsAssetReceiverProof(assetType, currentAdmin, dest, proofBytes));
-    transfer.setRecieverProof(proofBytes);
+    transfer.setReceiverProof(proofBytes);
     BOOST_CHECK(transfer.Verify());
 
     // The proof is bound to registry fields, not to a constructed transfer payload.

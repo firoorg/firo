@@ -730,6 +730,11 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
+    // A burn is valid only on a Spark spend. On a coinbase or transparent
+    // transaction the output is unspendable, so its value would be destroyed.
+    if (tx.HasSpatsBurn() && !tx.IsSparkSpend())
+        return state.DoS(100, false, REJECT_INVALID, "bad-spats-burn");
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
@@ -741,6 +746,14 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
         if (hasExchangeUTXOs)
             return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+        // Coinbase never reaches CheckSparkTransaction. A mint output is
+        // unspendable, so accepting one before activation drops its value.
+        if (nTxHeight < ::Params().GetConsensus().nSpatsStartBlock) {
+            for (const auto& vout : tx.vout) {
+                if (vout.scriptPubKey.IsSpatsMint())
+                    return state.DoS(100, false, REJECT_INVALID, "bad-spats-before-activation");
+            }
+        }
     }
     else
     {
@@ -960,12 +973,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             try {
-                if (!tx.vin.empty() && !tx.vin[0].scriptSig.empty() &&
-                    tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
-                    sparkUsedLTags = spark::ParseSpatsSpend(tx).getUsedLTags();
-                } else {
-                    sparkUsedLTags = spark::ParseSparkSpend(tx).getUsedLTags();
-                }
+                sparkUsedLTags = spark::GetSparkUsedTags(tx);
             }
             catch (const std::bad_alloc &) {
                 return state.Error(
@@ -1201,12 +1209,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 nFees = nValueIn - nValueOut;
             } else {
                 try {
-                    if (!tx.vin.empty() && !tx.vin[0].scriptSig.empty() &&
-                        tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
-                        nFees = spark::GetSparkFee(tx);
-                    } else {
-                        nFees = spark::GetSparkSpendFee(tx);
-                    }
+                    nFees = spark::GetSparkFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -2459,9 +2462,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                     continue;
                 }
 
-                const bool spatsSpend = !tx->vin.empty() && !tx->vin[0].scriptSig.empty() &&
-                    tx->vin[0].scriptSig[0] == OP_SPATSSPEND;
-                const CAmount fee = spatsSpend ? spark::GetSparkFee(*tx) : spark::GetSparkSpendFee(*tx);
+                const CAmount fee = spark::GetSparkFee(*tx);
                 if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
                     LogPrintf(
                         "DisconnectBlock(): Spark spend fee is out of range\n");
@@ -2923,12 +2924,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsSparkSpend()) {
                 try {
-                    if (!tx.vin.empty() && !tx.vin[0].scriptSig.empty() &&
-                        tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
-                        nFees += spark::GetSparkFee(tx);
-                    } else {
-                        nFees += spark::GetSparkSpendFee(tx);
-                    }
+                    nFees += spark::GetSparkFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
@@ -3516,9 +3512,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
             false, false, block.sparkTxInfo.get());
         if(GetBoolArg("-batching", true)) {
             if (tx->IsSparkSpend()) {
-                const bool spatsSpend = !tx->vin.empty() && !tx->vin[0].scriptSig.empty() &&
-                    tx->vin[0].scriptSig[0] == OP_SPATSSPEND;
-                if (spatsSpend) {
+                if (spark::IsSpatsSpendTransaction(*tx)) {
                     try {
                         spatsTransactionsToRemove.push_back(spark::ParseSpatsSpend(*tx));
                     }

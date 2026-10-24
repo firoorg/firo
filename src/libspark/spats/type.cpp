@@ -42,7 +42,7 @@ void TypeEquality::prove(const std::vector<GroupElement>& C, const Scalar& w, co
         throw std::invalid_argument("Bad Type statement!1");
     }
 
-    //skip proof creatin in case we have no generic coins
+    // Skip proof creation when there are no generic coins
     if (!y.size())
         return;
 

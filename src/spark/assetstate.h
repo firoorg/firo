@@ -56,7 +56,6 @@ public:
     {
         entries_.clear();
         symbolToAssetType_.clear();
-        isNonFungable.clear();
         nftIdentifiers_.clear();
         nextAssetType_ = 1;
         circulating_supply_.clear();
@@ -109,7 +108,6 @@ private:
     /** Normalized symbol (uppercase ASCII) -> asset type id. */
     std::map<std::string, std::uint64_t> symbolToAssetType_;
 
-    std::map<std::uint64_t, bool> isNonFungable;
     /** NFT instance ids already registered for an asset type. */
     std::map<std::uint64_t, std::set<std::uint64_t>> nftIdentifiers_;
 

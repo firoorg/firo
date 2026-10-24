@@ -3,8 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-// Modified by Gevorg Voskanyan, by adding UniValue::get_uint64() member function.
-
 #include <stdint.h>
 #include <errno.h>
 #include <iomanip>
@@ -60,7 +58,7 @@ bool ParseInt64(const std::string& str, int64_t *out)
         n <= std::numeric_limits<int64_t>::max();
 }
 
-bool ParseUint64(const std::string& str, uint64_t *out)   // Added by Gevorg Voskanyan
+bool ParseUint64(const std::string& str, uint64_t *out)
 {
     if (!ParsePrechecks(str))
         return false;
@@ -348,7 +346,7 @@ int64_t UniValue::get_int64() const
     return retval;
 }
 
-uint64_t UniValue::get_uint64() const   // Added by Gevorg Voskanyan
+uint64_t UniValue::get_uint64() const
 {
     if (typ != VNUM)
         throw std::runtime_error("JSON value is not an integer as expected");

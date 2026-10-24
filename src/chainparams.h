@@ -13,8 +13,6 @@
 
 #include <vector>
 
-using namespace std::literals;
-
 struct CDNSSeedData {
     std::string name, host;
     bool supportsServiceBitsFiltering;
@@ -150,9 +148,6 @@ void ValidateSparkActivationHeights(const Consensus::Params& consensus);
  * Allows modifying the BIP9 regtest parameters.
  */
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
-
-// TODO is this the same regardless of network?
-constexpr auto firo_burn_address = "aFiroBurningAddressDoNotSendrPtjYA"sv;
 
 /** Allows tests to exercise the single-input Spark consensus activation. */
 void UpdateRegtestSparkSingleInputHeight(int height);

@@ -139,6 +139,14 @@ bool CheckSparkAssetTransaction(
 void AddSparkAssetTxToMempool(CTxMemPool& pool, const uint256& hash, const CSparkAssetTxEffects& effects);
 void RemoveSparkAssetTxFromMempool(CTxMemPool& pool, const uint256& hash);
 
+/** True when the first input is an OP_SPATSSPEND. */
+inline bool IsSpatsSpendTransaction(const CTransaction& tx)
+{
+    return !tx.vin.empty() &&
+           !tx.vin[0].scriptSig.empty() &&
+           tx.vin[0].scriptSig[0] == OP_SPATSSPEND;
+}
+
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 CAmount GetSparkFee(const CTransaction &tx);

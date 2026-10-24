@@ -100,9 +100,7 @@ std::optional<std::uint64_t> CAssetState::Put(
         entry.nHeight = nHeight;
         entries_[assetType] = {std::move(entry)};
         symbolToAssetType_[normSym] = assetType;
-        const bool nonFungible = data.getAssetKind() == AssetKind::NonFungible;
-        isNonFungable[assetType] = nonFungible;
-        if (nonFungible && data.getIdentifier() != 0)
+        if (data.getAssetKind() == AssetKind::NonFungible && data.getIdentifier() != 0)
             nftIdentifiers_[assetType].insert(data.getIdentifier());
         return assetType;
     }
@@ -141,7 +139,6 @@ bool CAssetState::Erase(std::uint64_t assetType)
     if (sit != symbolToAssetType_.end() && sit->second == assetType)
         symbolToAssetType_.erase(sit);
     entries_.erase(it);
-    isNonFungable.erase(assetType);
     nftIdentifiers_.erase(assetType);
     for (auto supply = circulating_supply_.lower_bound({assetType, 0});
          supply != circulating_supply_.end() && supply->first.first == assetType; ) {
@@ -154,9 +151,7 @@ void CAssetState::SetEntry(std::uint64_t assetType, const CSparkAssetDBEntry& en
 {
     entries_[assetType] = {entry};
     symbolToAssetType_[NormalizeSymbol(entry.symbol)] = assetType;
-    const bool nonFungible = entry.assetKind == static_cast<uint8_t>(AssetKind::NonFungible);
-    isNonFungable[assetType] = nonFungible;
-    if (nonFungible && entry.identifier != 0)
+    if (entry.assetKind == static_cast<uint8_t>(AssetKind::NonFungible) && entry.identifier != 0)
         nftIdentifiers_[assetType] = {entry.identifier};
     else
         nftIdentifiers_.erase(assetType);

@@ -333,7 +333,7 @@ bool CSparkAssetTxData::Verify(std::string& error) const
         return false;
     }
     if (assetKind == AssetKind::Fungible && identifier != 0) {
-     	error = "Identifier should be 0 for fungable asset";
+     	error = "Identifier should be 0 for fungible asset";
         return false;
     }
 
@@ -358,23 +358,23 @@ bool CSparkAssetTxData::Verify(std::string& error) const
         error = "Invalid transfer address!";
         return false;
     }
-    if (isTransfer() && recieverOwnershipProof.empty()) {
+    if (isTransfer() && receiverOwnershipProof.empty()) {
         error = "Missing receiver ownership proof";
         return false;
     }
     return true;
 }
 
-void CSparkAssetTxData::setRecieverProof(std::vector<unsigned char> recieverOwnershipProof_)
+void CSparkAssetTxData::setReceiverProof(std::vector<unsigned char> receiverOwnershipProof_)
 {
-    recieverOwnershipProof = std::move(recieverOwnershipProof_);
+    receiverOwnershipProof = std::move(receiverOwnershipProof_);
 }
 
-void CSparkAssetTxData::setRecieverProof(const spark::OwnershipProof& proof)
+void CSparkAssetTxData::setReceiverProof(const spark::OwnershipProof& proof)
 {
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << proof;
-    recieverOwnershipProof.assign(serialized.begin(), serialized.end());
+    receiverOwnershipProof.assign(serialized.begin(), serialized.end());
 }
 
 void CSparkAssetTxData::setOwnershipProof(std::vector<unsigned char> ownershipProof_)

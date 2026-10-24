@@ -311,7 +311,7 @@ void BPPlus::prove(
 
         // Update alpha2
         alpha2 = dL_2 * e.square() + alpha2 + dR_2 * e_inverse.square();
-        // Update alpha2
+        // Update alpha3
         alpha3 = dL_3 * e.square() + alpha3 + dR_3 * e_inverse.square();
     }
 
@@ -373,7 +373,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
             return false;
         }
         if (!is_nonzero_power_of_2(M)) {
-            M = 1 << log2(unpadded_M) + 1;
+            M = 1 << (log2(unpadded_M) + 1);
         }
 
         // Track the maximum value
@@ -422,7 +422,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
     serialized_Gi.resize(Gi.size());
     std::vector<std::vector<unsigned char>> serialized_Hi;
     serialized_Hi.resize(Hi.size());
-    // Serialize and cash Gi and Hi vectors
+    // Serialize and cache Gi and Hi vectors
     for (std::size_t i = 0; i < Gi.size(); i++) {
         serialized_Gi[i].resize(GroupElement::serialize_size);
         Gi[i].serialize(serialized_Gi[i].data());

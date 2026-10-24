@@ -46,17 +46,14 @@ void Balance::prove(const GroupElement& C, const Scalar& w, const Scalar& x, con
 
 bool Balance::verify(const GroupElement& C, const BalanceProof& proof)
 {
-    const GroupElement check1 = E * proof.tw + F * proof.tx + H * proof.tz;
-
     const Scalar c = challenge(C, proof.A);
-    const GroupElement check2 = proof.A + C * c;
 
     std::vector<GroupElement> points;
     std::vector<Scalar> scalars;
     points.reserve(5);
     scalars.reserve(5);
 
-    // tw * E + tx * F + tz * H = A + c * C
+    // tw * E + tx * F + tz * H - A - c * C = 0
     scalars.emplace_back(proof.tw);
     points.emplace_back(E);
     scalars.emplace_back(proof.tx);
@@ -70,7 +67,6 @@ bool Balance::verify(const GroupElement& C, const BalanceProof& proof)
 
     MultiExponent result(points, scalars);
     return result.get_multiple().isInfinity();
-    // return (check2 + check1.inverse()).isInfinity();
 }
 
 } // namespace spats

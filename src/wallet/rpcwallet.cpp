@@ -5114,7 +5114,7 @@ UniValue sparkassettransfer(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid receiver ownership proof");
 
     assetData.setTransferAddress(receiveAddress);
-    assetData.setRecieverProof(std::move(receiveProof));
+    assetData.setReceiverProof(std::move(receiveProof));
     assetData.setDataFromDBentry(assetEntry.value());
 
     std::string error;
@@ -5404,7 +5404,7 @@ UniValue spendspark(const JSONRPCRequest& request)
             UniValue burn_(UniValue::VARR);
 			burn_ = sendTo[name_].get_array();
             if (burn_.size() != 3) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "For burn you have to provide amount and asset identifier!"s);
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "For burn you have to provide amount and asset identifier!");
             }
             if (!burn_[0].isNum() && !burn_[0].isStr())
                 throw JSONRPCError(RPC_TYPE_ERROR, "Burn amount is not a number or string");

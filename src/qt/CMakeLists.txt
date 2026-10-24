@@ -142,7 +142,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/paymentserver.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/peertablemodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/platformstyle.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/quint64spinbox.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/qvalidatedlineedit.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/qvaluecombobox.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/receivecoinsdialog.cpp

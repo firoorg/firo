@@ -186,8 +186,7 @@ std::pair<CAmount, CAmount> CSparkWallet::getSparkBalance() {
         if (mint.isUsed || mint.IsSpats())
             continue;
 
-        // Not confirmed
-        if (mint.nHeight >= 1)
+        if (mint.IsConfirmed())
             result.first += mint.v;
         else
             result.second += mint.v;
@@ -1686,7 +1685,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const uint256& extraDataHash,
         const std::optional<std::pair<spark::MintedCoinData, spark::Address>>& spatsMintRecipient) {
 
-    // if additionalTxSize is not 0 that means we are creating spats mint transaction // TODO GV #Review: not necessarily, it could be a spark name creation too
+    // additionalTxSize is a payload that is not in the recipient lists,
+    // such as a Spark name or a SPATS mint.
     if (recipients.empty() && privateRecipients.empty() && spatsRecipients.empty() && !additionalTxSize && burnAsset.first <= 0) {
         throw std::runtime_error(_("At least one of recipients, privateRecipients, spatsRecipients, additionalTxSize, or spats burn has to be provided."));
     }
@@ -2611,13 +2611,13 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
         const auto entry = assetType ? sparkState->GetAssetState().Get(*assetType) : std::nullopt;
         if (!entry)
             throw std::runtime_error(_("Unable to transfer, state conflict"));
-        if (assetData.getRecieverOwnershipProof().empty())
+        if (assetData.getReceiverOwnershipProof().empty())
             throw std::runtime_error(_("Receiver ownership proof is required"));
         if (!spark::VerifySpatsAssetReceiverProof(
                 *assetType,
                 entry->adminPublicAddress,
                 assetData.getTransferAddress(),
-                assetData.getRecieverOwnershipProof()))
+                assetData.getReceiverOwnershipProof()))
             throw std::runtime_error(_("Invalid receiver ownership proof"));
     }
 

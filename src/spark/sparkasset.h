@@ -77,7 +77,7 @@ public:
         READWRITE(symbol);
         READWRITE(txids);
         READWRITE(nHeight);
-        READWRITE(isTransfered);
+        READWRITE(isTransferred);
         READWRITE(address);
         READWRITE(assetType);
         READWRITE(identifier);
@@ -85,10 +85,10 @@ public:
 
     std::string symbol;
     std::vector<uint256> txids;
-    // block height, in which asset owning(registration or transfered to you) tx is included;
+    // block height, in which asset owning(registration or transferred to you) tx is included;
     int nHeight;
-    // is true in case asset is transfered to someone else, and does not belong to you anymore;
-    bool isTransfered;
+    // is true in case asset is transferred to someone else, and does not belong to you anymore;
+    bool isTransferred;
     // ownership address
     std::string address;
 
@@ -226,7 +226,7 @@ public:
             READWRITE(adminPublicAddress);
             READWRITE(ownershipProof);
             READWRITE(transferPublicAddress);
-            READWRITE(recieverOwnershipProof);
+            READWRITE(receiverOwnershipProof);
         } else {
             throw std::ios_base::failure("CSparkAssetTxData: unknown operation");
         }
@@ -265,9 +265,9 @@ public:
     const std::string& getTransferAddress() const { return transferPublicAddress; }
     void setTransferAddress(const std::string& transferPublicAddress_) { transferPublicAddress = transferPublicAddress_; }
 
-    const std::vector<unsigned char>& getRecieverOwnershipProof() const { return recieverOwnershipProof; }
-    void setRecieverProof(std::vector<unsigned char> recieverOwnershipProof_);
-    void setRecieverProof(const spark::OwnershipProof& proof);
+    const std::vector<unsigned char>& getReceiverOwnershipProof() const { return receiverOwnershipProof; }
+    void setReceiverProof(std::vector<unsigned char> receiverOwnershipProof_);
+    void setReceiverProof(const spark::OwnershipProof& proof);
 
     const std::string& getSymbol() const { return symbol; }
   	void setSymbol(const std::string& symbol_) { symbol = symbol_; }
@@ -337,7 +337,7 @@ private:
     std::vector<unsigned char> ownershipProof;
 
     std::string transferPublicAddress;
-    std::vector<unsigned char> recieverOwnershipProof;
+    std::vector<unsigned char> receiverOwnershipProof;
 };
 
 }
