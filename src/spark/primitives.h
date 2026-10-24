@@ -48,9 +48,9 @@ struct CSparkMintMeta
 
     bool IsUsed() const noexcept { return isUsed; }
 
-    // nHeight is the mint's block, or -1 while it is not in a block yet.
-    bool IsConfirmed() const noexcept { return nHeight >= 0; }
-    bool IsUnconfirmed() const noexcept { return nHeight < 0; }
+    // A confirmed mint is in a block. Height 0 and -1 are not.
+    bool IsConfirmed() const noexcept { return nHeight >= 1; }
+    bool IsUnconfirmed() const noexcept { return nHeight < 1; }
 
     // V2 is the asset encoding. A zero asset id is still a FIRO coin.
     bool IsSpats() const noexcept
