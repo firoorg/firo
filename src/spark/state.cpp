@@ -1043,12 +1043,13 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 
 CAmount GetSparkFee(const CTransaction &tx)
 {
-    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND) {
+    if (tx.vin.empty() || tx.vin[0].scriptSig.empty())
+        throw CBadTxIn();
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND)
         return CheckedSparkFee(ParseSparkSpend(tx).getFee());
-    } else if (IsSpatsSpendTransaction(tx)) {
+    if (IsSpatsSpendTransaction(tx))
         return CheckedSparkFee(ParseSpatsSpend(tx).getFee());
-    }
-    return CAmount();
+    throw CBadTxIn();
 }
 
 std::map<uint64_t, uint256> getBlockHashes(const CTransaction &tx)

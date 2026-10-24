@@ -387,6 +387,23 @@ BOOST_AUTO_TEST_CASE(is_spark_allowed)
     BOOST_CHECK(IsSpatsStarted(startSpats + 1));
 }
 
+BOOST_AUTO_TEST_CASE(spark_fee_rejects_missing_spend_input)
+{
+    CMutableTransaction missingInput;
+    missingInput.nVersion = 3;
+    missingInput.nType = TRANSACTION_SPARK_V2;
+    BOOST_CHECK(CTransaction(missingInput).IsSparkSpend());
+    BOOST_CHECK_THROW(GetSparkFee(CTransaction(missingInput)), CBadTxIn);
+
+    CMutableTransaction emptyScript = missingInput;
+    emptyScript.vin.resize(1);
+    BOOST_CHECK_THROW(GetSparkFee(CTransaction(emptyScript)), CBadTxIn);
+
+    CMutableTransaction otherScript = emptyScript;
+    otherScript.vin[0].scriptSig << OP_0;
+    BOOST_CHECK_THROW(GetSparkFee(CTransaction(otherScript)), CBadTxIn);
+}
+
 BOOST_AUTO_TEST_CASE(spats_spend_before_spats_activation)
 {
     GenerateBlocks(500);
