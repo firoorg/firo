@@ -6,6 +6,7 @@ on:
     - '**/README.md'
     branches:
     - master
+    - spats-integration
   pull_request:
     paths-ignore:
     - 'doc/**'
