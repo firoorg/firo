@@ -115,9 +115,15 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
 
     CValidationState validationState;
     spark::CSparkTxInfo info;
+    // Regtest activates Chaum V2 at height 1, before Spark itself. Validate at
+    // the first height where both rules apply, which is H2 on networks that
+    // activate Spark first.
+    const Consensus::Params& consensus = ::Params().GetConsensus();
+    const int validationHeight = std::max(
+        consensus.nSparkStartBlock, consensus.nSparkChaumV2StartBlock);
     BOOST_REQUIRE(CheckTransaction(
         mixedTransaction, validationState, true, mixedTransaction.GetHash(),
-        false, ::Params().GetConsensus().nSparkChaumV2StartBlock,
+        false, validationHeight,
         false, true, &info));
     BOOST_REQUIRE_EQUAL(info.mints.size(), 1U);
 
