@@ -1237,6 +1237,65 @@ BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
     BOOST_CHECK(bitdb.RemoveDb(filename));
 }
 
+BOOST_AUTO_TEST_CASE(berkeley_cursors_survive_batch_and_background_flush)
+{
+    const std::string filename{"cursor_lifetime_test.dat"};
+    auto database = MakeBerkeleyDatabase(bitdb, filename);
+    auto batch = database->MakeBatch({DatabaseBatchMode::READ_WRITE_CREATE});
+    BOOST_REQUIRE(batch->Write(std::string("key1"), std::string("value1")));
+    BOOST_REQUIRE(batch->Write(std::string("key2"), std::string("value2")));
+    const auto expected = ReadRawRecords(*batch);
+
+    auto cursor = batch->GetCursor();
+    CDataStream startKey(SER_DISK, CLIENT_VERSION);
+    startKey << std::string("key2");
+    auto rangeCursor = batch->GetCursor(startKey);
+    BOOST_REQUIRE(cursor);
+    BOOST_REQUIRE(rangeCursor);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE_EQUAL(bitdb.mapFileUseCount.at(filename), 3);
+    }
+    batch->Close();
+    batch.reset();
+
+    auto backgroundFlush = [&database] {
+        return std::async(std::launch::async, [&database] {
+            database->Flush(false);
+            return database->PeriodicFlush();
+        }).get();
+    };
+    BOOST_CHECK(!backgroundFlush());
+    CDataStream key(SER_DISK, CLIENT_VERSION);
+    CDataStream value(SER_DISK, CLIENT_VERSION);
+    for (const auto& record : expected) {
+        BOOST_REQUIRE(cursor->Next(key, value) == DatabaseCursor::Status::MORE);
+        BOOST_CHECK_EQUAL(std::string(key.begin(), key.end()), record.first);
+        BOOST_CHECK_EQUAL(std::string(value.begin(), value.end()), record.second);
+    }
+    BOOST_CHECK(cursor->Next(key, value) == DatabaseCursor::Status::DONE);
+    cursor.reset();
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 1);
+    }
+    BOOST_CHECK(!backgroundFlush());
+    BOOST_REQUIRE(rangeCursor->Next(key, value) == DatabaseCursor::Status::MORE);
+    BOOST_CHECK_EQUAL(std::string(key.begin(), key.end()), SerializeToString(std::string("key2")));
+    BOOST_CHECK_EQUAL(std::string(value.begin(), value.end()), SerializeToString(std::string("value2")));
+    rangeCursor.reset();
+
+    BOOST_CHECK(std::async(std::launch::async, [&database] {
+        return database->PeriodicFlush();
+    }).get());
+    {
+        auto reopened = database->MakeBatch({DatabaseBatchMode::READ_ONLY});
+        BOOST_CHECK(ReadRawRecords(*reopened) == expected);
+    }
+    BOOST_CHECK(database->PeriodicFlush());
+    BOOST_CHECK(bitdb.RemoveDb(filename));
+}
+
 BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
 {
     auto makeDatabase = [](const std::string& filename, const DatabaseOptions& options, DatabaseStatus& status, std::string& error) {

@@ -883,28 +883,31 @@ bool RemoveExactMigrationTarget(
 class BerkeleyCursor final : public DatabaseCursor
 {
 private:
+    CDBEnv& m_env;
+    const std::string m_filename;
     BerkeleyCursorHandle m_cursor;
     CDataStream m_start_key;
     bool m_seek;
 
 public:
-    explicit BerkeleyCursor(BerkeleyCursorHandle cursor)
-        : m_cursor(std::move(cursor)),
-          m_start_key(SER_DISK, CLIENT_VERSION),
-          m_seek(false)
+    BerkeleyCursor(CDBEnv& env, const std::string& filename, BerkeleyCursorHandle cursor, const CDataStream* start_key = nullptr)
+        : m_env(env),
+          m_filename(filename),
+          m_cursor(std::move(cursor)),
+          m_start_key(start_key ? *start_key : CDataStream(SER_DISK, CLIENT_VERSION)),
+          m_seek(start_key != nullptr)
     {
-    }
-
-    BerkeleyCursor(BerkeleyCursorHandle cursor, const CDataStream& start_key)
-        : m_cursor(std::move(cursor)),
-          m_start_key(start_key),
-          m_seek(true)
-    {
+        LOCK(m_env.cs_db);
+        ++m_env.mapFileUseCount.at(m_filename);
     }
 
     ~BerkeleyCursor() override
     {
         CleanseStream(m_start_key);
+        // Close the cursor before allowing a flush to close its database.
+        m_cursor.reset();
+        LOCK(m_env.cs_db);
+        --m_env.mapFileUseCount.at(m_filename);
     }
 
     Status Next(CDataStream& key, CDataStream& value) override
@@ -1523,7 +1526,7 @@ std::unique_ptr<DatabaseCursor> CDB::GetCursor()
     if (pdb->cursor(nullptr, &cursor, 0) != 0) {
         return nullptr;
     }
-    return std::make_unique<BerkeleyCursor>(BerkeleyCursorHandle(cursor));
+    return std::make_unique<BerkeleyCursor>(*m_database.m_env, strFile, BerkeleyCursorHandle(cursor));
 }
 
 std::unique_ptr<DatabaseCursor> CDB::GetCursor(const CDataStream& start_key)
@@ -1536,7 +1539,7 @@ std::unique_ptr<DatabaseCursor> CDB::GetCursor(const CDataStream& start_key)
     if (pdb->cursor(nullptr, &cursor, 0) != 0) {
         return nullptr;
     }
-    return std::make_unique<BerkeleyCursor>(BerkeleyCursorHandle(cursor), start_key);
+    return std::make_unique<BerkeleyCursor>(*m_database.m_env, strFile, BerkeleyCursorHandle(cursor), &start_key);
 }
 
 bool CDB::TxnBegin()
