@@ -2758,6 +2758,26 @@ bool CSparkWallet::GetCoinsToSpend(
         const CCoinControl *coinControl,
         bool fSpats)
 {
+    // isUsed is set on the Spark worker after the linking tag is already spent.
+    // Skip those coins unless the caller selected them explicitly.
+    if (coinControl == nullptr || !coinControl->HasSelected()) {
+        coins.remove_if([this](const CSparkMintMeta& meta) {
+            try {
+                spark::Coin coin = meta.coin;
+                const auto identified = coin.identify(viewKey);
+                const auto recovered = coin.recover(fullViewKey, identified);
+                if (spark::CSparkState::GetState()->IsUsedLTag(recovered.T))
+                    return true;
+                LOCK(mempool.cs);
+                return mempool.sparkState.HasLTag(recovered.T);
+            } catch (const std::bad_alloc&) {
+                throw;
+            } catch (const std::exception&) {
+                return true;
+            }
+        });
+    }
+
     CAmount availableBalance = CalculateBalance(coins.begin(), coins.end());
     if (required > availableBalance) {
         throw InsufficientFunds();
