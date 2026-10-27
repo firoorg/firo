@@ -1558,11 +1558,11 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
     BOOST_REQUIRE(DisconnectBlocks(1));
     BOOST_REQUIRE_EQUAL(chainActive.Height(), connectedHeight - 1);
     {
-        LOCK(cs_main);
         CValidationState reconnectState;
-        const auto shared = std::make_shared<const CBlock>(historicalBlock);
         BOOST_REQUIRE(ActivateBestChain(
-            reconnectState, ::Params(), shared));
+            reconnectState,
+            ::Params(),
+            std::make_shared<const CBlock>(historicalBlock)));
     }
     BOOST_REQUIRE_EQUAL(chainActive.Height(), connectedHeight);
     BOOST_REQUIRE(chainActive.Tip()->GetBlockHash() == historicalBlock.GetHash());
