@@ -332,6 +332,10 @@ bool CSparkAssetTxData::Verify(std::string& error) const
      	error = "Maximum money too high";
         return false;
     }
+    if (assetKind != AssetKind::Fungible && assetKind != AssetKind::NonFungible) {
+        error = "Unknown asset kind";
+        return false;
+    }
     if (assetKind == AssetKind::Fungible && identifier != 0) {
      	error = "Identifier should be 0 for fungible asset";
         return false;

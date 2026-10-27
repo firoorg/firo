@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <stdint.h>
+#include <limits>
 #include <vector>
 #include <string>
 #include <map>
@@ -328,6 +329,17 @@ BOOST_AUTO_TEST_CASE(univalue_readwrite)
     BOOST_CHECK(!v.read("[]{}"));
     BOOST_CHECK(!v.read("{}[]"));
     BOOST_CHECK(!v.read("{} 42"));
+}
+
+BOOST_AUTO_TEST_CASE(univalue_uint64_rejects_negative)
+{
+    UniValue value;
+    BOOST_CHECK(value.setNumStr("-1"));
+    BOOST_CHECK_THROW(value.get_uint64(), std::runtime_error);
+    BOOST_CHECK(value.setNumStr("0"));
+    BOOST_CHECK_EQUAL(value.get_uint64(), uint64_t(0));
+    BOOST_CHECK(value.setNumStr("18446744073709551615"));
+    BOOST_CHECK_EQUAL(value.get_uint64(), std::numeric_limits<uint64_t>::max());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

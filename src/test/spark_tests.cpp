@@ -7,6 +7,7 @@
 #include "../validation.h"
 #include "../validationinterface.h"
 #include "../wallet/coincontrol.h"
+#include "../libspark/spats/nft_holding.h"
 #include "../spark/state.h"
 #include "../wallet/walletexcept.h"
 #include "../wallet/wallet.h"
@@ -32,6 +33,8 @@ UniValue mintspats(const JSONRPCRequest& request);
 UniValue listsparkassets(const JSONRPCRequest& request);
 UniValue getsparkasset(const JSONRPCRequest& request);
 UniValue spendspark(const JSONRPCRequest& request);
+UniValue provespatsnftholding(const JSONRPCRequest& request);
+UniValue verifyspatsnftholding(const JSONRPCRequest& request);
 
 namespace spark {
 
@@ -1715,6 +1718,48 @@ BOOST_AUTO_TEST_CASE(spats_asset_rpcs)
     expectHolding("ITEM", "1", 1, 7);
     BOOST_CHECK_EQUAL(find_value(assetBySymbol("ITEM"), "kind").get_str(), "nft");
 
+    const std::list<CSparkMintMeta> fineCoins = pwalletMain->sparkWallet->GetAvailableSparkCoins(
+        std::make_pair(Scalar(uint64_t(fineType)), Scalar(uint64_t(0))));
+    BOOST_REQUIRE_EQUAL(fineCoins.size(), 1u);
+    const CSparkMintMeta& unit = fineCoins.front();
+    const std::string unitMessage = "one-unit";
+    const std::vector<unsigned char> unitMessageBytes(unitMessage.begin(), unitMessage.end());
+    const auto* params = Params::get_default();
+    const SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(params);
+    const FullViewKey fullView(spendKey);
+    const Scalar serial = SparkUtils::hash_ser(unit.k, unit.serial_context) +
+        SparkUtils::hash_Q2(spendKey.get_s1(), Scalar(uint64_t(unit.i))) +
+        spendKey.get_s2();
+    const GroupElement tag = (params->get_U() + fullView.get_D().inverse()) * serial.inverse();
+    const NftHoldingProof external = ProveNftHolding(
+        params, unit.coin.S, unit.coin.C, tag,
+        Scalar(uint64_t(fineType)), Scalar(uint64_t(0)),
+        serial, spendKey.get_r(), SparkUtils::hash_val(unit.k), unitMessageBytes);
+    BOOST_CHECK(VerifyNftHolding(params, external, unitMessageBytes));
+    BOOST_CHECK(sparkState->HasCoinSerialAndCommitment(unit.coin.S, unit.coin.C));
+    CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+    proofStream << external;
+    UniValue unitParams(UniValue::VARR);
+    unitParams.push_back(HexStr(proofStream.begin(), proofStream.end()));
+    unitParams.push_back(unitMessage);
+    BOOST_CHECK(!find_value(call(::verifyspatsnftholding, unitParams), "valid").get_bool());
+
+    UniValue nftProof(UniValue::VARR);
+    nftProof.push_back("ITEM");
+    nftProof.push_back("ticket-17");
+    const UniValue proved = call(::provespatsnftholding, nftProof);
+    UniValue nftVerify(UniValue::VARR);
+    nftVerify.push_back(find_value(proved, "holding").get_str());
+    nftVerify.push_back("ticket-17");
+    BOOST_CHECK(find_value(call(::verifyspatsnftholding, nftVerify), "valid").get_bool());
+
+    const bool previousBroadcast = pwalletMain->GetBroadcastTransactions();
+    pwalletMain->SetBroadcastTransactions(true);
+    const std::size_t walletSize = pwalletMain->mapWallet.size();
+    expectError(::mintspats, mintParams("989", wholeType, 0), "rejected");
+    BOOST_CHECK_EQUAL(pwalletMain->mapWallet.size(), walletSize);
+    pwalletMain->SetBroadcastTransactions(previousBroadcast);
+
     rejectMint(call(::mintspats, mintParams("1", nftType, 7)).get_str(), "spats-nft-already-minted");
     expectHolding("ITEM", "1", 1, 7);
 
@@ -2242,23 +2287,10 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
     };
     checkTypePolicyReject(mismatchedMintV2);
     checkTypePolicyReject(mismatchedSMintV2);
-
-    auto checkTypePolicyAllows = [](const CMutableTransaction& tx) {
-        CValidationState state;
-        bool missingInputs = true;
-        {
-            LOCK(cs_main);
-            AcceptToMemoryPool(
-                mempool,
-                state,
-                MakeTransactionRef(tx),
-                false,
-                &missingInputs);
-        }
-        BOOST_CHECK_NE(state.GetRejectReason(), "bad-spark-coin-type");
-    };
-    checkTypePolicyAllows(consistentSMintV2);
-    checkTypePolicyAllows(consistentMintV2);
+    // The regtest tip is still before Spats, so type 2 and 3 are the baseline
+    // mismatch here too.
+    checkTypePolicyReject(consistentSMintV2);
+    checkTypePolicyReject(consistentMintV2);
 
     const int activationHeight = chainActive.Height() + 1;
     UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
@@ -2488,17 +2520,28 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         activationHeight));
 
     CValidationState consistentSMintV2State;
-    BOOST_CHECK(CheckTransaction(
+    BOOST_CHECK(!CheckTransaction(
         CTransaction(consistentSMintV2),
         consistentSMintV2State,
         true,
         consistentSMintV2.GetHash(),
         false,
         activationHeight));
+    BOOST_CHECK_EQUAL(consistentSMintV2State.GetRejectReason(), "bad-spark-coin-type");
 
-    // The type byte is allowed. This output is still not a mint: it has no
-    // value proof, so parsing fails for a reason other than coin type.
-    // A real v2 mint is accepted below as validMintTransaction.
+    const int spatsHeight = ::Params().GetConsensus().nSpatsStartBlock;
+    BOOST_REQUIRE(spatsHeight > activationHeight);
+    CValidationState spatsSMintV2State;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(consistentSMintV2),
+        spatsSMintV2State,
+        true,
+        consistentSMintV2.GetHash(),
+        false,
+        spatsHeight));
+
+    // Before Spats this type byte is rejected. From Spats it is allowed, and
+    // this output then fails parsing because it has no value proof.
     CValidationState consistentMintV2State;
     BOOST_CHECK(!CheckTransaction(
         CTransaction(consistentMintV2),
@@ -2507,7 +2550,17 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         consistentMintV2.GetHash(),
         false,
         activationHeight));
-    BOOST_CHECK_NE(consistentMintV2State.GetRejectReason(), "bad-spark-coin-type");
+    BOOST_CHECK_EQUAL(consistentMintV2State.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState spatsMintV2State;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(consistentMintV2),
+        spatsMintV2State,
+        true,
+        consistentMintV2.GetHash(),
+        false,
+        spatsHeight));
+    BOOST_CHECK_NE(spatsMintV2State.GetRejectReason(), "bad-spark-coin-type");
 
     CValidationState mismatchedSMintV2State;
     BOOST_CHECK(!CheckTransaction(
@@ -2538,7 +2591,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
     validCoin.v = 1;
     validCoin.memo = "valid-coin-type";
     MintTransaction validMint(
-        params, {validCoin}, random_char_vector());
+        params, {validCoin}, random_char_vector(), true, COIN_TYPE_MINT);
     const std::vector<CDataStream> serializedMints =
         validMint.getMintedCoinsSerialized();
     BOOST_REQUIRE_EQUAL(serializedMints.size(), 1U);
@@ -2572,6 +2625,64 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         false,
         true,
         activationHeight,
+        false));
+
+    MintTransaction validMintV2(
+        params, {validCoin}, random_char_vector(), true, COIN_TYPE_MINT_V2);
+    const std::vector<CDataStream> serializedMintsV2 =
+        validMintV2.getMintedCoinsSerialized();
+    BOOST_REQUIRE_EQUAL(serializedMintsV2.size(), 1U);
+    CScript validMintV2Script;
+    validMintV2Script << OP_SPARKMINT;
+    validMintV2Script.insert(
+        validMintV2Script.end(),
+        serializedMintsV2.front().begin(),
+        serializedMintsV2.front().end());
+    CMutableTransaction validMintV2Transaction;
+    validMintV2Transaction.vin.emplace_back(
+        COutPoint(uint256S("0x4"), 0));
+    validMintV2Transaction.vout.emplace_back(1, validMintV2Script);
+
+    CValidationState preSpatsMintV2State;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(validMintV2Transaction),
+        preSpatsMintV2State,
+        true,
+        validMintV2Transaction.GetHash(),
+        false,
+        activationHeight));
+    BOOST_CHECK_EQUAL(preSpatsMintV2State.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState spatsValidMintV2State;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(validMintV2Transaction),
+        spatsValidMintV2State,
+        true,
+        validMintV2Transaction.GetHash(),
+        false,
+        spatsHeight));
+
+    const CBlock validMintV2Block =
+        CreateBlock({validMintV2Transaction}, script);
+    CValidationState preSpatsMintV2BlockState;
+    BOOST_CHECK(!CheckBlock(
+        validMintV2Block,
+        preSpatsMintV2BlockState,
+        consensus,
+        false,
+        true,
+        activationHeight,
+        false));
+    BOOST_CHECK_EQUAL(preSpatsMintV2BlockState.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState spatsMintV2BlockState;
+    BOOST_CHECK(CheckBlock(
+        validMintV2Block,
+        spatsMintV2BlockState,
+        consensus,
+        false,
+        true,
+        spatsHeight,
         false));
 
     const CBlock boundaryBlock = CreateBlock({mismatchedSMint}, script);
@@ -5110,6 +5221,136 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
     sparkState->Reset();
 }
 
+// A Spats mint used to record its txid before the spend-tag check. A block
+// could then contain an ordinary Spark spend and a distinct Spats mint that
+// spends the same coin; the duplicate tag was collapsed in the block map.
+BOOST_AUTO_TEST_CASE(same_block_spats_mint_cannot_reuse_spark_tag)
+{
+    BatchProofContainer::get_instance()->init();
+    RestoreBroadcastSetting restoreBroadcast;
+    pwalletMain->SetBroadcastTransactions(true);
+
+    GenerateBlocks(2000);
+    BOOST_REQUIRE(IsSpatsStarted());
+
+    std::vector<CMutableTransaction> fundingTxs;
+    GenerateMints({10 * COIN, 10 * COIN}, fundingTxs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(fundingTxs));
+    GenerateBlocks(10);
+
+    const uint64_t assetType = RegisterSparkAsset("DUPTAG", 10000000);
+
+    std::vector<CMutableTransaction> victimTxs;
+    GenerateMints({10 * COIN}, victimTxs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(victimTxs));
+    GenerateBlocks(10);
+
+    const auto victimMint = std::find_if(
+        victimTxs[0].vout.begin(),
+        victimTxs[0].vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    BOOST_REQUIRE(victimMint != victimTxs[0].vout.end());
+    CCoinControl coinControl;
+    coinControl.Select(COutPoint(
+        victimTxs[0].GetHash(),
+        std::distance(victimTxs[0].vout.begin(), victimMint)));
+
+    CAmount fee = 0;
+    CWalletTx ordinaryWalletTx = pwalletMain->CreateSparkSpendTransaction(
+        {{script, 1 * COIN, false}}, {}, fee, &coinControl);
+    BOOST_REQUIRE(ordinaryWalletTx.tx);
+    const CTransaction ordinary(*ordinaryWalletTx.tx);
+
+    auto address = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::MintedCoinData minted;
+    minted.address = address;
+    minted.v = 100 * 10000;
+    minted.memo = "";
+    minted.a = Scalar(assetType);
+    minted.iota = Scalar(uint64_t(0));
+    CWalletTx spatsWalletTx = pwalletMain->sparkWallet->CreateSpatsMintTransaction(
+        {minted, address}, fee, &coinControl);
+    BOOST_REQUIRE(spatsWalletTx.tx);
+    const CTransaction spats(*spatsWalletTx.tx);
+
+    BOOST_REQUIRE(ordinary.GetHash() != spats.GetHash());
+    BOOST_REQUIRE(!ordinary.IsSpatsMint());
+    BOOST_REQUIRE(spats.IsSpatsMint());
+    BOOST_REQUIRE(spats.IsSparkSpend());
+    BOOST_REQUIRE(IsSpatsSpendTransaction(spats));
+    const auto ordinaryTags = GetSparkUsedTags(ordinary);
+    const auto spatsTags = GetSparkUsedTags(spats);
+    BOOST_REQUIRE_EQUAL(ordinaryTags.size(), 1U);
+    BOOST_REQUIRE(ordinaryTags == spatsTags);
+    const int blockHeight = chainActive.Height() + 1;
+    const auto checkAtTip = [&](const CTransaction& tx, CSparkTxInfo& info, CValidationState& state) {
+        return CheckSparkTransaction(
+            tx, state, tx.GetHash(), false, blockHeight, false, true, &info);
+    };
+
+    {
+        CSparkTxInfo info;
+        CValidationState state;
+        BOOST_REQUIRE(checkAtTip(ordinary, info, state));
+    }
+    {
+        CSparkTxInfo info;
+        CValidationState state;
+        BOOST_REQUIRE(checkAtTip(spats, info, state));
+        BOOST_CHECK(CheckAssetTx(CMutableTransaction(spats)));
+    }
+
+    CSparkTxInfo blockInfo;
+    CValidationState ordinaryState;
+    BOOST_REQUIRE(checkAtTip(ordinary, blockInfo, ordinaryState));
+    CValidationState spatsState;
+    BOOST_CHECK(!checkAtTip(spats, blockInfo, spatsState));
+    BOOST_CHECK_EQUAL(spatsState.GetRejectReason(), "bad-spark-linking-tag-duplicate");
+
+    {
+        CReserveKey reserveKey(pwalletMain);
+        CValidationState commitState;
+        BOOST_REQUIRE(pwalletMain->CommitTransaction(
+            ordinaryWalletTx, reserveKey, g_connman.get(), commitState, true));
+        LOCK(cs_main);
+        CValidationState mempoolState;
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool, mempoolState, spatsWalletTx.tx, false, nullptr));
+        BOOST_CHECK_EQUAL(mempoolState.GetRejectReason(), "txn-mempool-conflict");
+    }
+    mempool.clear();
+
+    const auto connectCandidate = [&](const CBlock& candidate, CValidationState& state) {
+        uint256 hash = candidate.GetHash();
+        CBlockIndex index(candidate);
+        index.phashBlock = &hash;
+        index.pprev = chainActive.Tip();
+        index.nHeight = chainActive.Height() + 1;
+        CCoinsViewCache view(pcoinsTip);
+        LOCK(cs_main);
+        return ConnectBlock(candidate, state, &index, view, ::Params(), true);
+    };
+
+    const CBlock attacked = CreateBlock(
+        {CMutableTransaction(ordinary), CMutableTransaction(spats)}, script);
+    CValidationState attackedState;
+    BOOST_CHECK(!connectCandidate(attacked, attackedState));
+    BOOST_CHECK_EQUAL(attackedState.GetRejectReason(), "bad-txns-zerocoin");
+    BOOST_CHECK(!sparkState->IsUsedLTag(ordinaryTags.front()));
+    BOOST_CHECK_EQUAL(sparkState->GetAssetState().GetCirculatingSupply(assetType, 0), 0);
+
+    const CBlock mintOnly = CreateBlock({CMutableTransaction(spats)}, script);
+    CValidationState mintState;
+    BOOST_CHECK_MESSAGE(
+        connectCandidate(mintOnly, mintState), mintState.GetRejectReason());
+    BOOST_CHECK_EQUAL(sparkState->GetAssetState().GetCirculatingSupply(assetType, 0), 0);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
 {
     BatchProofContainer::get_instance()->init();
@@ -5940,6 +6181,33 @@ BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
     // Re-add, then clearAllMints empties the indexes
     wallet->addOrUpdateMint(meta, lTagHash, walletdb);
     BOOST_CHECK(wallet->isMine(meta.coin));
+
+    CSparkMintMeta firoSpend = meta;
+    firoSpend.k.randomize();
+    firoSpend.v = 3 * COIN;
+    firoSpend.coin = Coin(
+        params, firoSpend.type, firoSpend.k, address, firoSpend.v, firoSpend.memo,
+        firoSpend.serial_context, Scalar(uint64_t(0)), Scalar(uint64_t(0)));
+    GroupElement firoTag;
+    firoTag.randomize();
+    wallet->addOrUpdateMint(firoSpend, primitives::GetLTagHash(firoTag), walletdb);
+
+    CSparkMintMeta assetSpend = meta;
+    assetSpend.k.randomize();
+    assetSpend.v = static_cast<uint64_t>(MAX_MONEY) + 1;
+    assetSpend.a = Scalar(uint64_t(4));
+    assetSpend.type = COIN_TYPE_MINT_V2;
+    assetSpend.coin = Coin(
+        params, assetSpend.type, assetSpend.k, address, assetSpend.v, assetSpend.memo,
+        assetSpend.serial_context, assetSpend.a, Scalar(uint64_t(0)));
+    GroupElement assetTag;
+    assetTag.randomize();
+    wallet->addOrUpdateMint(assetSpend, primitives::GetLTagHash(assetTag), walletdb);
+    BOOST_CHECK(assetSpend.IsSpats());
+    BOOST_CHECK(wallet->isMine(assetSpend.coin));
+    BOOST_CHECK_EQUAL(wallet->getMyCoinV(assetSpend.coin), 0);
+    BOOST_CHECK_EQUAL(wallet->getMySpendAmount({firoTag, assetTag}), CAmount(firoSpend.v));
+
     wallet->clearAllMints(walletdb);
     BOOST_CHECK(!wallet->isMine(meta.coin));
     BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());

@@ -302,6 +302,24 @@ BOOST_AUTO_TEST_CASE(transparent_admin_must_be_p2pkh)
     BOOST_CHECK(!asset.Verify(error));
 }
 
+BOOST_AUTO_TEST_CASE(unknown_asset_kind_is_rejected)
+{
+    spark::CSparkAssetTxData asset;
+    asset.setOperationType(spark::CSparkAssetTxData::opRegister);
+    asset.setSymbol("KIND");
+    asset.setName("Kind");
+    asset.setAdminPublicAddress(kTransparentAdmin);
+    asset.setAssetKind(static_cast<spark::AssetKind>(2));
+    asset.setIdentifier(0);
+    std::string error;
+    BOOST_CHECK(!asset.Verify(error));
+    BOOST_CHECK_EQUAL(error, "Unknown asset kind");
+
+    asset.setIdentifier(1);
+    BOOST_CHECK(!asset.Verify(error));
+    BOOST_CHECK_EQUAL(error, "Unknown asset kind");
+}
+
 BOOST_AUTO_TEST_CASE(ownership_proof_is_stored_and_excluded_from_registre_message)
 {
     spark::CSparkAssetTxData asset;

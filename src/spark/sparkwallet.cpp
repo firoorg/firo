@@ -822,12 +822,13 @@ CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
         LOCK(cs_spark_wallet);
         const CSparkMintMeta* meta = findMintMeta(coin);
         if (meta)
-            return meta->v;
+            return meta->IsSpats() ? 0 : meta->v;
     }
     CAmount v(0);
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
-        v = identifiedCoinData.v;
+        if (identifiedCoinData.a.isZero())
+            v = identifiedCoinData.v;
     } catch (const std::runtime_error&) {
         // do nothing, leaving v 0
     }
@@ -872,9 +873,9 @@ CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) c
     LOCK(cs_spark_wallet);
     for (const auto& lTag : lTags) {
         uint256 lTagHash = primitives::GetLTagHash(lTag);
-        if (coinMeta.count(lTagHash)) {
-            result += coinMeta.at(lTagHash).v;
-        }
+        const auto it = coinMeta.find(lTagHash);
+        if (it != coinMeta.end() && !it->second.IsSpats())
+            result += it->second.v;
     }
 
     return result;
@@ -1090,8 +1091,16 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
 {
     const spark::Params* params = spark::Params::get_default();
 
+    // Type 2 is the Spats encoding. Until that height an ordinary mint is type 0.
+    char coinType = spark::COIN_TYPE_MINT_V2;
+    if (generate) {
+        LOCK(cs_main);
+        if (chainActive.Height() + 1 < ::Params().GetConsensus().nSpatsStartBlock)
+            coinType = spark::COIN_TYPE_MINT;
+    }
+
     // create spark mints, if generate is false, skip actual math operations
-    spark::MintTransaction sparkMint(params, outputs, serial_context, generate);
+    spark::MintTransaction sparkMint(params, outputs, serial_context, generate, coinType);
 
     // verify if the mint is valid
     if (generate && !sparkMint.verify()) {
@@ -2583,9 +2592,29 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
 
     spark::CSparkState* sparkState = spark::CSparkState::GetState();
 
+    bool canRegister = true;
+    bool canModify = true;
+    bool canTransfer = true;
+    std::optional<std::uint64_t> transferAssetType;
+    std::optional<spark::CSparkAssetDBEntry> transferEntry;
+    {
+        LOCK(cs_main);
+        const spark::CAssetState& registry = sparkState->GetAssetState();
+        if (assetData.isRegister())
+            canRegister = registry.CanRegister(assetData);
+        if (assetData.isModify())
+            canModify = registry.CanModify(assetData);
+        if (assetData.isTransfer()) {
+            canTransfer = registry.CanTransfer(assetData);
+            transferAssetType = registry.GetAssetTypeBySymbol(assetData.getSymbol());
+            if (transferAssetType)
+                transferEntry = registry.Get(*transferAssetType);
+        }
+    }
+
     std::vector<CRecipient> recipients;
     if (assetData.isRegister()) {
-        if (!sparkState->GetAssetState().CanRegister(assetData))
+        if (!canRegister)
             throw std::runtime_error(_("Unable to register, state conflict"));
         const size_t symbolSize = assetData.getSymbol().size();
         if (symbolSize >= consensusParams.nSpatsRegFee.size() ||
@@ -2600,22 +2629,18 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
     }
 
     if (assetData.isModify()) {
-        if (!sparkState->GetAssetState().CanModify(assetData))
+        if (!canModify)
             throw std::runtime_error(_("Unable to modify, state conflict"));
     }
 
     if (assetData.isTransfer()) {
-        if (!sparkState->GetAssetState().CanTransfer(assetData))
-            throw std::runtime_error(_("Unable to transfer, state conflict"));
-        const auto assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(assetData.getSymbol());
-        const auto entry = assetType ? sparkState->GetAssetState().Get(*assetType) : std::nullopt;
-        if (!entry)
+        if (!canTransfer || !transferEntry || !transferAssetType)
             throw std::runtime_error(_("Unable to transfer, state conflict"));
         if (assetData.getReceiverOwnershipProof().empty())
             throw std::runtime_error(_("Receiver ownership proof is required"));
         if (!spark::VerifySpatsAssetReceiverProof(
-                *assetType,
-                entry->adminPublicAddress,
+                *transferAssetType,
+                transferEntry->adminPublicAddress,
                 assetData.getTransferAddress(),
                 assetData.getReceiverOwnershipProof()))
             throw std::runtime_error(_("Invalid receiver ownership proof"));
@@ -2694,10 +2719,16 @@ std::string CSparkWallet::CreateSpatsAssetReceiveData(const std::string& symbol,
     if (!spark::IsValidAssetAdminAddress(address))
         throw std::runtime_error(_("Invalid receive address"));
 
-    spark::CSparkState* sparkState = spark::CSparkState::GetState();
-    const auto assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
-    const auto entry = assetType ? sparkState->GetAssetState().Get(*assetType) : std::nullopt;
-    if (!entry)
+    std::optional<std::uint64_t> assetType;
+    std::optional<spark::CSparkAssetDBEntry> entry;
+    {
+        LOCK(cs_main);
+        const spark::CAssetState& registry = spark::CSparkState::GetState()->GetAssetState();
+        assetType = registry.GetAssetTypeBySymbol(symbol);
+        if (assetType)
+            entry = registry.Get(*assetType);
+    }
+    if (!entry || !assetType)
         throw std::runtime_error(_("Asset by this symbol does not exist"));
 
     spark::Address sparkDest(spark::Params::get_default());
@@ -2773,7 +2804,8 @@ bool CSparkWallet::GetCoinsToSpend(
             } catch (const std::bad_alloc&) {
                 throw;
             } catch (const std::exception&) {
-                return true;
+                // Opening failed, so this is not a proven spent tag.
+                return false;
             }
         });
     }
@@ -3070,9 +3102,11 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
 }
 
 uint64_t CSparkWallet::GetNFTIdentifier(const std::string& symbol) const {
+    LOCK(cs_main);
     return spark::CSparkState::GetState()->GetAssetState().NextNFTIdentifier(symbol);
 }
 
 bool CSparkWallet::NFTIdentifierExists(const std::string& symbol , const std::uint64_t& identifier) const {
+    LOCK(cs_main);
     return spark::CSparkState::GetState()->GetAssetState().HasNFTIdentifier(symbol, identifier);
 }

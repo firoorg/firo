@@ -78,9 +78,6 @@ class SparkAssetTest(BitcoinTestFramework):
         })
         return txid
 
-    def assert_not_in_mempool(self, txid):
-        assert txid not in self.nodes[0].getrawmempool()
-
     def run_test(self):
         # Spark is active at 100. SPATS is not active until 1100.
         self.mine(400)
@@ -126,8 +123,8 @@ class SparkAssetTest(BitcoinTestFramework):
             self.nodes[0].getsparkasset, "NOSUCH")
 
         self.register("WHOLEU", "Whole units", 0, 1000000000)
-        self.register("CENTS2", "Two decimals", 2, 100000)
-        self.register("FINE08", "Eight decimals", 8, 100000000)
+        self.register("CENTSS", "Two decimals", 2, 100000)
+        self.register("FINEII", "Eight decimals", 8, 100000000)
         self.register("NFTITM", "One item", 0, 1, nft=True, identifier=7)
         self.mine(1)
 
@@ -140,29 +137,29 @@ class SparkAssetTest(BitcoinTestFramework):
         assert_equal(by_symbol["WHOLEU"]["maxSupply"], "1000000000")
         assert_equal(by_symbol["WHOLEU"]["balance"], "0")
         assert_equal(by_symbol["WHOLEU"]["isAdmin"], True)
-        assert_equal(by_symbol["CENTS2"]["precision"], 2)
-        assert_equal(by_symbol["CENTS2"]["maxSupply"], "1000.00")
-        assert_equal(by_symbol["CENTS2"]["balance"], "0.00")
-        assert_equal(by_symbol["FINE08"]["precision"], 8)
-        assert_equal(by_symbol["FINE08"]["maxSupply"], "1.00000000")
-        assert_equal(by_symbol["FINE08"]["circulatingSupply"], "0.00000000")
+        assert_equal(by_symbol["CENTSS"]["precision"], 2)
+        assert_equal(by_symbol["CENTSS"]["maxSupply"], "1000.00")
+        assert_equal(by_symbol["CENTSS"]["balance"], "0.00")
+        assert_equal(by_symbol["FINEII"]["precision"], 8)
+        assert_equal(by_symbol["FINEII"]["maxSupply"], "1.00000000")
+        assert_equal(by_symbol["FINEII"]["circulatingSupply"], "0.00000000")
         assert_equal(by_symbol["NFTITM"]["kind"], "nft")
         assert_equal(by_symbol["NFTITM"]["identifier"], 7)
         assert_equal(by_symbol["NFTITM"]["precision"], 0)
         assert_equal(by_symbol["NFTITM"]["maxSupply"], "1")
-        assert_equal(self.asset("CENTS2")["name"], "Two decimals")
+        assert_equal(self.asset("CENTSS")["name"], "Two decimals")
         assert_equal(self.asset("WHOLEU", node=1)["isAdmin"], False)
-        types = [int(by_symbol[name]["assetType"]) for name in ("WHOLEU", "CENTS2", "FINE08", "NFTITM")]
+        types = [int(by_symbol[name]["assetType"]) for name in ("WHOLEU", "CENTSS", "FINEII", "NFTITM")]
         assert_equal(len(set(types)), 4)
 
         assert_raises_message(
             JSONRPCException, "Unable to register",
             self.nodes[0].createsparkasset,
-            {"symbol": "CENTS2", "name": "Again", "maxSupply": 10, "precision": 2})
+            {"symbol": "CENTSS", "name": "Again", "maxSupply": 10, "precision": 2})
 
         whole_type = int(self.asset("WHOLEU")["assetType"])
-        cents_type = int(self.asset("CENTS2")["assetType"])
-        fine_type = int(self.asset("FINE08")["assetType"])
+        cents_type = int(self.asset("CENTSS")["assetType"])
+        fine_type = int(self.asset("FINEII")["assetType"])
         nft_type = int(self.asset("NFTITM")["assetType"])
         assert_equal(self.nodes[0].listunspentspatsmints(cents_type, 0), [])
 
@@ -194,8 +191,8 @@ class SparkAssetTest(BitcoinTestFramework):
         firo_before = self.nodes[0].getsparkbalance()["availableBalance"]
         whole_mint = self.mint("WHOLEU", "1000000000")
         assert_equal(self.sent_category(whole_mint), "spatsmint")
-        cents_mint = self.mint("CENTS2", "2.00")
-        fine_mint = self.mint("FINE08", "0.00000001")
+        cents_mint = self.mint("CENTSS", "2.00")
+        fine_mint = self.mint("FINEII", "0.00000001")
         nft_mint = self.mint("NFTITM", "1", iota=7)
         assert_equal(self.sent_category(nft_mint), "spatsmint")
         self.mine(1)
@@ -204,8 +201,8 @@ class SparkAssetTest(BitcoinTestFramework):
 
         assert_equal(self.asset("WHOLEU")["balance"], "1000000000")
         assert_equal(self.asset("WHOLEU")["circulatingSupply"], "1000000000")
-        assert_equal(self.asset("CENTS2")["balance"], "2.00")
-        assert_equal(self.asset("FINE08")["balance"], "0.00000001")
+        assert_equal(self.asset("CENTSS")["balance"], "2.00")
+        assert_equal(self.asset("FINEII")["balance"], "0.00000001")
         assert_equal(self.asset("NFTITM")["balance"], "1")
         assert_equal(self.asset("NFTITM")["kind"], "nft")
         unspent = self.nodes[0].listunspentspatsmints(cents_type, 0)
@@ -213,12 +210,9 @@ class SparkAssetTest(BitcoinTestFramework):
         assert_equal(unspent[0]["amount"], Decimal("0.00000200"))
         assert_equal(len(self.nodes[0].listunspentspatsmints(nft_type, 7)), 1)
 
-        wrong_iota = self.mint("CENTS2", "1.00", iota=1)
-        self.assert_not_in_mempool(wrong_iota)
-        wrong_nft = self.mint("NFTITM", "1", iota=0)
-        self.assert_not_in_mempool(wrong_nft)
-        second_nft = self.mint("NFTITM", "1", iota=7)
-        self.assert_not_in_mempool(second_nft)
+        assert_raises_message(JSONRPCException, "rejected", self.mint, "CENTSS", "1.00", 1)
+        assert_raises_message(JSONRPCException, "rejected", self.mint, "NFTITM", "1", 0)
+        assert_raises_message(JSONRPCException, "rejected", self.mint, "NFTITM", "1", 7)
         assert_equal(self.asset("NFTITM")["circulatingSupply"], "1")
         assert_raises_message(
             JSONRPCException, "Spark spend creation failed",
@@ -230,25 +224,27 @@ class SparkAssetTest(BitcoinTestFramework):
         })
         assert_equal(self.sent_category(send_txid), "spatsspend")
         self.mine(1)
-        assert_equal(self.asset("CENTS2")["balance"], "1.50")
-        assert_equal(self.asset("CENTS2")["circulatingSupply"], "2.00")
-        assert_equal(self.asset("CENTS2", node=1)["balance"], "0.50")
+        assert_equal(self.asset("CENTSS")["balance"], "1.50")
+        assert_equal(self.asset("CENTSS")["circulatingSupply"], "2.00")
+        assert_equal(self.asset("CENTSS", node=1)["balance"], "0.50")
         assert_equal(len(self.nodes[1].listunspentspatsmints(cents_type, 0)), 1)
 
         burn_txid = self.nodes[0].spendspark({"burn": ["0.25", cents_type, 0]})
         assert_equal(self.sent_category(burn_txid), "spatsburn")
         self.mine(1)
-        assert_equal(self.asset("CENTS2")["balance"], "1.25")
-        assert_equal(self.asset("CENTS2")["circulatingSupply"], "1.75")
-        assert_equal(self.asset("CENTS2", node=1)["balance"], "0.50")
+        assert_equal(self.asset("CENTSS")["balance"], "1.25")
+        assert_equal(self.asset("CENTSS")["circulatingSupply"], "1.75")
+        assert_equal(self.asset("CENTSS", node=1)["balance"], "0.50")
         assert_equal(self.asset("WHOLEU")["balance"], "1000000000")
-        assert_equal(self.asset("FINE08")["balance"], "0.00000001")
+        assert_equal(self.asset("FINEII")["balance"], "0.00000001")
 
         name_txid = self.nodes[0].modifysparkassetname({"symbol": "WHOLEU", "name": "Renamed"})
         assert_equal(self.sent_category(name_txid), "spatsmodify")
+        self.mine(1)
         desc_txid = self.nodes[0].modifysparkassetdescription(
             {"symbol": "WHOLEU", "description": "Updated text"})
         assert_equal(self.sent_category(desc_txid), "spatsmodify")
+        self.mine(1)
         meta_txid = self.nodes[0].modifysparkassetmetadata(
             {"symbol": "WHOLEU", "metadata": "{\"k\":1}"})
         assert_equal(self.sent_category(meta_txid), "spatsmodify")
@@ -272,10 +268,11 @@ class SparkAssetTest(BitcoinTestFramework):
 
         peer_name = self.nodes[1].modifysparkassetname({"symbol": "NFTITM", "name": "Peer item"})
         assert_equal(self.sent_category(peer_name, node=1), "spatsmodify")
+        sync_mempools(self.nodes)
         self.mine(1)
         assert_equal(self.asset("NFTITM")["name"], "Peer item")
         assert_equal(self.asset("NFTITM", node=1)["isAdmin"], True)
-        assert_equal(self.asset("CENTS2")["balance"], "1.25")
+        assert_equal(self.asset("CENTSS")["balance"], "1.25")
 
 
 if __name__ == '__main__':

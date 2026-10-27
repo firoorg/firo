@@ -4690,12 +4690,17 @@ UniValue modifysparkassetname(const JSONRPCRequest& request) {
     assetData.setSymbol(symbol);
     assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opModifyName);
 
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
-    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    std::optional<std::uint64_t> assetType;
+    std::optional<spark::CSparkAssetDBEntry> assetEntry;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+        if (assetType.has_value())
+            assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    }
     if (!assetType.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
-
-    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
     if (!assetEntry.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
 
@@ -4758,12 +4763,17 @@ UniValue modifysparkassetmetadata(const JSONRPCRequest& request) {
     assetData.setSymbol(symbol);
     assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opModifyMetadata);
 
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
-    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    std::optional<std::uint64_t> assetType;
+    std::optional<spark::CSparkAssetDBEntry> assetEntry;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+        if (assetType.has_value())
+            assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    }
     if (!assetType.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
-
-    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
     if (!assetEntry.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
 
@@ -4826,12 +4836,17 @@ UniValue modifysparkassetdescription(const JSONRPCRequest& request) {
     assetData.setSymbol(symbol);
     assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opModifyDescription);
 
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
-    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    std::optional<std::uint64_t> assetType;
+    std::optional<spark::CSparkAssetDBEntry> assetEntry;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+        if (assetType.has_value())
+            assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    }
     if (!assetType.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
-
-    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
     if (!assetEntry.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
 
@@ -5012,11 +5027,17 @@ UniValue verifyspatsnftholding(const JSONRPCRequest& request)
     const auto assetType = spark::GetSpatsScalarAsUint64(proof.a);
     const auto identifier = spark::GetSpatsScalarAsUint64(proof.iota);
     const bool named = assetType.has_value() && identifier.has_value();
+    bool nft = false;
+    if (named) {
+        LOCK(cs_main);
+        const auto entry = spark::CSparkState::GetState()->GetAssetState().Get(*assetType);
+        nft = entry && entry->assetKind == static_cast<std::uint8_t>(spark::AssetKind::NonFungible);
+    }
     const bool onLedger = proofOk && named && LedgerHasSparkCoin(proof.S, proof.C);
     const bool spent = SparkTagIsSpent(proof.T);
 
     UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("valid", proofOk && named && onLedger && !spent));
+    result.push_back(Pair("valid", proofOk && nft && onLedger && !spent));
     result.push_back(Pair("spent", spent));
     result.push_back(Pair("assetType", named ? UniValue(*assetType) : NullUniValue));
     result.push_back(Pair("identifier", named ? UniValue(*identifier) : NullUniValue));
@@ -5100,12 +5121,17 @@ UniValue sparkassettransfer(const JSONRPCRequest& request) {
     assetData.setSymbol(symbol);
     assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opTransfer);
 
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
-    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    std::optional<std::uint64_t> assetType;
+    std::optional<spark::CSparkAssetDBEntry> assetEntry;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+        if (assetType.has_value())
+            assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    }
     if (!assetType.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
-
-    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
     if (!assetEntry.has_value())
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
 
@@ -5183,7 +5209,7 @@ static UniValue SparkAssetToUniv(CWallet* pwallet, std::uint64_t assetType, cons
     result.push_back(Pair("description", entry.description));
     result.push_back(Pair("metadata", entry.metadata));
     result.push_back(Pair("kind", nft ? "nft" : "fungible"));
-    result.push_back(Pair("identifier", static_cast<int64_t>(entry.identifier)));
+    result.push_back(Pair("identifier", entry.identifier));
     result.push_back(Pair("precision", precision));
     result.push_back(Pair("maxSupply", entry.maxSupply == 0 ? "0" : FormatAssetAmount(entry.maxSupply, precision)));
     result.push_back(Pair("circulatingSupply", FormatAssetAmount(circulating, precision)));

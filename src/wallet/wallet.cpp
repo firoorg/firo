@@ -4160,7 +4160,8 @@ void CWallet::CommitWalletTransaction(CWalletTx& wtx, const std::string& rejectM
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+        // Broadcast requires mempool acceptance. -walletbroadcast=0 still stores the tx.
+        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state, fBroadcastTransactions))
             throw std::runtime_error("CommitTransaction returned false");
     } catch (const std::exception&) {
         std::throw_with_nested(std::runtime_error(rejectMessage));

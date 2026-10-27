@@ -578,30 +578,35 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-static bool IsAllowedSparkMintCoinType(unsigned char type)
+static bool IsAllowedSparkMintCoinType(unsigned char type, bool allowV2)
 {
-    return type == static_cast<unsigned char>(spark::COIN_TYPE_MINT) ||
-        type == static_cast<unsigned char>(spark::COIN_TYPE_MINT_V2);
+    if (type == static_cast<unsigned char>(spark::COIN_TYPE_MINT))
+        return true;
+    return allowV2 && type == static_cast<unsigned char>(spark::COIN_TYPE_MINT_V2);
 }
 
-static bool IsAllowedSparkSpendCoinType(unsigned char type)
+static bool IsAllowedSparkSpendCoinType(unsigned char type, bool allowV2)
 {
-    return type == static_cast<unsigned char>(spark::COIN_TYPE_SPEND) ||
-        type == static_cast<unsigned char>(spark::COIN_TYPE_SPEND_V2);
+    if (type == static_cast<unsigned char>(spark::COIN_TYPE_SPEND))
+        return true;
+    return allowV2 && type == static_cast<unsigned char>(spark::COIN_TYPE_SPEND_V2);
 }
 
-static bool HasConsistentSparkCoinTypes(const CTransaction& tx)
+static bool HasConsistentSparkCoinTypes(const CTransaction& tx, int nHeight)
 {
+    // Type 2 and 3 are the Spats coin encodings. Before that height the
+    // baseline rule is mint type 0 and spend-output type 1.
+    const bool allowV2 = nHeight >= ::Params().GetConsensus().nSpatsStartBlock;
     for (const auto& txout : tx.vout) {
         const CScript& script = txout.scriptPubKey;
 
         if (script.IsSparkMint() &&
-            (script.size() < 2 || !IsAllowedSparkMintCoinType(script[1]))) {
+            (script.size() < 2 || !IsAllowedSparkMintCoinType(script[1], allowV2))) {
             return false;
         }
 
         if (script.IsSparkSMint() &&
-            (script.size() < 2 || !IsAllowedSparkSpendCoinType(script[1]))) {
+            (script.size() < 2 || !IsAllowedSparkSpendCoinType(script[1], allowV2))) {
             return false;
         }
     }
@@ -636,7 +641,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     const Consensus::Params& consensus = ::Params().GetConsensus();
     if (nHeight != INT_MAX &&
         nTxHeight >= consensus.nSparkChaumV2StartBlock &&
-        !HasConsistentSparkCoinTypes(tx)) {
+        !HasConsistentSparkCoinTypes(tx, nTxHeight)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-spark-coin-type");
     }
 
@@ -909,7 +914,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     const Consensus::Params& consensus = Params().GetConsensus();
 
-    if (!HasConsistentSparkCoinTypes(tx))
+    if (!HasConsistentSparkCoinTypes(tx, chainActive.Height() + 1))
         return state.DoS(0, false, REJECT_NONSTANDARD, "bad-spark-coin-type");
 
     if (tx.IsSparkSpendV2() &&
@@ -1138,6 +1143,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         CCoinsViewCache view(&dummy);
         CAmount nValueIn = 0;
         LockPoints lp;
+        spark::CSparkAssetPending assetPending;
         {
         LOCK(pool.cs);
         CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
@@ -1186,10 +1192,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
+        // Copy under pool.cs. Clear and InstantSend removal mutate this without cs_main.
+        assetPending = pool.sparkAssetPending;
         } // LOCK
 
         if (!spark::CheckSparkAssetTransaction(tx, view, state, chainActive.Height() + 1, false, true,
-                pool.sparkAssetPending, sparkAssetEffects))
+                assetPending, sparkAssetEffects))
             return false;
 
         {
@@ -4993,10 +5001,11 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         // until AcceptBlock has contextualized its header and applied the
         // unrequested-block gates. Keep the belt-and-suspenders check for all
         // other blocks.
+        const int nextHeight = chainActive.Height() + 1;
         const bool fDeferBlockCheck = std::any_of(
             pblock->vtx.begin(), pblock->vtx.end(),
-            [](const CTransactionRef& tx) {
-                return !HasConsistentSparkCoinTypes(*tx);
+            [nextHeight](const CTransactionRef& tx) {
+                return !HasConsistentSparkCoinTypes(*tx, nextHeight);
             });
         bool ret = fDeferBlockCheck ||
             CheckBlock(*pblock, state, chainparams.GetConsensus());

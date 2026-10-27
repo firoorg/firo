@@ -50,7 +50,8 @@ void RemoveSparkAssetEffects(CSparkAssetPending& pending, const CSparkAssetTxEff
 // Spark transaction info, added to the CBlock to ensure spark mint/spend transactions got their info stored into index
 class CSparkTxInfo {
 public:
-    // all the spark transactions encountered so far
+    // Spends whose linking tags were already validated while building this block.
+    // Mint checks must not insert here; that would skip spend-tag validation.
     std::set<uint256> spTransactions;
 
     // Vector of all mints

@@ -60,7 +60,8 @@ bool ParseInt64(const std::string& str, int64_t *out)
 
 bool ParseUint64(const std::string& str, uint64_t *out)
 {
-    if (!ParsePrechecks(str))
+    // strtoull wraps a leading minus into the unsigned range.
+    if (!ParsePrechecks(str) || str[0] == '-')
         return false;
     char *endp = nullptr;
     errno = 0; // strtoull will not set errno if valid

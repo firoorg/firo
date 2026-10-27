@@ -24,7 +24,8 @@ public:
 		const Params* params,
 		const std::vector<MintedCoinData>& outputs,
 		const std::vector<unsigned char>& serial_context,
-		bool generate = true
+		bool generate = true,
+		char coinType = COIN_TYPE_MINT_V2
 	);
 	bool verify();
 

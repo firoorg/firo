@@ -50,7 +50,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         if (const auto op = spark::GetSparkAssetTxData(*wtx.tx)) {
             TransactionRecord rec(hash, nTime);
             rec.involvesWatchAddress = false;
-            rec.debit = nDebit;
+            rec.debit = -nDebit;
             rec.credit = nCredit;
             rec.address = op->getSymbol();
             if (op->isRegister())
@@ -72,7 +72,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     if (wtx.tx->IsSpatsTransaction()) {
         TransactionRecord rec(hash, nTime);
         rec.involvesWatchAddress = false;
-        rec.debit = nDebit;
+        rec.debit = -nDebit;
         rec.credit = nCredit;
 
         if (wtx.tx->IsSpatsMint()) {

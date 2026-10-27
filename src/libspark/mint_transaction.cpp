@@ -10,7 +10,8 @@ MintTransaction::MintTransaction(
     const Params* params,
     const std::vector<MintedCoinData>& outputs,
     const std::vector<unsigned char>& serial_context,
-    bool generate
+    bool generate,
+    char coinType
 ) {
 	// Important note: This construction assumes that the public coin values are correct according to higher-level consensus rules!
     // Important note: For pool transition transactions, the serial context should contain unique references to all base-layer spent assets, in order to ensure the resulting serial commitment is bound to this transaction
@@ -30,7 +31,7 @@ MintTransaction::MintTransaction(
             k.randomize();
             this->coins.emplace_back(Coin(
                 this->params,
-                COIN_TYPE_MINT_V2,
+                coinType,
                 k,
                 output.address,
                 output.v,

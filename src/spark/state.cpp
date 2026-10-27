@@ -1593,7 +1593,6 @@ bool CheckSparkMintTransaction(
     if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
         sparkTxInfo->mints.insert(
             sparkTxInfo->mints.end(), coins.begin(), coins.end());
-        sparkTxInfo->spTransactions.insert(hashTx);
     }
 
     return true;
@@ -1663,7 +1662,6 @@ bool CheckSpatsMintTransaction(
     if (sparkTxInfo != nullptr && !sparkTxInfo->fInfoIsComplete) {
         // Update coin list in the info
         sparkTxInfo->mints.push_back(coin);
-        sparkTxInfo->spTransactions.insert(hashTx);
     }
 
     return true;
@@ -2296,7 +2294,9 @@ bool CheckSparkSpendTransaction(
                              error("CheckSparkSpendTransaction: size of lTags and group ids don't match."));
         }
 
-        // do not check for duplicates in case we've seen exact copy of this tx in this block before
+        // spTransactions means this spend's tags were already validated.
+        // A mint must not record the id first: that skips this check and lets
+        // a second spend of the same coin pass later in the block.
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
             const bool fConnectTip = sparkTxInfo &&
                 (!isVerifyDB || activeVerifyDBContext);
@@ -2957,6 +2957,11 @@ bool CSparkState::ConnectAssetBlock(CBlockIndex *index, const CSparkTxInfo& info
 
 bool CSparkState::ApplyAssetBlock(const CBlockIndexPrivacyData& pd)
 {
+    // Startup replay calls this for every block. Nothing to apply means the
+    // registry is already the result, so skip the full copy.
+    if (pd.sparkAssetOps.empty() && pd.sparkAssetMinted.empty() && pd.sparkAssetBurned.empty())
+        return true;
+
     CAssetState next = asset_state_;
     for (const auto& op : pd.sparkAssetOps)
         next.SetEntry(op.assetType, op.after);

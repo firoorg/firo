@@ -4,6 +4,15 @@
 namespace spats
 {
 
+void SetSpendBaseCountsForTest(
+    SpendTransaction& tx,
+    uint32_t inputBaseCount,
+    uint32_t outBaseCount)
+{
+    tx.inputBase = inputBaseCount;
+    tx.outBase = outBaseCount;
+}
+
 // Useful scalar constants
 const Scalar ZERO = Scalar((uint64_t)0);
 
@@ -466,6 +475,12 @@ bool SpendTransaction::verify(
         // Sort all Grootle proofs into buckets for batching based on common input sets
         for (std::size_t u = 0; u < w; u++) {
             grootle_buckets[tx.cover_set_ids[u]].emplace_back(std::pair<std::size_t, std::size_t>(i, u));
+        }
+
+        // A count past the real length keeps every coin in the same FIRO/asset
+        // partition, but the count is serialized into the transaction id.
+        if (tx.inputBase > w || tx.outBase > t) {
+            return false;
         }
 
         // Check if we have asset coins (non-base coins)

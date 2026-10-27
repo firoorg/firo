@@ -140,6 +140,11 @@ public:
 
     friend struct SpatsCoverSetTestAccess;
 
+    friend void SetSpendBaseCountsForTest(
+        SpendTransaction& tx,
+        uint32_t inputBaseCount,
+        uint32_t outBaseCount);
+
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 
     const std::map<uint64_t, uint256>& getBlockHashes() override;
@@ -174,6 +179,11 @@ private:
     TypeProof type_proof;
     BalanceProof balance_proof;
 };
+
+void SetSpendBaseCountsForTest(
+    SpendTransaction& tx,
+    uint32_t inputBaseCount,
+    uint32_t outBaseCount);
 
 } // namespace spats
 

@@ -1,7 +1,9 @@
 #include "../spend_transaction.h"
 
+#include "../../../streams.h"
 #include "../../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
+#include <limits>
 
 namespace spats
 {
@@ -307,6 +309,31 @@ BOOST_AUTO_TEST_CASE(base_only_transaction)
 
     transaction.setCoverSets(cover_set_data);
     BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));
+
+    // Raising either base count leaves the verified FIRO partition unchanged
+    // and changes the serialized spend, which is what the transaction id covers.
+    CDataStream canonical(SER_NETWORK, PROTOCOL_VERSION);
+    canonical << transaction;
+    SpendTransaction raisedInput = transaction;
+    SetSpendBaseCountsForTest(raisedInput, 3, 2);
+    CDataStream raisedInputStream(SER_NETWORK, PROTOCOL_VERSION);
+    raisedInputStream << raisedInput;
+    BOOST_CHECK(canonical.str() != raisedInputStream.str());
+    raisedInput.setCoverSets(cover_set_data);
+    BOOST_CHECK(!SpendTransaction::verify(raisedInput, cover_sets));
+
+    SpendTransaction raisedOutput = transaction;
+    SetSpendBaseCountsForTest(raisedOutput, 2, 3);
+    raisedOutput.setCoverSets(cover_set_data);
+    BOOST_CHECK(!SpendTransaction::verify(raisedOutput, cover_sets));
+
+    SpendTransaction raisedBoth = transaction;
+    SetSpendBaseCountsForTest(
+        raisedBoth,
+        std::numeric_limits<uint32_t>::max(),
+        std::numeric_limits<uint32_t>::max());
+    raisedBoth.setCoverSets(cover_set_data);
+    BOOST_CHECK(!SpendTransaction::verify(raisedBoth, cover_sets));
 }
 
 // Test single input single output transaction
