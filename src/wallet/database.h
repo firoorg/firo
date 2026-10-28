@@ -303,13 +303,16 @@ public:
 /** Resolve a safe flat wallet filename inside the network data directory. */
 bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::string& error);
 
+/** Resolve parent symlinks without following the final wallet filename. */
+bool ResolveWalletDatabaseParent(fs::path& path, std::string& error);
+
+/** Reject wallet and backup names reserved for database auxiliary files. */
+bool ValidateWalletDatabaseFilename(const fs::path& path, std::string& error);
+
 /**
  * Require a migration directory and every ancestor to be protected from
  * pathname replacement by an untrusted local user.
  */
-/** Resolve parent symlinks without following the final wallet filename. */
-bool ResolveWalletDatabaseParent(fs::path& path, std::string& error);
-
 bool ValidateWalletMigrationDirectory(
     const fs::path& directory,
     std::string& error);

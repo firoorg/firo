@@ -6755,7 +6755,8 @@ bool SQLiteDatabase::Backup(
             "the destination path already exists.",
             collision_action);
     }
-    if (!ResolveWalletDatabaseParent(destination_path, detail)) {
+    if (!ValidateWalletDatabaseFilename(destination_path, detail) ||
+        !ResolveWalletDatabaseParent(destination_path, detail)) {
         return fail(detail, retry_action);
     }
 

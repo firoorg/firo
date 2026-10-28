@@ -1159,6 +1159,22 @@ BOOST_FIXTURE_TEST_CASE(wallet_database_factory_preopen_policy, WalletDatabasePa
 
 BOOST_FIXTURE_TEST_SUITE(wallet_database_tests, WalletTestingSetup)
 
+BOOST_AUTO_TEST_CASE(wallet_auxiliary_filenames_are_reserved)
+{
+    std::string error;
+    for (const std::string name : {"wallet.dat-journal", "offline-WAL", "backup-shm"}) {
+        BOOST_CHECK(!ValidateWalletDatabaseFilename(GetDataDir() / name, error));
+        DatabaseOptions options;
+        options.require_create = true;
+        options.require_format = DatabaseFormat::BERKELEY;
+        DatabaseStatus status;
+        BOOST_CHECK(!MakeWalletDatabase(name, options, status, error));
+        BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_PATH);
+        BOOST_CHECK(!fs::exists(GetDataDir() / name));
+    }
+    BOOST_CHECK(ValidateWalletDatabaseFilename(GetDataDir() / "wallet-journal.dat", error));
+}
+
 BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
 {
     auto dummy = MakeDummyWalletDatabase();
@@ -7442,6 +7458,11 @@ BOOST_AUTO_TEST_CASE(sqlite_backup_requires_owner_controlled_directory)
     auto database = MakeSQLiteDatabase(filename, options, status, error);
     BOOST_REQUIRE_MESSAGE(database, error);
     const fs::path directory = GetDataDir() / "backup-directory";
+    for (const std::string suffix : {"-journal", "-wal", "-shm"}) {
+        const auto target = GetDataDir() / (filename + suffix);
+        BOOST_CHECK(!database->Backup(target, error));
+        BOOST_CHECK(!fs::exists(target));
+    }
     fs::create_directory(directory);
     BOOST_SCOPE_EXIT_ALL(&) { fs::remove_all(directory); };
     BOOST_REQUIRE_EQUAL(chmod(directory.string().c_str(), 0777), 0);

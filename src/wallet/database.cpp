@@ -78,7 +78,7 @@ bool GetLegacyWalletDatabasePath(
     }
 
     path = GetDataDir() / filename;
-    return true;
+    return ValidateWalletDatabaseFilename(path, error);
 }
 
 bool IsSQLiteDatabase(const fs::path& path)
@@ -391,6 +391,24 @@ bool ResolveWalletDatabaseParent(fs::path& path, std::string& error)
     return true;
 }
 
+bool ValidateWalletDatabaseFilename(const fs::path& path, std::string& error)
+{
+    // Reserve these names even when the corresponding main file is absent:
+    // creating that wallet later must not destroy an existing wallet or backup.
+    std::string name = path.filename().string();
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+        return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+    });
+    for (const std::string suffix : {"-journal", "-wal", "-shm"}) {
+        if (name.size() >= suffix.size() &&
+            name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+            error = "Wallet and backup filenames must not end in -journal, -wal, or -shm; these names are reserved for SQLite auxiliary files.";
+            return false;
+        }
+    }
+    return true;
+}
+
 bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::string& error)
 {
     error.clear();
@@ -410,7 +428,7 @@ bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::str
     }
 
     path = GetDataDir() / filename_path;
-    return ResolveWalletDatabaseParent(path, error);
+    return ValidateWalletDatabaseFilename(path, error) && ResolveWalletDatabaseParent(path, error);
 }
 
 bool ValidateWalletMigrationDirectory(

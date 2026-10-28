@@ -1757,6 +1757,11 @@ bool BerkeleyDatabase::Backup(const fs::path& destination)
                 if (boost::filesystem::is_directory(target)) {
                     target /= m_filename;
                 }
+                std::string filename_error;
+                if (!ValidateWalletDatabaseFilename(target, filename_error)) {
+                    LogPrintf("Refusing wallet backup: %s\n", filename_error);
+                    return false;
+                }
 
                 try {
 #if BOOST_VERSION >= 104000
