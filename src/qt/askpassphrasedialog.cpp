@@ -142,8 +142,9 @@ void AskPassphraseDialog::accept()
                                          "<br><br><b>" +
                                          tr("IMPORTANT: Any previous backups you have made of your wallet file "
                                          "should be replaced with the newly generated, encrypted wallet file. "
-                                         "For security reasons, previous backups of the unencrypted wallet file "
-                                         "will become useless as soon as you start using the new, encrypted wallet.") +
+                                         "Previous unencrypted backups, including database migration backups, "
+                                         "still contain usable private keys. Encryption and later passphrase "
+                                         "changes do not protect those copies. Keep them secure.") +
                                          "</b></qt>");
                     QApplication::quit();
                 }

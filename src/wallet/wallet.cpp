@@ -1507,10 +1507,13 @@ bool CWallet::Verify()
         }
         const std::string message = strprintf(
             "Wallet database migration succeeded for '%s'; "
-            "Berkeley DB backup retained at '%s'.",
+            "Berkeley DB backup retained at '%s'. This backup retains its original "
+            "private keys and encryption state. Later encryption or passphrase "
+            "changes do not protect or invalidate it. Keep it secure.",
             walletFile,
             migrationBackup);
         LogPrintf("%s\n", message);
+        InitWarning(message);
     }
 
     LogPrintf(
