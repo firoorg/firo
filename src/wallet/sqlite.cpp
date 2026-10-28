@@ -224,9 +224,9 @@ bool ConsumeCandidateRevalidationFailure()
 }
 #endif
 
-void LogSQLiteError(const char* context, sqlite3* database, int result) noexcept
+void LogSQLiteError(const char* context, sqlite3*, int result) noexcept
 {
-    const char* message = database ? sqlite3_errmsg(database) : sqlite3_errstr(result);
+    const char* message = sqlite3_errstr(result);
     LogPrintf("%s: SQLite error %d: %s\n", context, result, message ? message : "unknown error");
 }
 
@@ -413,6 +413,7 @@ bool PrepareStatement(
     const char* context,
     std::string* error = nullptr)
 {
+    SQLiteConnectionMutex sqlite_lock(database);
     const int result = sqlite3_prepare_v2(database, sql, -1, statement.Address(), nullptr);
     if (result == SQLITE_OK) {
         return true;
@@ -466,6 +467,7 @@ bool BindBlob(
 
 bool ExecuteSQL(sqlite3* database, const char* statement, std::string* error = nullptr)
 {
+    SQLiteConnectionMutex sqlite_lock(database);
     const int result = sqlite3_exec(database, statement, nullptr, nullptr, nullptr);
     if (result == SQLITE_OK) {
         return true;
@@ -659,6 +661,7 @@ std::optional<int64_t> ReadPragmaInteger(
     const char* description,
     std::string& error)
 {
+    SQLiteConnectionMutex sqlite_lock(database);
     SQLiteStatement prepared;
     if (!PrepareStatement(database, statement, prepared, description, &error)) {
         return std::nullopt;
@@ -677,6 +680,7 @@ std::optional<std::string> ReadPragmaText(
     const char* description,
     std::string& error)
 {
+    SQLiteConnectionMutex sqlite_lock(database);
     SQLiteStatement prepared;
     if (!PrepareStatement(database, statement, prepared, description, &error)) {
         return std::nullopt;
