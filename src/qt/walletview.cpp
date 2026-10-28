@@ -322,9 +322,11 @@ void WalletView::encryptWallet(bool status)
 
 void WalletView::backupWallet()
 {
+    if (!walletModel) return;
+    const bool sqlite = walletModel->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE;
     QString filename = GUIUtil::getSaveFileName(this,
         tr("Backup Wallet"), QString(),
-        tr("Wallet Data (*.dat)"), NULL);
+        tr("Wallet Data (*.dat)"), NULL, !sqlite);
 
     if (filename.isEmpty())
         return;
