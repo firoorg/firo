@@ -6967,14 +6967,16 @@ bool SQLiteDatabase::Backup(
                     detail,
                     &candidate.identity,
                     &candidate.cleanup_allowed) &&
-                VerifyDatabase(published_database, detail) &&
+                VerifyDatabaseIdentity(published_database, detail) &&
+                VerifySchema(published_database, detail) &&
                 SetConnectionPragmas(published_database, detail) &&
                 ConnectionIdentityMatches(
                     published_database,
                     destination_path,
                     candidate.identity,
                     detail) &&
-                VerifyDatabase(published_database, detail);
+                VerifyDatabaseIdentity(published_database, detail) &&
+                VerifySchema(published_database, detail);
             const bool published_closed =
                 CloseOrAbandonSQLiteConnection(
                     published_database,
