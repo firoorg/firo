@@ -164,6 +164,11 @@ and requests shutdown before another wallet operation. No migration is
 attempted during ordinary startup, wallet creation, backup, or software
 upgrade.
 
+The retained BDB backup still contains the original private keys and encryption
+state. Encrypting the migrated wallet or changing its passphrase does not
+protect or invalidate that backup. Keep it private, and include it when
+deciding how to protect or retire old wallet backups.
+
 ## Backup
 
 Use the RPC or the GUI while the wallet is running:
