@@ -7418,7 +7418,7 @@ BOOST_AUTO_TEST_CASE(sqlite_wallet_coexists_with_other_library_connections)
     BOOST_REQUIRE_EQUAL(sqlite3_initialize(), SQLITE_OK);
     sqlite3* other = nullptr;
     BOOST_REQUIRE_EQUAL(sqlite3_open(":memory:", &other), SQLITE_OK);
-    BOOST_SCOPE_EXIT_ALL() { sqlite3_close(other); };
+    BOOST_SCOPE_EXIT_ALL(&) { sqlite3_close(other); };
     const std::string filename{"sqlite_shared_library.dat"};
     DatabaseOptions options;
     options.require_create = true;
@@ -7443,7 +7443,7 @@ BOOST_AUTO_TEST_CASE(sqlite_backup_requires_owner_controlled_directory)
     BOOST_REQUIRE_MESSAGE(database, error);
     const fs::path directory = GetDataDir() / "backup-directory";
     fs::create_directory(directory);
-    BOOST_SCOPE_EXIT_ALL() { fs::remove_all(directory); };
+    BOOST_SCOPE_EXIT_ALL(&) { fs::remove_all(directory); };
     BOOST_REQUIRE_EQUAL(chmod(directory.string().c_str(), 0777), 0);
     BOOST_CHECK(!database->Backup(directory / "backup.dat", error));
     BOOST_CHECK(error.find("owner-controlled") != std::string::npos);
@@ -7463,7 +7463,7 @@ BOOST_AUTO_TEST_CASE(sqlite_backup_resolves_parent_but_not_final_symlinks)
     BOOST_REQUIRE_MESSAGE(database, error);
     const fs::path alias = GetDataDir() / "directory-alias";
     fs::create_directory_symlink(GetDataDir(), alias);
-    BOOST_SCOPE_EXIT_ALL() { fs::remove(alias); };
+    BOOST_SCOPE_EXIT_ALL(&) { fs::remove(alias); };
     const fs::path backup = alias / "parent-link-backup.dat";
     BOOST_REQUIRE_MESSAGE(database->Backup(backup, error), error);
     fs::path resolved = backup;
@@ -7471,7 +7471,7 @@ BOOST_AUTO_TEST_CASE(sqlite_backup_resolves_parent_but_not_final_symlinks)
     BOOST_CHECK(resolved == fs::canonical(GetDataDir()) / backup.filename());
     const fs::path fileLink = alias / "file-link.dat";
     fs::create_symlink(backup, fileLink);
-    BOOST_SCOPE_EXIT_ALL() { fs::remove(fileLink); };
+    BOOST_SCOPE_EXIT_ALL(&) { fs::remove(fileLink); };
     resolved = fileLink;
     BOOST_REQUIRE(ResolveWalletDatabaseParent(resolved, error));
     BOOST_CHECK(fs::is_symlink(resolved));
@@ -7489,7 +7489,7 @@ BOOST_AUTO_TEST_CASE(sqlite_live_reopen_failure_requests_shutdown)
     auto database = MakeSQLiteDatabase(filename, options, status, error);
     BOOST_REQUIRE_MESSAGE(database, error);
     const std::string path = (GetDataDir() / filename).string();
-    BOOST_SCOPE_EXIT_ALL() {
+    BOOST_SCOPE_EXIT_ALL(&) {
         chmod(path.c_str(), S_IRUSR | S_IWUSR);
         fRequestShutdown = false;
     };
@@ -7511,29 +7511,29 @@ BOOST_AUTO_TEST_CASE(sqlite_creation_and_idle_flush_retain_sqlite_file_lock)
     const std::string path = (GetDataDir() / filename).string();
     const pid_t parent = getpid();
     for (int phase = 0; phase < 2; ++phase) {
-    if (phase != 0) BOOST_REQUIRE(database->PeriodicFlush());
-    const pid_t child = fork();
-    if (child == 0) {
-        const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
-        struct flock lock{};
-        lock.l_type = F_RDLCK;
-        lock.l_whence = SEEK_SET;
-        lock.l_start = 0x40000002;
-        lock.l_len = 510;
-        const bool held = fd >= 0 && fcntl(fd, F_GETLK, &lock) == 0 &&
-            lock.l_type == F_WRLCK && lock.l_pid == parent;
-        if (fd >= 0) close(fd);
-        _exit(held ? 0 : 1);
-    }
-    BOOST_REQUIRE(child > 0);
-    int result{};
-    pid_t waited;
-    do {
-        waited = waitpid(child, &result, 0);
-    } while (waited < 0 && errno == EINTR);
-    BOOST_REQUIRE_EQUAL(waited, child);
-    BOOST_REQUIRE(WIFEXITED(result));
-    BOOST_CHECK_EQUAL(WEXITSTATUS(result), 0);
+        if (phase != 0) BOOST_REQUIRE(database->PeriodicFlush());
+        const pid_t child = fork();
+        if (child == 0) {
+            const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+            struct flock lock{};
+            lock.l_type = F_RDLCK;
+            lock.l_whence = SEEK_SET;
+            lock.l_start = 0x40000002;
+            lock.l_len = 510;
+            const bool held = fd >= 0 && fcntl(fd, F_GETLK, &lock) == 0 &&
+                lock.l_type == F_WRLCK && lock.l_pid == parent;
+            if (fd >= 0) close(fd);
+            _exit(held ? 0 : 1);
+        }
+        BOOST_REQUIRE(child > 0);
+        int result{};
+        pid_t waited;
+        do {
+            waited = waitpid(child, &result, 0);
+        } while (waited < 0 && errno == EINTR);
+        BOOST_REQUIRE_EQUAL(waited, child);
+        BOOST_REQUIRE(WIFEXITED(result));
+        BOOST_CHECK_EQUAL(WEXITSTATUS(result), 0);
     }
     database.reset();
     RemoveSQLiteTestFiles(filename);
