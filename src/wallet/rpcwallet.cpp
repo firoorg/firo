@@ -3067,9 +3067,7 @@ UniValue keypoolrefill(const JSONRPCRequest& request)
     }
 
     EnsureWalletIsUnlocked(pwallet);
-    pwallet->TopUpKeyPool(kpSize);
-
-    if (pwallet->GetKeyPoolSize() < kpSize) {
+    if (!pwallet->TopUpKeyPool(kpSize) || pwallet->GetKeyPoolSize() < kpSize) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Error refreshing keypool.");
     }
 

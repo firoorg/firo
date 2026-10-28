@@ -79,6 +79,7 @@
 #ifdef USE_SQLITE
 extern std::atomic<bool> fRequestShutdown;
 extern UniValue walletpassphrasechange(const JSONRPCRequest& request);
+extern UniValue keypoolrefill(const JSONRPCRequest& request);
 #endif
 
 namespace
@@ -7579,6 +7580,35 @@ BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
     BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 0);
     BOOST_CHECK(ShutdownRequested());
     BOOST_CHECK_THROW(wallet.GetDatabase().MakeBatch(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_keypoolrefill_rpc_reports_default_size_failure)
+{
+    for (const bool explicitZero : {false, true}) {
+        ShutdownRequestReset shutdownReset;
+        DatabaseOptions options;
+        options.require_create = true;
+        DatabaseStatus status;
+        std::string error;
+        auto database = MakeSQLiteDatabase(explicitZero ? "sqlite_refill_zero.dat" : "sqlite_refill_default.dat",
+            options, status, error);
+        BOOST_REQUIRE_MESSAGE(database, error);
+        CWallet wallet(std::move(database));
+        wallet.GenerateNewMnemonic();
+        BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+            std::make_unique<BlockingSQLiteStatementExecutor>(std::set<std::string>{"COMMIT TRANSACTION"})));
+        CWallet* const savedWallet = pwalletMain;
+        BOOST_SCOPE_EXIT_ALL(savedWallet) { pwalletMain = savedWallet; };
+        pwalletMain = &wallet;
+        JSONRPCRequest request;
+        request.params.setArray();
+        if (explicitZero) request.params.push_back(0);
+        BOOST_CHECK_EXCEPTION(keypoolrefill(request), UniValue, [](const UniValue& rpcError) {
+            return rpcError["code"].get_int() == RPC_WALLET_ERROR;
+        });
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 0);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(sqlite_required_rewrite_survives_failure_and_restart)
