@@ -215,12 +215,17 @@ std::vector<RawRecord> ReadRawRecords(DatabaseBatch& batch)
 
 void WriteFile(const fs::path& path, const std::string& contents)
 {
-    fs::ofstream file(path, std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) {
+    const auto closeFile = [](FILE* file) { fclose(file); };
+#ifdef WIN32
+    std::unique_ptr<FILE, decltype(closeFile)> file(_wfopen(path.c_str(), L"wb"), closeFile);
+#else
+    std::unique_ptr<FILE, decltype(closeFile)> file(fopen(path.c_str(), "wb"), closeFile);
+#endif
+    if (!file) {
         throw std::runtime_error("Cannot create test wallet file");
     }
-    file.write(contents.data(), contents.size());
-    if (!file.good()) {
+    const size_t written = fwrite(contents.data(), 1, contents.size(), file.get());
+    if (fclose(file.release()) != 0 || written != contents.size()) {
         throw std::runtime_error("Cannot write test wallet file");
     }
 }
@@ -311,6 +316,20 @@ bool WritePrivateWin32File(
 }
 #endif
 
+std::string SQLitePath(const fs::path& path)
+{
+#ifdef WIN32
+    std::string utf8;
+    std::string error;
+    if (!win32_wallet::PathToUtf8(path, utf8, error)) {
+        throw std::runtime_error(error);
+    }
+    return utf8;
+#else
+    return path.string();
+#endif
+}
+
 bool ExecuteRawSQLite(
     const fs::path& path,
     const std::vector<std::string>& statements,
@@ -325,7 +344,7 @@ bool ExecuteRawSQLite(
                       SQLITE_OPEN_NOFOLLOW |
                       SQLITE_OPEN_READWRITE |
                       (create ? SQLITE_OPEN_CREATE : 0);
-    int result = sqlite3_open_v2(path.string().c_str(), &database, flags, nullptr);
+    int result = sqlite3_open_v2(SQLitePath(path).c_str(), &database, flags, nullptr);
     if (result == SQLITE_OK) {
         for (const std::string& statement : statements) {
             result = sqlite3_exec(database, statement.c_str(), nullptr, nullptr, nullptr);
@@ -354,7 +373,7 @@ std::optional<int64_t> ReadRawSQLiteInteger(const fs::path& path, const char* st
     sqlite3_stmt* prepared = nullptr;
     std::optional<int64_t> value;
     const int flags = SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW | SQLITE_OPEN_READWRITE;
-    int result = sqlite3_open_v2(path.string().c_str(), &database, flags, nullptr);
+    int result = sqlite3_open_v2(SQLitePath(path).c_str(), &database, flags, nullptr);
     if (result == SQLITE_OK) {
         result = sqlite3_prepare_v2(database, statement, -1, &prepared, nullptr);
     }
@@ -389,7 +408,7 @@ std::optional<std::vector<RawRecord> > ReadRawSQLiteRecordsNotIndexed(
         SQLITE_OPEN_READONLY;
     bool valid =
         sqlite3_open_v2(
-            path.string().c_str(),
+            SQLitePath(path).c_str(),
             &database,
             flags,
             nullptr) == SQLITE_OK &&
@@ -508,7 +527,7 @@ bool CreateHotJournalRestoringForeignHeader(
         SQLITE_OPEN_READWRITE;
     bool success =
         sqlite3_open_v2(
-            path.string().c_str(),
+            SQLitePath(path).c_str(),
             &database,
             flags,
             nullptr) == SQLITE_OK &&
