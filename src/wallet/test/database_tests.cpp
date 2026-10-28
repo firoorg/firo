@@ -1189,6 +1189,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_database_factory_preopen_policy, WalletDatabasePa
 
 BOOST_FIXTURE_TEST_SUITE(wallet_database_tests, WalletTestingSetup)
 
+#ifdef USE_SQLITE
 BOOST_AUTO_TEST_CASE(wallet_auxiliary_filenames_are_reserved)
 {
     std::string error;
@@ -1204,6 +1205,7 @@ BOOST_AUTO_TEST_CASE(wallet_auxiliary_filenames_are_reserved)
     }
     BOOST_CHECK(ValidateWalletDatabaseFilename(GetDataDir() / "wallet-journal.dat", error));
 }
+#endif
 
 #ifdef WIN32
 BOOST_AUTO_TEST_CASE(wallet_windows_filename_aliases_are_rejected)

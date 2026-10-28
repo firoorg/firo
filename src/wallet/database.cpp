@@ -400,6 +400,7 @@ bool ValidateWalletDatabaseFilename(const fs::path& path, std::string& error)
         return false;
     }
 #endif
+#ifdef USE_SQLITE
     // Reserve these names even when the corresponding main file is absent:
     // creating that wallet later must not destroy an existing wallet or backup.
     std::string name = path.filename().string();
@@ -413,6 +414,7 @@ bool ValidateWalletDatabaseFilename(const fs::path& path, std::string& error)
             return false;
         }
     }
+#endif
     return true;
 }
 

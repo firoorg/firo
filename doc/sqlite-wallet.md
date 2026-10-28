@@ -71,8 +71,9 @@ permissions or rename operations, including typical FAT32/exFAT backup media,
 are not supported. Back up to a protected supported filesystem first. Do not
 delete journal files to bypass a refusal.
 
-Wallet and backup filenames cannot end in `-journal`, `-wal`, or `-shm`;
-these names belong to SQLite auxiliary files. Windows also rejects filenames
+With SQLite support enabled, wallet and backup filenames cannot end in
+`-journal`, `-wal`, or `-shm`; these names belong to SQLite auxiliary files.
+BDB-only builds retain support for these legacy names. Windows rejects filenames
 ending in a dot or space because Windows silently normalizes those names.
 
 Windows support requires a local NTFS volume with persistent ACLs and stable
