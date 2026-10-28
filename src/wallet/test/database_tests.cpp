@@ -7432,6 +7432,26 @@ BOOST_AUTO_TEST_CASE(sqlite_wallet_coexists_with_other_library_connections)
 }
 
 #ifndef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_backup_requires_owner_controlled_directory)
+{
+    const std::string filename{"sqlite_backup_directory.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    const fs::path directory = GetDataDir() / "backup-directory";
+    fs::create_directory(directory);
+    BOOST_SCOPE_EXIT_ALL() { fs::remove_all(directory); };
+    BOOST_REQUIRE_EQUAL(chmod(directory.string().c_str(), 0777), 0);
+    BOOST_CHECK(!database->Backup(directory / "backup.dat", error));
+    BOOST_CHECK(error.find("owner-controlled") != std::string::npos);
+    BOOST_CHECK(fs::is_empty(directory));
+    BOOST_REQUIRE_EQUAL(chmod(directory.string().c_str(), 0755), 0);
+    BOOST_REQUIRE_MESSAGE(database->Backup(directory / "backup.dat", error), error);
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_backup_resolves_parent_but_not_final_symlinks)
 {
     const std::string filename{"sqlite_parent_link.dat"};
