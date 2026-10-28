@@ -7556,6 +7556,7 @@ BOOST_AUTO_TEST_CASE(sqlite_wallet_load_reorders_atomically)
     BOOST_REQUIRE_MESSAGE(database, error);
     {
         CWalletDB db(*database);
+        BOOST_REQUIRE(db.WriteVersion(CLIENT_VERSION));
         BOOST_REQUIRE(db.WriteOrderPosNext(19));
         for (int i = 0; i < 3; ++i) {
             CMutableTransaction tx;
@@ -7661,7 +7662,7 @@ BOOST_AUTO_TEST_CASE(sqlite_keypoolrefill_rpc_reports_default_size_failure)
         pwalletMain = &wallet;
         JSONRPCRequest request;
         request.params.setArray();
-        if (explicitZero) request.params.push_back(0);
+        if (explicitZero) request.params.push_back(UniValue(0));
         BOOST_CHECK_EXCEPTION(keypoolrefill(request), UniValue, [](const UniValue& rpcError) {
             return rpcError["code"].get_int() == RPC_WALLET_ERROR;
         });
