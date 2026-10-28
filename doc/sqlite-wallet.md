@@ -205,6 +205,12 @@ An interrupted first-time wallet creation also cannot be salvaged. Its error
 message identifies the incomplete wallet; preserve it and use a different
 absent filename for a new wallet rather than removing its creation marker.
 
+Recovery reports the retained source copy's absolute path. SQLite may replay
+its rollback journal before that copy is made: it is the source after journal
+recovery, not a forensic copy of the crash-time database and journal. Preserve
+the stopped wallet and any side files separately before attempting recovery
+when forensic analysis is required.
+
 Firo does not provide a runtime `restorewallet` operation. Restore a backup
 only while the wallet is stopped:
 
