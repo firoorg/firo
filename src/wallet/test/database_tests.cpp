@@ -1175,6 +1175,17 @@ BOOST_AUTO_TEST_CASE(wallet_auxiliary_filenames_are_reserved)
     BOOST_CHECK(ValidateWalletDatabaseFilename(GetDataDir() / "wallet-journal.dat", error));
 }
 
+#ifdef WIN32
+BOOST_AUTO_TEST_CASE(wallet_windows_filename_aliases_are_rejected)
+{
+    std::string error;
+    for (const std::string name : {"wallet.dat.", "wallet.dat ", "wallet.dat-journal."}) {
+        BOOST_CHECK(!ValidateWalletDatabaseFilename(GetDataDir() / name, error));
+    }
+    BOOST_CHECK(ValidateWalletDatabaseFilename(GetDataDir() / "wallet.dat", error));
+}
+#endif
+
 BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
 {
     auto dummy = MakeDummyWalletDatabase();

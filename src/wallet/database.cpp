@@ -393,6 +393,13 @@ bool ResolveWalletDatabaseParent(fs::path& path, std::string& error)
 
 bool ValidateWalletDatabaseFilename(const fs::path& path, std::string& error)
 {
+#ifdef WIN32
+    const auto filename = path.filename().native();
+    if (!filename.empty() && (filename.back() == L'.' || filename.back() == L' ')) {
+        error = "Wallet and backup filenames must not end in a dot or space on Windows; the main file and its auxiliary files would resolve to different names.";
+        return false;
+    }
+#endif
     // Reserve these names even when the corresponding main file is absent:
     // creating that wallet later must not destroy an existing wallet or backup.
     std::string name = path.filename().string();
