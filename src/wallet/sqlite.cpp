@@ -6735,6 +6735,9 @@ bool SQLiteDatabase::Backup(
             "the destination path already exists.",
             collision_action);
     }
+    if (!ResolveWalletDatabaseParent(destination_path, detail)) {
+        return fail(detail, retry_action);
+    }
 
     std::unique_lock<std::mutex> writer_lock(m_writer_mutex);
     {

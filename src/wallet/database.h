@@ -307,6 +307,9 @@ bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::str
  * Require a migration directory and every ancestor to be protected from
  * pathname replacement by an untrusted local user.
  */
+/** Resolve parent symlinks without following the final wallet filename. */
+bool ResolveWalletDatabaseParent(fs::path& path, std::string& error);
+
 bool ValidateWalletMigrationDirectory(
     const fs::path& directory,
     std::string& error);

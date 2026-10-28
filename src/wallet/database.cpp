@@ -375,6 +375,22 @@ const char* DatabaseFormatName(DatabaseFormat format)
     return "unknown";
 }
 
+bool ResolveWalletDatabaseParent(fs::path& path, std::string& error)
+{
+#ifndef WIN32
+    boost::system::error_code ec;
+    const fs::path parent = fs::canonical(
+        path.parent_path().empty() ? fs::path(".") : path.parent_path(), ec);
+    if (ec) {
+        error = strprintf("Cannot resolve wallet directory '%s': %s",
+            path.parent_path().string(), ec.message());
+        return false;
+    }
+    path = parent / path.filename();
+#endif
+    return true;
+}
+
 bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::string& error)
 {
     error.clear();
@@ -394,7 +410,7 @@ bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::str
     }
 
     path = GetDataDir() / filename_path;
-    return true;
+    return ResolveWalletDatabaseParent(path, error);
 }
 
 bool ValidateWalletMigrationDirectory(

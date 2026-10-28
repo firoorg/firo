@@ -7414,6 +7414,33 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_lock_closes_across_exec)
 #endif
 
 #ifndef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_backup_resolves_parent_but_not_final_symlinks)
+{
+    const std::string filename{"sqlite_parent_link.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    const fs::path alias = GetDataDir() / "directory-alias";
+    fs::create_directory_symlink(GetDataDir(), alias);
+    BOOST_SCOPE_EXIT_ALL() { fs::remove(alias); };
+    const fs::path backup = alias / "parent-link-backup.dat";
+    BOOST_REQUIRE_MESSAGE(database->Backup(backup, error), error);
+    fs::path resolved = backup;
+    BOOST_REQUIRE(ResolveWalletDatabaseParent(resolved, error));
+    BOOST_CHECK(resolved == fs::canonical(GetDataDir()) / backup.filename());
+    const fs::path fileLink = alias / "file-link.dat";
+    fs::create_symlink(backup, fileLink);
+    BOOST_SCOPE_EXIT_ALL() { fs::remove(fileLink); };
+    resolved = fileLink;
+    BOOST_REQUIRE(ResolveWalletDatabaseParent(resolved, error));
+    BOOST_CHECK(fs::is_symlink(resolved));
+    BOOST_CHECK(!database->Backup(fileLink, error));
+    fs::remove(backup);
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_live_reopen_failure_requests_shutdown)
 {
     const std::string filename{"sqlite_live_reopen_failure.dat"};
