@@ -693,12 +693,12 @@ bool WalletModel::backupWallet(
     if (wallet->GetDatabase().Format() == DatabaseFormat::BERKELEY) {
         error.clear();
         return wallet->BackupWallet(
-            filename.toLocal8Bit().data());
+            GUIUtil::qstringToBoostPath(filename));
     }
 
     std::string backupError;
     const bool success = wallet->BackupWallet(
-        filename.toLocal8Bit().data(),
+        GUIUtil::qstringToBoostPath(filename),
         backupError);
     error = QString::fromLocal8Bit(backupError.c_str());
     return success;

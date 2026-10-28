@@ -6797,14 +6797,14 @@ bool CWallet::ParameterInteraction()
     return true;
 }
 
-bool CWallet::BackupWallet(const std::string& strDest)
+bool CWallet::BackupWallet(const fs::path& destination)
 {
     std::string error;
-    return BackupWallet(strDest, error);
+    return BackupWallet(destination, error);
 }
 
 bool CWallet::BackupWallet(
-    const std::string& strDest,
+    const fs::path& destination,
     std::string& error)
 {
     error.clear();
@@ -6814,10 +6814,10 @@ bool CWallet::BackupWallet(
             "file-backed. Select a file-backed wallet and retry.",
             DatabaseFormatName(GetDatabase().Format()),
             strWalletFile,
-            strDest);
+            destination.string());
         return false;
     }
-    return GetDatabase().Backup(strDest, error);
+    return GetDatabase().Backup(destination, error);
 }
 
 bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)

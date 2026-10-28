@@ -1731,7 +1731,7 @@ bool BerkeleyDatabase::Rewrite(const char* skip)
     return CDB::Rewrite(*this, skip);
 }
 
-bool BerkeleyDatabase::Backup(const std::string& destination)
+bool BerkeleyDatabase::Backup(const fs::path& destination)
 {
     if (!m_env || m_filename.empty()) {
         return false;
@@ -1778,7 +1778,7 @@ bool BerkeleyDatabase::Backup(const std::string& destination)
 }
 
 bool BerkeleyDatabase::Backup(
-    const std::string& destination,
+    const fs::path& destination,
     std::string& error)
 {
     error.clear();

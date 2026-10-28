@@ -4337,6 +4337,10 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         backupPath.string()));
     const std::string firstBackup =
         ReadFile(backupPath);
+    const fs::path unicodeBackupPath = GetDataDir() /
+        fs::path("backup-\xe5\xa4\x87\xe4\xbb\xbd.dat", fs::detail::utf8_codecvt_facet());
+    BOOST_REQUIRE(database.Backup(unicodeBackupPath));
+    BOOST_CHECK_EQUAL(ReadFile(unicodeBackupPath), firstBackup);
     {
         BerkeleyBatchForTest batch(database, "r+");
         BOOST_REQUIRE(batch.Write(
@@ -6064,6 +6068,11 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     BOOST_CHECK(backupError.empty());
     BOOST_REQUIRE(fs::is_regular_file(backupPath));
     const std::string firstBackup = ReadFile(backupPath);
+    const fs::path unicodeBackupPath = GetDataDir() /
+        fs::path("backup-\xe5\xa4\x87\xe4\xbb\xbd.sqlite", fs::detail::utf8_codecvt_facet());
+    BOOST_REQUIRE(database->Backup(unicodeBackupPath, backupError));
+    BOOST_REQUIRE(fs::is_regular_file(unicodeBackupPath));
+    BOOST_CHECK_EQUAL(ReadFile(unicodeBackupPath), firstBackup);
     const std::set<std::string> entriesBeforeCollision =
         SQLiteTestDirectoryEntries();
     backupError = "unchanged";

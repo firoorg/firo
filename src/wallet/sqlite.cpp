@@ -1958,14 +1958,14 @@ bool CheckAuxiliaryFiles(
         };
 
     if (!inspect_auxiliary(
-            fs::path(path.string() + "-journal"),
+            fs::path(path).concat("-journal"),
             "rollback journal",
             allow_regular_journal)) {
         return false;
     }
     for (const char* suffix : {"-wal", "-shm"}) {
         if (!inspect_auxiliary(
-                fs::path(path.string() + suffix),
+                fs::path(path).concat(suffix),
                 suffix,
                 false)) {
             return false;
@@ -2135,9 +2135,10 @@ CandidateResult CreateOwnedCandidate(
             fs::path(".") :
             final_path.parent_path();
     for (int attempt = 0; attempt < 128; ++attempt) {
-        const std::string candidate_name = strprintf(
-            ".%s.sqlite-%d-%d.tmp",
-            final_path.filename().string(),
+        fs::path candidate_name(".");
+        candidate_name += final_path.filename().native();
+        candidate_name += strprintf(
+            ".sqlite-%d-%d.tmp",
             GetTimeMicros(),
             candidate_counter.fetch_add(1));
         candidate.path =
@@ -4646,9 +4647,9 @@ public:
     std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options) override;
     DatabaseCreationResult CompleteCreation(std::string& error) override;
     bool Rewrite(const char* skip) override;
-    bool Backup(const std::string& destination) override;
+    bool Backup(const fs::path& destination) override;
     bool Backup(
-        const std::string& destination,
+        const fs::path& destination,
         std::string& error) override;
     bool PeriodicFlush() override;
     void Flush(bool shutdown) override;
@@ -6690,14 +6691,14 @@ bool SQLiteDatabase::Rewrite(const char* skip)
     return true;
 }
 
-bool SQLiteDatabase::Backup(const std::string& destination)
+bool SQLiteDatabase::Backup(const fs::path& destination)
 {
     std::string error;
     return Backup(destination, error);
 }
 
 bool SQLiteDatabase::Backup(
-    const std::string& destination,
+    const fs::path& destination,
     std::string& backup_error)
 {
     backup_error.clear();

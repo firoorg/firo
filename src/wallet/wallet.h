@@ -1361,9 +1361,9 @@ public:
     /* Wallets parameter interaction */
     static bool ParameterInteraction();
 
-    bool BackupWallet(const std::string& strDest);
+    bool BackupWallet(const fs::path& destination);
     bool BackupWallet(
-        const std::string& strDest,
+        const fs::path& destination,
         std::string& error);
 
     /* Set the HD chain model (chain child index counters) */

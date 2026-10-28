@@ -207,9 +207,9 @@ public:
 
     std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) override;
     bool Rewrite(const char* skip = nullptr) override;
-    bool Backup(const std::string& destination) override;
+    bool Backup(const fs::path& destination) override;
     bool Backup(
-        const std::string& destination,
+        const fs::path& destination,
         std::string& error) override;
     MigrationBackupResult CreateMigrationBackup(
         const std::string& backup_filename,
