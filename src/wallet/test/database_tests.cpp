@@ -7555,8 +7555,7 @@ BOOST_AUTO_TEST_CASE(sqlite_wallet_load_reorders_atomically)
     auto database = MakeSQLiteDatabase(filename, options, status, error);
     BOOST_REQUIRE_MESSAGE(database, error);
     {
-        CWalletDB db(*database);
-        BOOST_REQUIRE(db.WriteVersion(CLIENT_VERSION));
+        CWalletDB db(*database, {DatabaseBatchMode::READ_WRITE_CREATE});
         BOOST_REQUIRE(db.WriteOrderPosNext(19));
         for (int i = 0; i < 3; ++i) {
             CMutableTransaction tx;
