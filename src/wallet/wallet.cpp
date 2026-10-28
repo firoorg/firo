@@ -864,6 +864,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
         return false;
 
+    bool rewriteSucceeded = true;
     {
         LOCK(cs_wallet);
         mapMasterKeys[++nMasterKeyMaxID] = kMasterKey;
@@ -920,12 +921,21 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 
         // Need to completely rewrite the wallet file; if we don't, bdb might keep
         // bits of the unencrypted private key in slack space in the database file.
-        CDB::Rewrite(strWalletFile);
+        if (fFileBacked) {
+            try {
+                rewriteSucceeded = CDB::Rewrite(strWalletFile);
+            } catch (const std::exception& e) {
+                LogPrintf("EncryptWallet: wallet rewrite failed: %s\n", e.what());
+                rewriteSucceeded = false;
+            }
+            if (!rewriteSucceeded)
+                LogPrintf("EncryptWallet: wallet is encrypted and locked, but unencrypted key data may remain in the database file.\n");
+        }
 
     }
     NotifyStatusChanged(this);
 
-    return true;
+    return rewriteSucceeded;
 }
 
 DBErrors CWallet::ReorderTransactions()

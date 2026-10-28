@@ -71,4 +71,36 @@ BOOST_AUTO_TEST_CASE(rewrite_failure_preserves_source)
     BOOST_REQUIRE(CDB::Rewrite(file));
 }
 
+BOOST_AUTO_TEST_CASE(encryption_reports_failed_cleanup)
+{
+    const std::string file = pwalletMain->strWalletFile;
+    const auto blocked = GetDataDir() / (file + ".rewrite");
+    BOOST_REQUIRE(boost::filesystem::create_directory(blocked));
+    CKey key;
+    key.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+    const SecureString passphrase = "cleanup-test-passphrase";
+
+    BOOST_CHECK(!pwalletMain->EncryptWallet(passphrase));
+    BOOST_CHECK(pwalletMain->IsCrypted());
+    BOOST_CHECK(pwalletMain->IsLocked());
+    BOOST_REQUIRE(pwalletMain->Unlock(passphrase));
+    CKey recovered;
+    BOOST_REQUIRE(pwalletMain->GetKey(key.GetPubKey().GetID(), recovered));
+    BOOST_CHECK(recovered == key);
+    pwalletMain->Lock();
+
+    bitdb.CloseDb(file);
+    CWallet reloaded(file);
+    bool firstRun = false;
+    BOOST_REQUIRE(reloaded.LoadWallet(firstRun) == DB_LOAD_OK);
+    BOOST_CHECK(reloaded.IsCrypted());
+    BOOST_CHECK(reloaded.IsLocked());
+    BOOST_REQUIRE(reloaded.Unlock(passphrase));
+    BOOST_REQUIRE(reloaded.GetKey(key.GetPubKey().GetID(), recovered));
+    BOOST_CHECK(recovered == key);
+    BOOST_REQUIRE(boost::filesystem::remove(blocked));
+    BOOST_REQUIRE(CDB::Rewrite(file));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -7,6 +7,7 @@
 
 import re
 import time
+from pathlib import Path
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -96,6 +97,24 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.nodes[0].walletpassphrase(passphrase2, 10)
         otp = self.get_otp(address)
         assert_equal(privkey, self.nodes[0].dumpprivkey(address, otp))
+
+        # Encryption commits before the final rewrite. A cleanup error must not
+        # report success or claim that the wallet stayed unencrypted.
+        self.stop_node(0)
+        extra_args = [["-wallet=cleanup.dat"]]
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, extra_args)
+        address = self.nodes[0].getnewaddress()
+        privkey = self.nodes[0].dumpprivkey(address, self.get_otp(address))
+        blocked = Path(self.options.tmpdir) / "node0" / "regtest" / "cleanup.dat.rewrite"
+        blocked.mkdir()
+        assert_raises_jsonrpc(-16, "Wallet is encrypted and locked, but cleanup failed", self.nodes[0].encryptwallet, passphrase)
+        bitcoind_processes[0].wait(timeout=60)
+        blocked.rmdir()
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, extra_args)
+        assert_equal(self.nodes[0].getwalletinfo()["unlocked_until"], 0)
+        assert_raises_jsonrpc(-15, "running with an encrypted wallet", self.nodes[0].encryptwallet, passphrase)
+        self.nodes[0].walletpassphrase(passphrase, 60)
+        assert_equal(privkey, self.nodes[0].dumpprivkey(address, self.get_otp(address)))
 
 if __name__ == '__main__':
     WalletEncryptionTest().main()

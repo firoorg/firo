@@ -940,6 +940,8 @@ public:
 
     bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
+    // On failure, IsCrypted() distinguishes committed encryption with failed
+    // file cleanup from a failure before encryption. The passphrase is still needed.
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
     void RequestUnlock();

@@ -3319,6 +3319,12 @@ UniValue encryptwallet(const JSONRPCRequest& request)
             "Encrypts the wallet with <passphrase>.");
 
     if (!pwallet->EncryptWallet(strWalletPass)) {
+        if (pwallet->IsCrypted()) {
+            StartShutdown();
+            throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED,
+                "Error: Wallet is encrypted and locked, but cleanup failed. Unencrypted private-key data may remain in the wallet file. "
+                "Keep your passphrase. Firo is stopping; restarting does not complete this cleanup.");
+        }
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
     }
 
