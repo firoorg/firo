@@ -3319,6 +3319,12 @@ UniValue encryptwallet(const JSONRPCRequest& request)
             "Encrypts the wallet with <passphrase>.");
 
     if (!pwallet->EncryptWallet(strWalletPass)) {
+        if (pwallet->IsCrypted()) {
+            StartShutdown();
+            throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED,
+                "Error: Wallet is encrypted and locked, but cleanup failed. Unencrypted private-key data may remain in the wallet file. "
+                "Keep your passphrase. Firo is stopping; restarting does not complete this cleanup.");
+        }
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
     }
 
@@ -4020,7 +4026,8 @@ UniValue getnewsparkaddress(const JSONRPCRequest& request) {
     spark::Address address = pwallet->sparkWallet->generateNewAddress();
     unsigned char network = spark::GetNetworkType();
 
-    pwallet->SetSparkAddressBook(address.encode(network), "", "receive");
+    if (!pwallet->SetSparkAddressBook(address.encode(network), "", "receive"))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Could not save the Spark address to the address book.");
 
     UniValue result(UniValue::VARR);
     result.push_back(address.encode(network));

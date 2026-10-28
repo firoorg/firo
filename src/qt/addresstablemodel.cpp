@@ -508,6 +508,13 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
     if(!index.isValid())
         return false;
     AddressTableEntry *rec = static_cast<AddressTableEntry*>(index.internalPointer());
+    if (role == Qt::EditRole && rec->addressType == Spark) {
+        if (index.column() == Label)
+            return editSparkAddress(index.row(), value.toString(), rec->address);
+        if (index.column() == Address)
+            return editSparkAddress(index.row(), rec->label, value.toString());
+        return false;
+    }
     std::string strPurpose = (rec->type == AddressTableEntry::Sending ? "send" : "receive");
     editStatus = OK;
 
@@ -524,9 +531,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
                 editStatus = NO_CHANGES;
                 return false;
             }
-            if(rec->addressType == AddressTableModel::Spark){
-                wallet->SetSparkAddressBook(curSAddress, value.toString().toStdString(), strPurpose);
-            } else if(rec->addressType == AddressTableModel::Transparent) {
+            if(rec->addressType == AddressTableModel::Transparent) {
                 wallet->SetAddressBook(curAddress, value.toString().toStdString(), strPurpose);
             } else if(rec->addressType == AddressTableModel::RAP){
                 wallet->SetRAPAddressBook(curSAddress, value.toString().toStdString(), strPurpose);
@@ -534,27 +539,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
                 return false;
             }
         } else if(index.column() == Address) {
-            if(rec->addressType == AddressTableModel::Spark){
-                std::string newSparkAddress = value.toString().toStdString();
-                if(!walletModel->validateSparkAddress(value.toString())) {
-                    editStatus = INVALID_ADDRESS;
-                    return false;
-                } else if(newSparkAddress == curSAddress)
-                {
-                    editStatus = NO_CHANGES;
-                    return false;
-                } else if(wallet->mapSparkAddressBook.count(newSparkAddress))
-                {
-                    editStatus = DUPLICATE_ADDRESS;
-                    return false;
-                }else if(rec->type == AddressTableEntry::Sending)
-                {
-                    // Remove old entry
-                    wallet->DelAddressBook(curSAddress);
-                    // Add new entry with new address
-                    wallet->SetSparkAddressBook(newSparkAddress, rec->label.toStdString(), strPurpose);
-                }
-            } else if(rec->addressType == AddressTableModel::Transparent){
+            if(rec->addressType == AddressTableModel::Transparent){
                 CTxDestination newAddress = CBitcoinAddress(value.toString().toStdString()).Get();
                 // Refuse to set invalid address, set error status and return false
                 if(boost::get<CNoDestination>(&newAddress))
@@ -608,6 +593,35 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
         return true;
     }
     return false;
+}
+
+bool AddressTableModel::editSparkAddress(int row, const QString& label, const QString& address)
+{
+    editStatus = OK;
+    const auto* rec = priv->index(row);
+    if (!rec || rec->addressType != Spark)
+        return false;
+    if (rec->label == label && rec->address == address) {
+        editStatus = NO_CHANGES;
+        return true;
+    }
+    LOCK(wallet->cs_wallet);
+    if (rec->address != address) {
+        if (rec->type != AddressTableEntry::Sending || !wallet->validateSparkAddress(address.toStdString())) {
+            editStatus = INVALID_SPARK_ADDRESS;
+            return false;
+        }
+        if (wallet->mapSparkAddressBook.count(address.toStdString())) {
+            editStatus = DUPLICATE_ADDRESS;
+            return false;
+        }
+    }
+    if (!wallet->ReplaceSparkAddressBook(rec->address.toStdString(), address.toStdString(), label.toStdString(),
+                                        rec->type == AddressTableEntry::Sending ? "send" : "receive")) {
+        editStatus = DATABASE_ERROR;
+        return false;
+    }
+    return true;
 }
 
 QVariant AddressTableModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -762,8 +776,11 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
     {
         LOCK(wallet->cs_wallet);
         if(addressType == AddressTableModel::Spark) {
-            wallet->SetSparkAddressBook(strAddress, strLabel,
-                                (type == Send ? "send" : "receive"));
+            if (!wallet->SetSparkAddressBook(strAddress, strLabel,
+                                           (type == Send ? "send" : "receive"))) {
+                editStatus = DATABASE_ERROR;
+                return QString();
+            }
         } else if(addressType == AddressTableModel::Transparent){
             wallet->SetAddressBook(CBitcoinAddress(strAddress).Get(), strLabel,
                                 (type == Send ? "send" : "receive"));
