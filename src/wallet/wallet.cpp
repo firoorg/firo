@@ -1810,8 +1810,9 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
     bool masterKeyIdReserved = false;
     bool masterKeyInserted = false;
     bool keyMutationStarted = false;
+    {
+    LOCK(cs_wallet);
     try {
-        LOCK(cs_wallet);
         newMasterKeyId = ++nMasterKeyMaxID;
         masterKeyIdReserved = true;
         if (!mapMasterKeys.emplace(newMasterKeyId, kMasterKey).second) {
@@ -1940,6 +1941,8 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
             StartShutdown();
         }
         return false;
+    }
+
     }
 
     bool initialLockSuccess = false;
