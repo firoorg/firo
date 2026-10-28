@@ -5,6 +5,12 @@ SQLite wallet databases during the coexistence period. When SQLite support is
 enabled, new wallets default to SQLite. BDB wallets remain supported and are
 never migrated automatically.
 
+Older releases without SQLite wallet support cannot open a SQLite wallet.
+Changing `-walletdbformat` does not convert it back to BDB. Before migration,
+keep the original BDB backup; restoring it later also requires recovering any
+keys or wallet metadata added after that backup. Choose `-walletdbformat=bdb`
+when creating a wallet that must remain usable with older releases.
+
 ## Build configuration
 
 Wallet builds currently require BDB support. On Linux, macOS, and Windows,
