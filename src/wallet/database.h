@@ -247,8 +247,9 @@ enum class DatabaseStatus {
  * Persistent identity and lifecycle operations for one wallet database.
  *
  * The owner must outlive every batch and cursor made from it. Implementations
- * support nested and parallel batches and coordinate lifecycle operations
- * with concurrent writers.
+ * coordinate parallel batches and lifecycle operations with concurrent writers.
+ * SQLite callers must reuse the batch holding an active transaction; accessing
+ * another batch on that thread can deadlock. Close live cursors before writing.
  */
 class WalletDatabase
 {
