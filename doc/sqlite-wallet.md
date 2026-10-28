@@ -193,6 +193,18 @@ report their separate retained backup paths.
 
 ## Offline restoration
 
+SQLite automatic recovery makes a logical copy when integrity checks fail but
+all wallet records remain readable. `-salvagewallet` instead copies validated
+legacy key records; it is not a complete backup of mnemonic, Spark, or BIP47
+wallet data. Both modes stop if a table page cannot be read, rather than publish
+an incomplete recovery. Unlike BDB aggressive salvage, they cannot recover
+records beyond an unreadable page. Preserve the source and restore a known-good
+backup, or have a specialist attempt offline recovery on a separate copy.
+
+An interrupted first-time wallet creation also cannot be salvaged. Its error
+message identifies the incomplete wallet; preserve it and use a different
+absent filename for a new wallet rather than removing its creation marker.
+
 Firo does not provide a runtime `restorewallet` operation. Restore a backup
 only while the wallet is stopped:
 
