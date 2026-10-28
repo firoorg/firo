@@ -11,6 +11,7 @@
 
 #include "base58.h"
 #include "bip47/account.h"
+#include "consensus/consensus.h"
 #include "hash.h"
 #include "primitives/block.h"
 #include "protocol.h"
@@ -7544,7 +7545,7 @@ BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
     BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
         std::make_unique<CountingSQLiteStatementExecutor>(commits)));
     BOOST_REQUIRE(wallet.TopUpKeyPool(10));
-    BOOST_CHECK_EQUAL(wallet.setKeyPool.size(), 11);
+    BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 11);
     BOOST_CHECK_EQUAL(commits, 1);
 
     const SecureString passphrase{"keypool test"};
@@ -7553,15 +7554,15 @@ BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
     commits = 0;
     BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
         std::make_unique<CountingSQLiteStatementExecutor>(commits)));
-    const auto target = wallet.setKeyPool.size() + 5;
+    const auto target = wallet.GetKeyPoolSize() + 5;
     BOOST_REQUIRE(wallet.TopUpKeyPool(target));
-    BOOST_CHECK_EQUAL(wallet.setKeyPool.size(), target + 1);
+    BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), target + 1);
     BOOST_CHECK_EQUAL(commits, 1);
 
     BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
         std::make_unique<BlockingSQLiteStatementExecutor>(std::set<std::string>{"COMMIT TRANSACTION"})));
     BOOST_CHECK(!wallet.TopUpKeyPool(target + 5));
-    BOOST_CHECK(wallet.setKeyPool.empty());
+    BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 0);
     BOOST_CHECK(ShutdownRequested());
     BOOST_CHECK_THROW(wallet.GetDatabase().MakeBatch(), std::runtime_error);
 }
