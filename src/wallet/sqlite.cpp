@@ -563,7 +563,11 @@ bool ValidateLogicalCreationMarker(
     if (state == SQLiteCreationMarkerState::PRESENT &&
         policy == SQLiteCreationMarkerPolicy::REQUIRE_ABSENT) {
         error = strprintf(
-            "SQLite wallet '%s' is incomplete because its logical creation did not finish.",
+            "SQLite wallet '%s' is incomplete because its logical creation did not finish. "
+            "Preserve this file and any recovery phrase before doing anything else. "
+            "Restore a known-good backup, or move the incomplete file aside while Firo "
+            "is stopped and recover using the original recovery phrase. Do not delete "
+            "the file if it may contain your only copy of private keys.",
             path.string());
         return false;
     }
