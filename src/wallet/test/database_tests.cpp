@@ -7414,7 +7414,7 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_lock_closes_across_exec)
 #endif
 
 #ifndef WIN32
-BOOST_AUTO_TEST_CASE(sqlite_creation_retains_sqlite_file_lock)
+BOOST_AUTO_TEST_CASE(sqlite_creation_and_idle_flush_retain_sqlite_file_lock)
 {
     const std::string filename{"sqlite_creation_lock.dat"};
     DatabaseOptions options;
@@ -7425,6 +7425,8 @@ BOOST_AUTO_TEST_CASE(sqlite_creation_retains_sqlite_file_lock)
     BOOST_REQUIRE_MESSAGE(database, error);
     const std::string path = (GetDataDir() / filename).string();
     const pid_t parent = getpid();
+    for (int phase = 0; phase < 2; ++phase) {
+    if (phase != 0) BOOST_REQUIRE(database->PeriodicFlush());
     const pid_t child = fork();
     if (child == 0) {
         const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
@@ -7447,6 +7449,7 @@ BOOST_AUTO_TEST_CASE(sqlite_creation_retains_sqlite_file_lock)
     BOOST_REQUIRE_EQUAL(waited, child);
     BOOST_REQUIRE(WIFEXITED(result));
     BOOST_CHECK_EQUAL(WEXITSTATUS(result), 0);
+    }
     database.reset();
     RemoveSQLiteTestFiles(filename);
 }

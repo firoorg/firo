@@ -3810,7 +3810,8 @@ private:
     bool OpenExistingLocked(
         std::string& error,
         bool* cleanup_allowed = nullptr,
-        std::optional<SQLiteCreationMarkerPolicy> marker_policy = std::nullopt)
+        std::optional<SQLiteCreationMarkerPolicy> marker_policy = std::nullopt,
+        bool verify = true)
     {
         if (m_poisoned.load() || m_database) {
             error = strprintf(
@@ -3865,7 +3866,8 @@ private:
             Poison();
             return false;
         }
-        if (!VerifyDatabase(m_database, error) ||
+        if (!VerifyDatabaseIdentity(m_database, error) ||
+            !VerifySchema(m_database, error) ||
             !ValidateLogicalCreationMarker(
                 m_database,
                 m_path,
@@ -3893,7 +3895,7 @@ private:
                 m_path,
                 m_identity,
                 error) ||
-            !VerifyDatabase(m_database, error) ||
+            (verify && !VerifyDatabase(m_database, error)) ||
             !ValidateLogicalCreationMarker(
                 m_database,
                 m_path,
@@ -4589,10 +4591,10 @@ public:
         }
     }
 
-    bool InitializeExisting(std::string& error)
+    bool InitializeExisting(std::string& error, bool verify)
     {
         std::unique_lock<std::shared_mutex> lock(m_connection_mutex);
-        const bool initialized = OpenExistingLocked(error);
+        const bool initialized = OpenExistingLocked(error, nullptr, std::nullopt, verify);
         std::lock_guard<std::mutex> state_lock(m_state_mutex);
         m_open = initialized;
         return initialized;
@@ -7048,7 +7050,6 @@ bool SQLiteDatabase::PeriodicFlush()
         if (m_batch_count != 0) {
             return false;
         }
-        m_open = false;
     }
     if (!m_database || !m_usable.load() || m_poisoned.load()) {
         return false;
@@ -7056,21 +7057,14 @@ bool SQLiteDatabase::PeriodicFlush()
 
     const int flush_result = sqlite3_db_cacheflush(m_database);
     if (flush_result != SQLITE_OK) {
-        {
-            std::lock_guard<std::mutex> state_lock(m_state_mutex);
-            m_open = true;
-        }
         LogSQLiteError(
             "SQLiteDatabase: Failed periodic cache flush",
             m_database,
             flush_result);
         return false;
     }
-    const bool closed = CloseOrAbandonSQLiteConnection(m_database);
-    if (!closed) {
-        Poison();
-    }
-    return closed;
+    // Keep the exclusive connection and its verified state until shutdown.
+    return true;
 }
 
 void SQLiteDatabase::Flush(bool shutdown)
@@ -8215,7 +8209,7 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
                 path,
                 options.sqlite_migration_candidate);
             return exists ?
-                       database->InitializeExisting(error) :
+                       database->InitializeExisting(error, options.verify) :
                        database->InitializeCreated(
                            candidate,
                            options.logical_wallet_create,
