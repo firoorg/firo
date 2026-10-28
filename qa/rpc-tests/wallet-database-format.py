@@ -80,9 +80,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         message = (
             "Wallet database migration succeeded for '%s'; "
             "Berkeley DB backup retained at '" % wallet_name)
-        matches = re.findall(
+        matches = sorted(set(re.findall(
             re.escape(message) + r"([^'\r\n]+)'\.",
-            log)
+            log)))
         assert_equal(len(matches), 1)
         backup_path = matches[0]
         assert os.path.isabs(backup_path)
