@@ -1538,9 +1538,10 @@ bool CWallet::Verify()
             database->RecoveryBackupPath();
         if (!recoveryBackup.empty()) {
             InitWarning(strprintf(
-                _("Warning: Wallet file corrupt, data salvaged! Exact original "
-                  "%s retained at %s; if your balance or transactions are "
-                  "incorrect you should restore from that backup."),
+                _("Warning: Wallet file corrupt, data salvaged! Source copy of "
+                  "%s retained at %s after any database journal recovery. "
+                  "If your balance or transactions are incorrect, restore "
+                  "from a known-good backup."),
                 walletFile,
                 recoveryBackup));
         } else {
