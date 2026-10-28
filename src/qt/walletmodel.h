@@ -166,7 +166,7 @@ public:
     QString signSparkMessage(const QString &sparkAddress, const QString &message, QString &error);
 
     // Generate spark address
-    QString generateSparkAddress();
+    QString generateSparkAddress(const QString& label = QString());
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn

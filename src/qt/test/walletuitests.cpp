@@ -11,6 +11,7 @@
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "createsparknamepage.h"
+#include "editaddressdialog.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "init.h"
@@ -45,6 +46,11 @@
 #include "walletmodel.h"
 #include "walletview.h"
 
+#ifdef USE_SQLITE
+#include "wallet/sqlite.h"
+#include <sqlite3.h>
+#endif
+
 #include <QAbstractItemDelegate>
 #include <QAbstractSpinBox>
 #include <QAction>
@@ -63,6 +69,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QLocale>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPointer>
@@ -120,6 +127,81 @@ public:
         return QVariant();
     }
 };
+}
+
+void WalletUiTests::sparkAddressWriteFailure()
+{
+#ifdef USE_SQLITE
+    ECCVerifyHandle verifyHandle;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const std::string previousDataDir = GetArg("-datadir", GetDefaultDataDir().string());
+    const auto restore = qScopeGuard([&] {
+        ForceSetArg("-datadir", previousDataDir);
+        ClearDatadirCache();
+    });
+    ForceSetArg("-datadir", directory.path().toStdString());
+    ClearDatadirCache();
+    DatabaseOptions databaseOptions;
+    databaseOptions.require_create = true;
+    databaseOptions.require_format = DatabaseFormat::SQLITE;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase("spark_gui.dat", databaseOptions, status, error);
+    QVERIFY2(database, error.c_str());
+    CWallet wallet(std::move(database));
+    const CPubKey masterKey = wallet.GenerateNewHDMasterKey();
+    QVERIFY(wallet.SetHDMasterKey(masterKey, CHDChain().VERSION_WITH_BIP44));
+    wallet.sparkWallet = std::make_unique<CSparkWallet>(wallet);
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    WalletModel model(style.get(), &wallet, &options);
+    const QString address = model.getAddressTableModel()->addRow(
+        AddressTableModel::Receive, "test label", "", AddressTableModel::Spark);
+    QVERIFY(!address.isEmpty());
+    QCOMPARE(wallet.mapSparkAddressBook.at(address.toStdString()).name, std::string("test label"));
+    const auto count = wallet.sparkWallet->getAllAddresses().size();
+
+    class RejectDiversifier final : public SQLiteStatementExecutor {
+        int Execute(sqlite3* db, const char* statement) override
+        {
+            if (std::string(statement) == "BEGIN TRANSACTION") {
+                const int result = sqlite3_exec(db,
+                    "CREATE TEMP TRIGGER reject_div BEFORE INSERT ON main "
+                    "WHEN NEW.key = X'03646976' BEGIN SELECT RAISE(FAIL, 'test write failure'); END",
+                    nullptr, nullptr, nullptr);
+                if (result != SQLITE_OK) return result;
+            }
+            return SQLiteStatementExecutor::Execute(db, statement);
+        }
+    };
+    {
+        auto batch = wallet.GetDatabase().MakeBatch();
+        QVERIFY(SetSQLiteStatementExecutorForTesting(*batch, std::make_unique<RejectDiversifier>()));
+        QVERIFY(batch->TxnBegin());
+        QVERIFY(batch->TxnAbort());
+    }
+    QSignalSpy errors(&model, &WalletModel::message);
+    QVERIFY(model.generateSparkAddress().isEmpty());
+    QCOMPARE(errors.size(), 1);
+    QVERIFY(model.getAddressTableModel()->addRow(
+        AddressTableModel::Receive, "failed", "", AddressTableModel::Spark).isEmpty());
+    QCOMPARE(errors.size(), 2);
+    QCOMPARE(model.getAddressTableModel()->getEditStatus(), AddressTableModel::KEY_GENERATION_FAILURE);
+    QCOMPARE(wallet.sparkWallet->getAllAddresses().size(), count);
+    EditAddressDialog dialog(EditAddressDialog::NewSparkReceivingAddress, nullptr);
+    dialog.setModel(model.getAddressTableModel());
+    int extraDialogs = 0;
+    QTimer::singleShot(0, &dialog, [&] {
+        if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+            ++extraDialogs;
+            box->accept();
+        }
+    });
+    dialog.accept();
+    QCOMPARE(extraDialogs, 0);
+    QCOMPARE(errors.size(), 3);
+#endif
 }
 
 void WalletUiTests::manualConsolidation()

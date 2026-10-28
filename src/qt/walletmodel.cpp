@@ -1313,18 +1313,24 @@ QString WalletModel::signSparkMessage(const QString& sparkAddress, const QString
     }
 }
 
-QString WalletModel::generateSparkAddress()
+QString WalletModel::generateSparkAddress(const QString& label)
 {
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
 
-    {
+    try {
         LOCK(wallet->cs_wallet);
         address = wallet->sparkWallet->generateNewAddress();
         unsigned char network = spark::GetNetworkType();
 
-        wallet->SetSparkAddressBook(address.encode(network), "", "receive");
+        wallet->SetSparkAddressBook(address.encode(network), label.toStdString(), "receive");
         return QString::fromStdString(address.encode(network));
+    } catch (const std::exception& e) {
+        LogPrintf("Spark address creation failed: %s\n", e.what());
+        Q_EMIT message(tr("Address creation failed"),
+            tr("Could not save the new Spark address. Please check the debug log."),
+            CClientUIInterface::MSG_ERROR);
+        return QString();
     }
 }
 
