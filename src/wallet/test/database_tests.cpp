@@ -7544,6 +7544,64 @@ BOOST_AUTO_TEST_CASE(sqlite_bulk_erase_commits_once_and_preserves_memory_on_fail
     BOOST_CHECK_EQUAL(removed.size(), 3);
 }
 
+BOOST_AUTO_TEST_CASE(sqlite_wallet_load_reorders_atomically)
+{
+    const std::string filename{"sqlite_reorder.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    {
+        CWalletDB db(*database);
+        BOOST_REQUIRE(db.WriteOrderPosNext(19));
+        for (int i = 0; i < 3; ++i) {
+            CMutableTransaction tx;
+            tx.vin.emplace_back(COutPoint(), CScript() << OP_1 << OP_1);
+            tx.vout.emplace_back(i + 1, CScript() << OP_TRUE);
+            CWalletTx wtx(nullptr, MakeTransactionRef(tx));
+            wtx.nTimeReceived = i + 1;
+            BOOST_REQUIRE(db.WriteTx(wtx));
+        }
+    }
+    const auto original = ReadRawRecords(*database->MakeBatch());
+    {
+        CWallet wallet(std::move(database));
+        BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+            std::make_unique<BlockingSQLiteStatementExecutor>(std::set<std::string>{"COMMIT TRANSACTION"})));
+        CWalletDB db(wallet.GetDatabase());
+        BOOST_CHECK(db.LoadWallet(&wallet) == DB_LOAD_FAIL);
+        BOOST_CHECK_EQUAL(wallet.nOrderPosNext, 19);
+        for (const auto& item : wallet.mapWallet) BOOST_CHECK_EQUAL(item.second.nOrderPos, -1);
+        BOOST_CHECK(ReadRawRecords(*wallet.GetDatabase().MakeBatch()) == original);
+    }
+    options.require_create = false;
+    options.require_existing = true;
+    database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    {
+        CWallet wallet(std::move(database));
+        int commits = 0;
+        BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+            std::make_unique<CountingSQLiteStatementExecutor>(commits)));
+        CWalletDB db(wallet.GetDatabase());
+        BOOST_REQUIRE(db.LoadWallet(&wallet) == DB_LOAD_OK);
+        BOOST_CHECK_EQUAL(commits, 1);
+        BOOST_CHECK_EQUAL(wallet.nOrderPosNext, 3);
+        for (const auto& item : wallet.mapWallet)
+            BOOST_CHECK_EQUAL(item.second.nOrderPos, item.second.nTimeReceived - 1);
+    }
+    database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    CWallet wallet(std::move(database));
+    CWalletDB db(wallet.GetDatabase());
+    BOOST_REQUIRE(db.LoadWallet(&wallet) == DB_LOAD_OK);
+    BOOST_CHECK_EQUAL(wallet.nOrderPosNext, 3);
+    for (const auto& item : wallet.mapWallet)
+        BOOST_CHECK_EQUAL(item.second.nOrderPos, item.second.nTimeReceived - 1);
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
 {
     ShutdownRequestReset shutdownReset;

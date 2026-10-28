@@ -2042,6 +2042,8 @@ DBErrors CWallet::ReorderTransactions()
 {
     LOCK(cs_wallet);
     CWalletDB walletdb(GetDatabase());
+    if (GetDatabase().Format() == DatabaseFormat::SQLITE)
+        return walletdb.ReorderTransactions(this);
 
     // Old wallets didn't have any defined order for transactions
     // Probably a bad idea to change the output of this

@@ -897,7 +897,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update, bool checkTransact
         WriteVersion(CLIENT_VERSION);
 
     if (update && wss.fAnyUnordered)
-        result = pwallet->ReorderTransactions();
+        result = m_format == DatabaseFormat::SQLITE ? ReorderTransactions(pwallet) : pwallet->ReorderTransactions();
 
     pwallet->laccentries.clear();
     ListAccountCreditDebit("*", pwallet->laccentries);
