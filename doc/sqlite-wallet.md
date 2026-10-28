@@ -1,14 +1,14 @@
 # SQLite wallet storage
 
 On Linux, macOS, and Windows, Firo supports writable Berkeley DB (BDB) and
-SQLite wallet databases during the coexistence period. When SQLite support is
-enabled, new wallets default to SQLite. BDB wallets remain supported and are
-never migrated automatically.
+SQLite wallet databases during the coexistence period. New wallets default to
+BDB even when SQLite support is compiled in. SQLite creation requires
+`-walletdbformat=sqlite`; existing BDB wallets are never migrated automatically.
 
 Older releases without SQLite wallet support cannot open a SQLite wallet.
 Changing `-walletdbformat` does not convert it back to BDB. Before migration,
 keep the original BDB backup; restoring it later also requires recovering any
-keys or wallet metadata added after that backup. Choose `-walletdbformat=bdb`
+keys or wallet metadata added after that backup. Keep the default BDB format
 when creating a wallet that must remain usable with older releases.
 
 ## Build configuration
@@ -22,8 +22,9 @@ cmake -S . -B build \
   -DENABLE_SQLITE_WALLET=ON
 ```
 
-`ENABLE_SQLITE_WALLET` defaults to `ON` on all three platforms. Their depends
-builds supply SQLite 3.50.4. A supported BDB-only build uses:
+`ENABLE_SQLITE_WALLET` defaults to `ON` on all three platforms. This compiles
+SQLite support without changing the default wallet format from BDB. Their
+depends builds supply SQLite 3.50.4. A supported BDB-only build uses:
 
 ```bash
 cmake -S . -B build-bdb \
@@ -104,20 +105,20 @@ operation is unavailable or cannot be verified.
 
 ## Creating and identifying wallets
 
-When SQLite support is enabled, a new wallet uses SQLite by default:
+New wallets use BDB by default, including builds with SQLite support enabled:
 
 ```bash
 firod -wallet=wallet-new.dat
 ```
 
-Create a BDB wallet explicitly during coexistence with:
+Create a SQLite wallet explicitly with:
 
 ```bash
-firod -wallet=wallet-bdb.dat -walletdbformat=bdb
+firod -wallet=wallet-sqlite.dat -walletdbformat=sqlite
 ```
 
-`-walletdbformat=sqlite` explicitly selects SQLite for a new wallet. The
-option only selects the format during creation. An existing wallet is
+`-walletdbformat=bdb` explicitly selects the default BDB format. The option
+only selects the format during creation. An existing wallet is
 identified from its file contents and retains its format even if a different
 creation selector is supplied later.
 

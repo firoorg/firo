@@ -658,11 +658,7 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         if (options.require_format) {
             format = options.require_format;
         } else {
-#ifdef USE_SQLITE
-            format = DatabaseFormat::SQLITE;
-#else
             format = DatabaseFormat::BERKELEY;
-#endif
         }
     }
 

@@ -389,7 +389,6 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_only_wallet = "wallet-bdb-only-migration.dat"
             node = self.start_wallet([
                 "-wallet=" + bdb_only_wallet,
-                "-walletdbformat=bdb",
             ])
             assert_equal(node.getwalletinfo()["format"], "bdb")
             node.getnewaddress("bdb-only-preserved")
@@ -429,9 +428,12 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             missing_state)
         assert_equal(self.migration_artifacts(), artifacts)
 
-        sqlite_wallet = "wallet-default-sqlite.dat"
+        sqlite_wallet = "wallet-explicit-sqlite.dat"
         sqlite_account = "sqlite-persisted"
-        node = self.start_wallet(["-wallet=" + sqlite_wallet])
+        node = self.start_wallet([
+            "-wallet=" + sqlite_wallet,
+            "-walletdbformat=sqlite",
+        ])
         assert_equal(node.getwalletinfo()["format"], "sqlite")
         sqlite_address = node.getnewaddress(sqlite_account)
         sqlite_rap_state = self.create_rap_state(
@@ -455,12 +457,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             sqlite_rap_state)
         self.stop_wallet()
 
-        bdb_wallet = "wallet-explicit-bdb.dat"
+        bdb_wallet = "wallet.dat"
         bdb_account = "bdb-persisted"
-        node = self.start_wallet([
-            "-wallet=" + bdb_wallet,
-            "-walletdbformat=bdb",
-        ])
+        node = self.start_wallet([])
         assert_equal(node.getwalletinfo()["format"], "bdb")
         bdb_address = node.getnewaddress(bdb_account)
         bdb_hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
@@ -709,6 +708,7 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         failed_start_offset = os.path.getsize(self.debug_log_path())
         self.assert_start_fails([
             "-wallet=" + failed_wallet,
+            "-walletdbformat=sqlite",
             "-usemnemonic=1",
             "-mnemonicpassphrase=" + ("p" * 257),
         ])
@@ -723,7 +723,10 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         assert not os.path.exists(failed_wallet_path + "-wal")
         assert not os.path.exists(failed_wallet_path + "-shm")
 
-        node = self.start_wallet(["-wallet=" + failed_wallet])
+        node = self.start_wallet([
+            "-wallet=" + failed_wallet,
+            "-walletdbformat=sqlite",
+        ])
         assert_equal(node.getwalletinfo()["format"], "sqlite")
         failed_account = "failed-wallet-recreated"
         failed_address = node.getnewaddress(failed_account)

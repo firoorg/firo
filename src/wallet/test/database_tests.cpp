@@ -1471,13 +1471,8 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     std::unique_ptr<WalletDatabase> defaultDatabase = makeDatabase(missingFilename, defaults, status, error);
     BOOST_REQUIRE(defaultDatabase);
     BOOST_CHECK(status == DatabaseStatus::SUCCESS);
-#ifdef USE_SQLITE
-    BOOST_CHECK(defaultDatabase->Format() == DatabaseFormat::SQLITE);
-    BOOST_CHECK(fs::exists(missingPath));
-#else
     BOOST_CHECK(defaultDatabase->Format() == DatabaseFormat::BERKELEY);
     BOOST_CHECK(!fs::exists(missingPath));
-#endif
     {
         std::unique_ptr<DatabaseBatch> batch = defaultDatabase->MakeBatch({DatabaseBatchMode::READ_WRITE_CREATE});
         BOOST_REQUIRE(batch);
@@ -1488,11 +1483,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
 
     std::unique_ptr<WalletDatabase> defaultReopened = makeDatabase(missingFilename, requireExisting, status, error);
     BOOST_REQUIRE(defaultReopened);
-#ifdef USE_SQLITE
-    BOOST_CHECK(defaultReopened->Format() == DatabaseFormat::SQLITE);
-#else
     BOOST_CHECK(defaultReopened->Format() == DatabaseFormat::BERKELEY);
-#endif
     {
         std::unique_ptr<DatabaseBatch> batch = defaultReopened->MakeBatch({DatabaseBatchMode::READ_ONLY});
         BOOST_REQUIRE(batch);
@@ -1502,11 +1493,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     }
     BOOST_REQUIRE(defaultReopened->PeriodicFlush());
     defaultReopened.reset();
-#ifdef USE_SQLITE
-    RemoveSQLiteTestFiles(missingFilename);
-#else
     BOOST_CHECK(bitdb.RemoveDb(missingFilename));
-#endif
 
     const std::string unknownFilename{"factory_unknown_test.dat"};
     const fs::path unknownPath = GetDataDir() / unknownFilename;
@@ -6772,8 +6759,6 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     DatabaseOptions createOptions;
     createOptions.require_create = true;
     createOptions.require_format = DatabaseFormat::SQLITE;
-    DatabaseOptions defaultCreateOptions;
-    defaultCreateOptions.require_create = true;
     DatabaseStatus status = DatabaseStatus::SUCCESS;
     std::string error{"unchanged"};
 
@@ -6787,7 +6772,7 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
             std::unique_ptr<WalletDatabase> failed =
                 MakeWalletDatabase(
                     filename,
-                    defaultCreateOptions,
+                    createOptions,
                     status,
                     error);
             BOOST_CHECK(!failed);
@@ -6948,7 +6933,7 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     InjectSQLiteDirectorySyncFailureForTesting(EINVAL);
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(
         syncCreateFilename,
-        defaultCreateOptions,
+        createOptions,
         status,
         error);
     BOOST_CHECK(!database);
@@ -7135,7 +7120,7 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     error = "unchanged";
     database = MakeWalletDatabase(
         indeterminateFilename,
-        defaultCreateOptions,
+        createOptions,
         status,
         error);
     BOOST_CHECK(!database);
