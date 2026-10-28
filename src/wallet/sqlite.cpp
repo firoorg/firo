@@ -96,7 +96,6 @@ enum class SQLiteCreationMarkerPolicy {
 
 std::mutex g_sqlite_mutex;
 size_t g_sqlite_owner_count{0};
-bool g_sqlite_initialized{false};
 std::atomic<bool> g_sqlite_has_abandoned_connection{false};
 sqlite3* g_sqlite_first_abandoned_connection{nullptr};
 size_t g_sqlite_abandoned_connection_count{0};
@@ -240,19 +239,16 @@ bool AcquireSQLite(std::string& error)
             "restart the process before opening another SQLite wallet.";
         return false;
     }
-    if (!g_sqlite_initialized) {
-        int result = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
-        if (result != SQLITE_OK) {
-            error = strprintf("Failed to configure serialized SQLite threading mode (error %d).", result);
-            return false;
-        }
-        result = sqlite3_initialize();
-        if (result != SQLITE_OK) {
-            error = strprintf("Failed to initialize SQLite (error %d).", result);
-            sqlite3_shutdown();
-            return false;
-        }
-        g_sqlite_initialized = true;
+    if (sqlite3_threadsafe() == 0) {
+        error = "SQLite wallet support requires a thread-safe SQLite library.";
+        return false;
+    }
+    // Other libraries may already use SQLite. Do not reconfigure their global
+    // state; each wallet connection explicitly requests FULLMUTEX instead.
+    const int result = sqlite3_initialize();
+    if (result != SQLITE_OK) {
+        error = strprintf("Failed to initialize SQLite (error %d).", result);
+        return false;
     }
     ++g_sqlite_owner_count;
     return true;
@@ -265,16 +261,7 @@ void ReleaseSQLite() noexcept
         return;
     }
     --g_sqlite_owner_count;
-    if (g_sqlite_owner_count == 0 &&
-        !g_sqlite_has_abandoned_connection.load()) {
-        const int result = sqlite3_shutdown();
-        if (result != SQLITE_OK) {
-            LogPrintf("SQLiteDatabase: Failed to shut down SQLite (error %d).\n", result);
-            g_sqlite_has_abandoned_connection.store(true);
-        } else {
-            g_sqlite_initialized = false;
-        }
-    }
+    // The last wallet owner does not imply the last process-wide SQLite user.
 }
 
 void CleanseStream(CDataStream& stream) noexcept
@@ -1493,6 +1480,11 @@ bool OpenSQLiteConnection(
             "Failed to open SQLite wallet '%s': %s",
             path.string(),
             database ? sqlite3_errmsg(database) : sqlite3_errstr(result));
+        CloseOrAbandonSQLiteConnection(database, cleanup_allowed);
+        return false;
+    }
+    if (!sqlite3_db_mutex(database)) {
+        error = "SQLite wallet connections require serialized threading support.";
         CloseOrAbandonSQLiteConnection(database, cleanup_allowed);
         return false;
     }
@@ -8595,7 +8587,6 @@ bool ResetSQLiteLifecycleForTesting()
     if (result != SQLITE_OK) {
         return false;
     }
-    g_sqlite_initialized = false;
     g_sqlite_has_abandoned_connection.store(false);
     return true;
 }

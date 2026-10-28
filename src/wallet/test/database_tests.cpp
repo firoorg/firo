@@ -7413,6 +7413,24 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_lock_closes_across_exec)
 }
 #endif
 
+BOOST_AUTO_TEST_CASE(sqlite_wallet_coexists_with_other_library_connections)
+{
+    BOOST_REQUIRE_EQUAL(sqlite3_initialize(), SQLITE_OK);
+    sqlite3* other = nullptr;
+    BOOST_REQUIRE_EQUAL(sqlite3_open(":memory:", &other), SQLITE_OK);
+    BOOST_SCOPE_EXIT_ALL() { sqlite3_close(other); };
+    const std::string filename{"sqlite_shared_library.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    database.reset();
+    BOOST_CHECK_EQUAL(sqlite3_exec(other, "CREATE TABLE other_user(value)", nullptr, nullptr, nullptr), SQLITE_OK);
+    RemoveSQLiteTestFiles(filename);
+}
+
 #ifndef WIN32
 BOOST_AUTO_TEST_CASE(sqlite_backup_resolves_parent_but_not_final_symlinks)
 {
