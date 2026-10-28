@@ -1847,7 +1847,8 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
                 --nMasterKeyMaxID;
                 return false;
             }
-            if (!pwalletdbEncryption->WriteMasterKey(newMasterKeyId, kMasterKey)) {
+            if (!pwalletdbEncryption->WriteMasterKey(newMasterKeyId, kMasterKey) ||
+                !pwalletdbEncryption->WriteRewriteRequired()) {
                 const bool abortSuccess = pwalletdbEncryption->TxnAbort();
                 pwalletdbEncryption.reset();
                 mapMasterKeys.erase(newMasterKeyId);

@@ -106,6 +106,7 @@ std::atomic<bool> g_fail_backup_collision_cleanup_once{false};
 std::atomic<bool> g_fail_recovery_collision_cleanup_once{false};
 std::atomic<bool> g_report_migration_exchange_error_once{false};
 std::atomic<bool> g_report_rewrite_commit_error_once{false};
+std::atomic<bool> g_fail_vacuum_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
 std::atomic<int> g_fail_directory_sync_after_successes{-1};
 std::atomic<int> g_directory_sync_failure_error{0};
@@ -1331,6 +1332,41 @@ bool VerifyDatabase(sqlite3* database, std::string& error)
            VerifySchema(database, error) &&
            VerifyBlobRecords(database, error) &&
            VerifyIntegrity(database, error);
+}
+
+bool CompleteRequiredRewrite(sqlite3* database, std::string& error, bool force = false)
+{
+    CDataStream key(SER_DISK, CLIENT_VERSION);
+    key << std::string(WALLET_REWRITE_REQUIRED);
+    bool required;
+    {
+        SQLiteStatement statement;
+        if (!PrepareStatement(database, "SELECT 1 FROM main WHERE key = ?", statement,
+                "Failed to inspect SQLite rewrite marker", &error) ||
+            !BindBlob(statement.Get(), 1, key, "rewrite marker")) {
+            return false;
+        }
+        const int result = sqlite3_step(statement.Get());
+        if (result != SQLITE_DONE && result != SQLITE_ROW) {
+            error = "Failed to read SQLite rewrite marker.";
+            return false;
+        }
+        required = result == SQLITE_ROW;
+    }
+    if (!required && !force) return true;
+
+    // The marker is committed with encryption, and removed only after VACUUM.
+    // A crash or uncertain commit therefore retries cleanup on the next open.
+    if (g_fail_vacuum_once.exchange(false) || !ExecuteSQL(database, "VACUUM", &error)) {
+        error = "SQLite compaction failed; plaintext key remnants may remain. Free disk space and memory, then restart to retry cleanup. " + error;
+        return false;
+    }
+    if (!required) return true;
+    SQLiteStatement statement;
+    return PrepareStatement(database, "DELETE FROM main WHERE key = ?", statement,
+               "Failed to clear SQLite rewrite marker", &error) &&
+           BindBlob(statement.Get(), 1, key, "rewrite marker") &&
+           sqlite3_step(statement.Get()) == SQLITE_DONE;
 }
 
 bool SetConnectionPragmas(sqlite3* database, std::string& error)
@@ -3937,6 +3973,11 @@ private:
             CloseOrAbandonSQLiteConnection(
                 m_database,
                 cleanup_allowed);
+            Poison();
+            return false;
+        }
+        if (!CompleteRequiredRewrite(m_database, error)) {
+            CloseOrAbandonSQLiteConnection(m_database, cleanup_allowed);
             Poison();
             return false;
         }
@@ -6706,7 +6747,12 @@ bool SQLiteDatabase::Rewrite(const char* skip)
     if (sqlite3_get_autocommit(m_database) == 0) {
         return fail_transaction();
     }
-    return ExecuteSQL(m_database, "VACUUM") || fail_transaction();
+    std::string error;
+    if (!CompleteRequiredRewrite(m_database, error, true)) {
+        LogPrintf("SQLiteDatabase: Failed to compact '%s': %s\n", m_filename, error);
+        return false;
+    }
+    return true;
 }
 
 bool SQLiteDatabase::Backup(const fs::path& destination)
@@ -6774,6 +6820,11 @@ bool SQLiteDatabase::Backup(
             }
             std::lock_guard<std::mutex> state_lock(m_state_mutex);
             m_open = true;
+        }
+        if (m_database && m_usable.load() && !m_poisoned.load() &&
+            !CompleteRequiredRewrite(m_database, detail)) {
+            Poison();
+            return fail(detail, "Restart Firo after correcting the compaction failure before making a backup.");
         }
     }
     std::shared_lock<std::shared_mutex> connection_lock(m_connection_mutex);
@@ -8061,6 +8112,11 @@ void QuarantineSQLiteDatabase(WalletDatabase& database) noexcept
     if (auto* sqlite = dynamic_cast<SQLiteDatabase*>(&database)) {
         sqlite->Quarantine();
     }
+}
+
+void InjectSQLiteVacuumFailureForTesting()
+{
+    g_fail_vacuum_once.store(true);
 }
 
 int SQLiteStatementExecutor::Execute(

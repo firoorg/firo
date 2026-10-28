@@ -107,6 +107,9 @@ void InjectSQLiteMigrationExchangeFailureForTesting();
 /** Report an error after the next rewrite commit has actually succeeded. */
 void InjectSQLiteRewriteCommitFailureForTesting();
 
+/** Fail the next compaction without removing the durable cleanup marker. */
+void InjectSQLiteVacuumFailureForTesting();
+
 /** Replace statement execution for one SQLite logical-creation owner. */
 bool SetSQLiteCreationStatementExecutorForTesting(
     WalletDatabase& database,

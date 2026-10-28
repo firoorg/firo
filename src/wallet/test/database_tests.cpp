@@ -7458,6 +7458,44 @@ BOOST_AUTO_TEST_CASE(sqlite_wallet_coexists_with_other_library_connections)
     RemoveSQLiteTestFiles(filename);
 }
 
+BOOST_AUTO_TEST_CASE(sqlite_required_rewrite_survives_failure_and_restart)
+{
+    const std::string filename{"sqlite_pending_rewrite.dat"};
+    const std::string secret(65536, 'K');
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    {
+        auto batch = database->MakeBatch();
+        BOOST_REQUIRE(batch->Write(std::string("obsolete"), secret));
+        BOOST_REQUIRE(batch->TxnBegin());
+        BOOST_REQUIRE(batch->Erase(std::string("obsolete")));
+        BOOST_REQUIRE(batch->Write(std::string(WALLET_REWRITE_REQUIRED), true));
+        BOOST_REQUIRE(batch->TxnCommit());
+    }
+    InjectSQLiteVacuumFailureForTesting();
+    BOOST_CHECK(!database->Rewrite());
+    BOOST_CHECK(database->MakeBatch()->Exists(std::string(WALLET_REWRITE_REQUIRED)));
+    database.reset();
+
+    options.require_create = false;
+    options.require_existing = true;
+    options.recover = false;
+    InjectSQLiteVacuumFailureForTesting();
+    database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(error.find("plaintext key remnants") != std::string::npos);
+    database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_CHECK(!database->MakeBatch()->Exists(std::string(WALLET_REWRITE_REQUIRED)));
+    database.reset();
+    BOOST_CHECK(ReadFile(GetDataDir() / filename).find(secret.substr(0, 64)) == std::string::npos);
+    RemoveSQLiteTestFiles(filename);
+}
+
 #ifndef WIN32
 BOOST_AUTO_TEST_CASE(sqlite_backup_requires_owner_controlled_directory)
 {
@@ -10865,6 +10903,7 @@ BOOST_FIXTURE_TEST_CASE(
                 nullptr) {
             CWallet wallet(
                 makeDatabase(filename, false));
+            BOOST_CHECK(!wallet.GetDatabase().MakeBatch()->Exists(std::string(WALLET_REWRITE_REQUIRED)));
             bool firstRun = true;
             BOOST_REQUIRE(
                 wallet.LoadWallet(firstRun) ==
@@ -11003,6 +11042,19 @@ BOOST_FIXTURE_TEST_CASE(
         checkEncryptedWallet(
             filename,
             passphrase);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{"sqlite_encryption_vacuum_failure.dat"};
+        auto walletAndKey = createPlainWallet(filename);
+        InjectSQLiteVacuumFailureForTesting();
+        BOOST_CHECK(!walletAndKey.first->EncryptWallet(passphrase));
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK(walletAndKey.first->GetDatabase().MakeBatch()->Exists(std::string(WALLET_REWRITE_REQUIRED)));
+        walletAndKey.first.reset();
+        checkEncryptedWallet(filename, passphrase);
         RemoveSQLiteTestFiles(filename);
     }
 
