@@ -171,6 +171,15 @@ deciding how to protect or retire old wallet backups.
 
 ## Backup
 
+SQLite encryption rewrites the database to remove old plaintext key records
+from unused pages. This needs additional memory and free disk space, each
+potentially comparable to the wallet's size. If cleanup fails, encryption is
+not reported as fully successful. A durable marker requires cleanup on the
+next open before the wallet can be used or backed up; free resources and
+restart, and do not remove that marker. This cannot erase earlier backups or
+copies retained by the operating system, filesystem snapshots, or storage
+hardware.
+
 Use the RPC or the GUI while the wallet is running:
 
 ```bash
