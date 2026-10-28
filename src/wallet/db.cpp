@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdint.h>
+#include <utility>
 
 #ifndef WIN32
 #include <fcntl.h>
@@ -92,6 +93,8 @@ public:
     void* Data() const { return m_data.get_data(); }
     size_t Size() const { return m_data.get_size(); }
 };
+
+thread_local bool g_fail_berkeley_cursor{false};
 
 struct BerkeleyCursorCloser {
     void operator()(Dbc* cursor) const noexcept
@@ -954,6 +957,11 @@ public:
 };
 } // namespace
 
+void FailBerkeleyCursorForTesting(bool fail)
+{
+    g_fail_berkeley_cursor = fail;
+}
+
 #if !defined(WIN32) || defined(USE_SQLITE)
 void InjectBerkeleyMigrationSyncFailureForTesting(
     int error_number,
@@ -1518,6 +1526,9 @@ void CDB::Close()
 
 std::unique_ptr<DatabaseCursor> CDB::GetCursor()
 {
+    if (std::exchange(g_fail_berkeley_cursor, false)) {
+        return nullptr;
+    }
     if (!pdb) {
         return nullptr;
     }
@@ -1642,7 +1653,10 @@ bool CDB::Rewrite(BerkeleyDatabase& database, const char* pszSkip)
                     }
 
                     auto cursor = db.GetCursor();
-                    if (cursor) {
+                    if (!cursor) {
+                        LogPrintf("CDB::Rewrite: Can't create cursor for %s\n", strFile);
+                        fSuccess = false;
+                    } else {
                         while (fSuccess) {
                             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
                             CDataStream ssValue(SER_DISK, CLIENT_VERSION);

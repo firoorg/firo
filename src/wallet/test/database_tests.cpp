@@ -1237,6 +1237,34 @@ BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
     BOOST_CHECK(bitdb.RemoveDb(filename));
 }
 
+BOOST_AUTO_TEST_CASE(berkeley_rewrite_cursor_failure_preserves_records)
+{
+    const std::string filename{"rewrite_cursor_failure.dat"};
+    auto database = MakeBerkeleyDatabase(bitdb, filename);
+    {
+        auto batch = database->MakeBatch({DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch->Write(std::string("key"), std::string("value")));
+    }
+    BOOST_SCOPE_EXIT_ALL() { FailBerkeleyCursorForTesting(false); };
+    FailBerkeleyCursorForTesting(true);
+    BOOST_CHECK(!database->Rewrite());
+    {
+        auto batch = database->MakeBatch({DatabaseBatchMode::READ_ONLY});
+        std::string value;
+        BOOST_REQUIRE(batch->Read(std::string("key"), value));
+        BOOST_CHECK_EQUAL(value, "value");
+    }
+    BOOST_REQUIRE(database->Rewrite());
+    {
+        auto batch = database->MakeBatch({DatabaseBatchMode::READ_ONLY});
+        std::string value;
+        BOOST_REQUIRE(batch->Read(std::string("key"), value));
+        BOOST_CHECK_EQUAL(value, "value");
+    }
+    BOOST_CHECK(database->PeriodicFlush());
+    BOOST_CHECK(bitdb.RemoveDb(filename));
+}
+
 BOOST_AUTO_TEST_CASE(berkeley_cursors_survive_batch_and_background_flush)
 {
     const std::string filename{"cursor_lifetime_test.dat"};

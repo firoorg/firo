@@ -96,6 +96,9 @@ public:
 
 extern CDBEnv bitdb;
 
+/** Fail the next cursor creation on this thread. */
+void FailBerkeleyCursorForTesting(bool fail);
+
 #if !defined(WIN32) || defined(USE_SQLITE)
 /** Fail one BDB migration sync after the requested number of successful syncs. */
 void InjectBerkeleyMigrationSyncFailureForTesting(
