@@ -60,6 +60,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdint>
 #include <future>
 #include <iterator>
@@ -225,11 +226,24 @@ void WriteFile(const fs::path& path, const std::string& contents)
 
 std::string ReadFile(const fs::path& path)
 {
-    fs::ifstream file(path, std::ios::binary);
-    if (!file.is_open()) {
+    // Boost fstreams narrow Windows paths under MinGW, losing Unicode names.
+#ifdef WIN32
+    std::unique_ptr<FILE, decltype(&fclose)> file(_wfopen(path.c_str(), L"rb"), &fclose);
+#else
+    std::unique_ptr<FILE, decltype(&fclose)> file(fopen(path.c_str(), "rb"), &fclose);
+#endif
+    if (!file) {
         throw std::runtime_error("Cannot read test wallet file");
     }
-    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    std::string contents;
+    std::array<char, 4096> buffer;
+    while (const size_t count = fread(buffer.data(), 1, buffer.size(), file.get())) {
+        contents.append(buffer.data(), count);
+    }
+    if (ferror(file.get())) {
+        throw std::runtime_error("Cannot finish reading test wallet file");
+    }
+    return contents;
 }
 
 #ifdef USE_SQLITE
