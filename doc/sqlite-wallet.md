@@ -38,6 +38,13 @@ build directory or explicitly set the desired CMake options. Reusing a build
 directory preserves cached settings; removing `NO_SQLITE=1` alone does not
 turn `ENABLE_SQLITE_WALLET` back on in that directory.
 
+Without depends, install SQLite development headers and a matching library
+version 3.31.0 or later (`libsqlite3-dev` on Debian/Ubuntu, or `sqlite` with
+Homebrew). The library must support thread-safe connections and in-memory
+temporary storage; `THREADSAFE=0` and `TEMP_STORE=0` builds are not supported.
+Point CMake's `SQLite3_INCLUDE_DIR` and `SQLite3_LIBRARY` at that installation
+when it is not found automatically.
+
 The secure SQLite lifecycle publishes or replaces wallet files at the latest
 safe filesystem boundary available on each platform. Linux uses `renameat2`
 with `RENAME_NOREPLACE` or `RENAME_EXCHANGE` and `fsync`. macOS uses
