@@ -193,6 +193,17 @@ void CheckSameSparkAddress(
 BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
 
 #ifdef USE_SQLITE
+BOOST_AUTO_TEST_CASE(sqlite_spend_key_uses_owning_wallet)
+{
+    auto wallet = MakeSQLiteSparkTestWallet("spark_key_owner.dat");
+    BOOST_REQUIRE(wallet.get() != pwalletMain);
+    CSparkWallet sparkWallet(*wallet);
+    const spark::FullViewKey fullViewKey(
+        sparkWallet.generateSpendKey(spark::Params::get_default()));
+    const spark::IncomingViewKey viewKey(fullViewKey);
+    CheckSameSparkAddress(sparkWallet.getDefaultAddress(), spark::Address(viewKey, 0));
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_initialization_state_contract)
 {
     const spark::Params* params = spark::Params::get_default();

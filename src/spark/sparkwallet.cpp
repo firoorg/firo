@@ -475,7 +475,7 @@ spark::Address CSparkWallet::getChangeAddress() {
 }
 
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
-    return generateSpendKey(params, *pwalletMain);
+    return generateSpendKey(params, m_wallet);
 }
 
 spark::SpendKey CSparkWallet::generateSpendKey(
