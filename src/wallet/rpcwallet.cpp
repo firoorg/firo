@@ -4026,7 +4026,8 @@ UniValue getnewsparkaddress(const JSONRPCRequest& request) {
     spark::Address address = pwallet->sparkWallet->generateNewAddress();
     unsigned char network = spark::GetNetworkType();
 
-    pwallet->SetSparkAddressBook(address.encode(network), "", "receive");
+    if (!pwallet->SetSparkAddressBook(address.encode(network), "", "receive"))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Could not save the Spark address to the address book.");
 
     UniValue result(UniValue::VARR);
     result.push_back(address.encode(network));

@@ -1210,6 +1210,8 @@ public:
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
     bool SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
+    /** Save metadata and, if the address changes, remove the old entry atomically. */
+    bool ReplaceSparkAddressBook(const std::string& oldAddress, const std::string& address, const std::string& strName, const std::string& purpose);
     bool SetRAPAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
     bool DelAddressBook(const CTxDestination& address);
     bool DelAddressBook(const std::string& address);

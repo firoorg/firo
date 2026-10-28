@@ -6243,27 +6243,54 @@ bool CWallet::IsSparkAddressMine(const std::string& address) {
 
 bool CWallet::SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)
 {
-    if (!sparkWallet)
+    return ReplaceSparkAddressBook(address, address, strName, strPurpose);
+}
+
+bool CWallet::ReplaceSparkAddressBook(const std::string& oldAddress, const std::string& address, const std::string& strName, const std::string& strPurpose)
+{
+    if (!sparkWallet || !fFileBacked)
         return false;
 
-    bool fUpdated = false;
-    {
-        LOCK(cs_wallet); // mapAddressBook
-        std::map<std::string, CAddressBookData>::iterator mi = mapSparkAddressBook.find(address);
-        fUpdated = mi != mapSparkAddressBook.end();
-        mapSparkAddressBook[address].name = strName;
-        if (!strPurpose.empty()) /* update purpose only if requested */
-            mapSparkAddressBook[address].purpose = strPurpose;
+    LOCK(cs_wallet);
+    const bool replacing = oldAddress != address;
+    const auto oldEntry = mapSparkAddressBook.find(oldAddress);
+    if (replacing && (oldEntry == mapSparkAddressBook.end() || mapSparkAddressBook.count(address)))
+        return false;
+    try {
+        CWalletDB walletdb(strWalletFile);
+        if (!walletdb.TxnBegin())
+            return false;
+        if (replacing) {
+            for (const auto& item : oldEntry->second.destdata) {
+                if (!walletdb.EraseDestData(oldAddress, item.first))
+                    return false;
+            }
+            if (!walletdb.ErasePurpose(oldAddress) || !walletdb.EraseName(oldAddress))
+                return false;
+        }
+        if ((!strPurpose.empty() && !walletdb.WritePurpose(address, strPurpose)) ||
+            !walletdb.WriteName(address, strName)) {
+            walletdb.TxnAbort();
+            return error("SetSparkAddressBook: failed to write address metadata");
+        }
+        if (!walletdb.TxnCommit())
+            return false;
+    } catch (const std::exception& e) {
+        return error("SetSparkAddressBook: %s", e.what());
     }
 
+    if (replacing) {
+        mapSparkAddressBook.erase(oldEntry);
+    }
+    const bool fUpdated = mapSparkAddressBook.count(address) != 0;
+    mapSparkAddressBook[address].name = strName;
+    if (!strPurpose.empty()) /* update purpose only if requested */
+        mapSparkAddressBook[address].purpose = strPurpose;
+    if (replacing)
+        NotifySparkAddressBookChanged(this, oldAddress, "", IsSparkAddressMine(oldAddress), "", CT_DELETED);
     NotifySparkAddressBookChanged(this, address, strName, IsSparkAddressMine(address),
                              strPurpose, (fUpdated ? CT_UPDATED : CT_NEW) );
-    if (!fFileBacked)
-        return false;
-    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(address, strPurpose))
-        return false;
-
-    return CWalletDB(strWalletFile).WriteName(address, strName);
+    return true;
 }
 
 bool CWallet::DelAddressBook(const std::string& address)

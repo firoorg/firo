@@ -11,6 +11,7 @@
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "createsparknamepage.h"
+#include "editaddressdialog.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "init.h"
@@ -62,6 +63,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
+#include <QMessageBox>
 #include <QLocale>
 #include <QPainter>
 #include <QPlainTextEdit>
@@ -120,6 +122,37 @@ public:
         return QVariant();
     }
 };
+}
+
+void WalletUiTests::sparkAddressEditFailure()
+{
+    // A wallet without persistent storage refuses address-book writes.
+    CWallet wallet;
+    class TestAddressModel : public AddressTableModel {
+    public:
+        explicit TestAddressModel(CWallet* wallet) : AddressTableModel(wallet, nullptr, false) {}
+    } model(&wallet);
+    const QString address = "spark-address-edit-test";
+    model.updateEntry(address, "original", true, "receive", CT_NEW);
+    EditAddressDialog dialog(EditAddressDialog::EditSparkReceivingAddress, nullptr);
+    dialog.setModel(&model);
+    dialog.setAddress(address);
+    dialog.loadRow(0);
+    auto* label = dialog.findChild<QLineEdit*>("labelEdit");
+    QVERIFY(label);
+    label->setText("changed");
+    bool warningShown = false;
+    QTimer::singleShot(0, &dialog, [&] {
+        if (auto* warning = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+            warningShown = true;
+            warning->accept();
+        }
+    });
+    dialog.accept();
+    QVERIFY(warningShown);
+    QCOMPARE(model.getEditStatus(), AddressTableModel::DATABASE_ERROR);
+    QVERIFY(dialog.result() != QDialog::Accepted);
+    QCOMPARE(model.data(model.index(0, AddressTableModel::Label, QModelIndex()), Qt::EditRole).toString(), QString("original"));
 }
 
 void WalletUiTests::manualConsolidation()
