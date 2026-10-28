@@ -1461,12 +1461,6 @@ bool OpenSQLiteConnection(
     bool* cleanup_allowed = nullptr)
 {
     database = nullptr;
-#ifndef WIN32
-    if (!ValidateWalletMigrationDirectory(path.parent_path(), error)) {
-        error = "SQLite wallets and backups require an owner-controlled directory: " + error;
-        return false;
-    }
-#endif
 #ifdef __APPLE__
     const fs::path parent = path.parent_path().empty() ? fs::path(".") : path.parent_path();
     if (!wallet::macos::DirectoryACLsSafe(parent)) {
@@ -2174,12 +2168,6 @@ CandidateResult CreateOwnedCandidate(
     OwnedCandidate& candidate,
     std::string& error)
 {
-#ifndef WIN32
-    if (!ValidateWalletMigrationDirectory(final_path.parent_path(), error)) {
-        error = "SQLite wallets and backups require an owner-controlled directory: " + error;
-        return CandidateResult::FAILED;
-    }
-#endif
 #ifdef WIN32
     static std::atomic<uint64_t> candidate_counter{0};
     const fs::path parent =

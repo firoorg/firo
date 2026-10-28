@@ -57,15 +57,19 @@ safe filesystem boundary available on each platform. Linux uses `renameat2`
 with `RENAME_NOREPLACE` or `RENAME_EXCHANGE` and `fsync`. macOS uses
 `renameatx_np` with `RENAME_EXCL` or `RENAME_SWAP` and `F_FULLFSYNC`.
 
-On Linux and macOS, wallets and SQLite backup destinations must be in a
-directory owned by the current user with no group or other write permission.
-The main file must be private (mode `0600`); parent directories must also be
-protected against replacement by other users. Parent symlinks are resolved,
-but the final wallet filename cannot be a symlink. Filesystems without the
-required private permissions or rename operations, including typical
-FAT32/exFAT backup media, are not supported. Back up to a protected supported
-filesystem first. Do not disable permission checks or delete journal files
-to bypass a refusal.
+On Linux and macOS, ordinary SQLite wallet creation, opening, and backups do
+not reject a directory because its mode permits group or other writes. Use a
+directory whose writers you trust: other directory writers can replace the
+wallet or its journal even when the files themselves are private. Migration
+and recovery still require an owner-controlled directory and protected
+ancestors because they replace an existing wallet. BDB loading is unchanged.
+
+SQLite wallet and backup files must remain private (mode `0600`); macOS ACL
+checks also remain in force. Parent symlinks are resolved, but the final wallet
+filename cannot be a symlink. Filesystems without the required private
+permissions or rename operations, including typical FAT32/exFAT backup media,
+are not supported. Back up to a protected supported filesystem first. Do not
+delete journal files to bypass a refusal.
 
 Wallet and backup filenames cannot end in `-journal`, `-wal`, or `-shm`;
 these names belong to SQLite auxiliary files. Windows also rejects filenames
