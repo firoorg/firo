@@ -6614,9 +6614,6 @@ bool SQLiteDatabase::Rewrite(const char* skip)
     if (skip_size > static_cast<size_t>(INT_MAX)) {
         return false;
     }
-    if (!ExecuteSQL(m_database, "VACUUM")) {
-        return fail_transaction();
-    }
     if (!ExecuteSQL(m_database, "BEGIN IMMEDIATE TRANSACTION")) {
         return fail_transaction();
     }
@@ -6692,7 +6689,7 @@ bool SQLiteDatabase::Rewrite(const char* skip)
     if (sqlite3_get_autocommit(m_database) == 0) {
         return fail_transaction();
     }
-    return true;
+    return ExecuteSQL(m_database, "VACUUM") || fail_transaction();
 }
 
 bool SQLiteDatabase::Backup(const fs::path& destination)
