@@ -7414,6 +7414,26 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_lock_closes_across_exec)
 #endif
 
 #ifndef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_live_reopen_failure_requests_shutdown)
+{
+    const std::string filename{"sqlite_live_reopen_failure.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    const std::string path = (GetDataDir() / filename).string();
+    BOOST_SCOPE_EXIT_ALL() {
+        chmod(path.c_str(), S_IRUSR | S_IWUSR);
+        fRequestShutdown = false;
+    };
+    database->Flush(true);
+    BOOST_REQUIRE_EQUAL(chmod(path.c_str(), 0644), 0);
+    BOOST_CHECK_THROW(database->MakeBatch(), std::runtime_error);
+    BOOST_CHECK(ShutdownRequested());
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_creation_and_idle_flush_retain_sqlite_file_lock)
 {
     const std::string filename{"sqlite_creation_lock.dat"};

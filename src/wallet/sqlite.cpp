@@ -3800,11 +3800,17 @@ private:
     std::mutex m_state_mutex;
     size_t m_batch_count{0};
     bool m_open{false};
+    std::atomic<bool> m_initialized{false};
 
     void Poison() noexcept
     {
         m_poisoned.store(true);
         m_usable.store(false);
+        // Startup verification failures can be recovered by the factory. A live
+        // wallet must not silently stop recording payments while the node runs.
+        if (m_initialized.load() && !m_migration_candidate) {
+            StartShutdown();
+        }
     }
 
     bool OpenExistingLocked(
@@ -4595,6 +4601,7 @@ public:
     {
         std::unique_lock<std::shared_mutex> lock(m_connection_mutex);
         const bool initialized = OpenExistingLocked(error, nullptr, std::nullopt, verify);
+        m_initialized.store(initialized);
         std::lock_guard<std::mutex> state_lock(m_state_mutex);
         m_open = initialized;
         return initialized;
@@ -4618,6 +4625,7 @@ public:
         if (initialized) {
             m_failed_creation_cleanup_allowed = nullptr;
         }
+        m_initialized.store(initialized);
         std::lock_guard<std::mutex> state_lock(m_state_mutex);
         m_open = initialized;
         return initialized;
