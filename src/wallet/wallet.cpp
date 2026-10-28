@@ -6283,6 +6283,12 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
 
 CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 {
+    std::optional<DatabaseFormat> existingFormat;
+    std::string formatError;
+    if (!ReadWalletDatabaseFormat(walletFile, existingFormat, formatError)) {
+        InitError(formatError);
+        return nullptr;
+    }
     auto makeDatabase = [&walletFile]() {
         DatabaseOptions options;
         options.verify = false;
@@ -6312,7 +6318,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         return database;
     };
 
-    if (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false)) {
+    if (existingFormat && (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false))) {
         uiInterface.InitMessage(_("Zapping all Sigma mints from wallet..."));
 
         std::unique_ptr<WalletDatabase> database = makeDatabase();
@@ -6330,7 +6336,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     // needed to restore wallet transaction meta data after -zapwallettxes
     std::vector<CWalletTx> vWtx;
 
-    if (GetBoolArg("-zapwallettxes", false)) {
+    if (existingFormat && GetBoolArg("-zapwallettxes", false)) {
         uiInterface.InitMessage(_("Zapping all transactions from wallet..."));
 
         std::unique_ptr<WalletDatabase> database = makeDatabase();
