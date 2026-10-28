@@ -275,7 +275,8 @@ public:
     bool WriteCalculatedZCBlock(int height);
 
     DBErrors ReorderTransactions(CWallet* pwallet);
-    DBErrors LoadWallet(CWallet* pwallet, bool update = true);
+    // Migration may defer transaction consensus checks until the chain is loaded.
+    DBErrors LoadWallet(CWallet* pwallet, bool update = true, bool checkTransactions = true);
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);

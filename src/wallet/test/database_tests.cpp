@@ -14,6 +14,7 @@
 #include "hash.h"
 #include "primitives/block.h"
 #include "protocol.h"
+#include "validation.h"
 #include "script/standard.h"
 #include "spark/state.h"
 #include "test/testutil.h"
@@ -2129,6 +2130,10 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
 {
+    LOCK(cs_main);
+    CBlockIndex* const savedTip = chainActive.Tip();
+    BOOST_SCOPE_EXIT_ALL(&) { chainActive.SetTip(savedTip); };
+    chainActive.SetTip(nullptr);
     const std::string sourceFilename{
         "migration_raw_source.dat"};
     DatabaseOptions createOptions;
@@ -2149,6 +2154,17 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
         BOOST_REQUIRE(walletDatabase.WriteKV(
             "migration-known",
             "known-value"));
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_COINBASE;
+        tx.vin.emplace_back(COutPoint(), CScript() << OP_1);
+        tx.vout.emplace_back(COIN, CScript() << OP_TRUE);
+        tx.vExtraPayload.resize(MAX_TX_EXTRA_PAYLOAD + 1, 0);
+        CWalletTx walletTx(nullptr, MakeTransactionRef(tx));
+        CValidationState beforeUpgrade, afterUpgrade;
+        BOOST_CHECK(!CheckTransaction(walletTx, beforeUpgrade, true, walletTx.GetHash(), true, INT_MAX, false, false));
+        BOOST_REQUIRE(CheckTransaction(walletTx, afterUpgrade, true, walletTx.GetHash(), true, Params().GetConsensus().nSigmaEndBlock, false, false));
+        BOOST_REQUIRE(walletDatabase.WriteTx(walletTx));
     }
     {
         auto batch = source->MakeBatch(

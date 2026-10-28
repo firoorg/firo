@@ -384,7 +384,7 @@ public:
     }
 };
 
-bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CWalletScanState& wss, std::string& strType, std::string& strErr, bool cleanseKeyHashMaterial = false)
+bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CWalletScanState& wss, std::string& strType, std::string& strErr, bool cleanseKeyHashMaterial = false, bool checkTransactions = true)
 {
     try {
         // Unserialize
@@ -431,7 +431,8 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
             CWalletTx wtx;
             ssValue >> wtx;
             CValidationState state;
-            if (!(CheckTransaction(wtx, state, true, wtx.GetHash(), true, INT_MAX, false, false) && (wtx.GetHash() == hash) && state.IsValid()))
+            if (wtx.GetHash() != hash ||
+                (checkTransactions && !(CheckTransaction(wtx, state, true, wtx.GetHash(), true, INT_MAX, false, false) && state.IsValid())))
                 return false;
 
             // Undo serialize changes in 31600
@@ -747,7 +748,7 @@ bool WalletKeyOnlyRecordValidator::IsValid(
            decoded_type == type;
 }
 
-DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update)
+DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update, bool checkTransactions)
 {
     pwallet->vchDefaultKey = CPubKey();
     CWalletScanState wss;
@@ -787,7 +788,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update)
 
             // Try to be tolerant of single corrupt records:
             std::string strType, strErr;
-            bool fReadOK = ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr);
+            bool fReadOK = ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr, false, update || checkTransactions);
             if (!fReadOK)
             {
                 // losing keys is considered a catastrophic error, anything else

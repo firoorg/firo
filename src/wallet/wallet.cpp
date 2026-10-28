@@ -452,9 +452,13 @@ bool ValidateMigrationCandidate(
         CWalletDB validationDatabase(
             candidate,
             {DatabaseBatchMode::READ_ONLY, true});
+        // The block index is not loaded yet. Check decoding and txid integrity
+        // here; ordinary wallet loading performs consensus checks after startup.
+        // Migration independently compares every copied record with the source.
         loadResult =
             validationDatabase.LoadWallet(
                 &validationWallet,
+                false,
                 false);
         if (loadResult == DB_LOAD_OK) {
             const bool willLoadSpark =
