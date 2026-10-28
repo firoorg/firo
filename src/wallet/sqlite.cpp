@@ -3967,26 +3967,16 @@ private:
             Poison();
             return false;
         }
-#ifdef WIN32
+        // Closing any duplicate descriptor would release SQLite's POSIX locks.
         m_identity_descriptor =
             std::move(candidate.descriptor);
         m_identity = candidate.identity;
+#ifdef WIN32
         // Until the published database has been reopened and verified, retain
         // its exact handle if initialization fails. Windows cannot otherwise
         // prove a later delete-pending cleanup durable across power loss.
         m_creation_state =
             SQLiteCreationState::INDETERMINATE;
-#elif defined(F_DUPFD_CLOEXEC)
-        m_identity_descriptor.Reset(
-            fcntl(
-                candidate.descriptor.Get(),
-                F_DUPFD_CLOEXEC,
-                0));
-#else
-        error =
-            "Unable to retain a close-on-exec SQLite wallet identity descriptor.";
-        Poison();
-        return false;
 #endif
         if (!m_identity_descriptor) {
             error = strprintf(
@@ -3996,9 +3986,6 @@ private:
             Poison();
             return false;
         }
-#ifndef WIN32
-        m_identity = candidate.identity;
-#endif
         if (!OpenExistingLocked(
                 error,
                 &candidate.cleanup_allowed,

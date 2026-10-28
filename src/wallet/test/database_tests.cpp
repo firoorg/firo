@@ -7413,6 +7413,45 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_lock_closes_across_exec)
 }
 #endif
 
+#ifndef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_creation_retains_sqlite_file_lock)
+{
+    const std::string filename{"sqlite_creation_lock.dat"};
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    const std::string path = (GetDataDir() / filename).string();
+    const pid_t parent = getpid();
+    const pid_t child = fork();
+    if (child == 0) {
+        const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+        struct flock lock{};
+        lock.l_type = F_RDLCK;
+        lock.l_whence = SEEK_SET;
+        lock.l_start = 0x40000002;
+        lock.l_len = 510;
+        const bool held = fd >= 0 && fcntl(fd, F_GETLK, &lock) == 0 &&
+            lock.l_type == F_WRLCK && lock.l_pid == parent;
+        if (fd >= 0) close(fd);
+        _exit(held ? 0 : 1);
+    }
+    BOOST_REQUIRE(child > 0);
+    int result{};
+    pid_t waited;
+    do {
+        waited = waitpid(child, &result, 0);
+    } while (waited < 0 && errno == EINTR);
+    BOOST_REQUIRE_EQUAL(waited, child);
+    BOOST_REQUIRE(WIFEXITED(result));
+    BOOST_CHECK_EQUAL(WEXITSTATUS(result), 0);
+    database.reset();
+    RemoveSQLiteTestFiles(filename);
+}
+#endif
+
 BOOST_AUTO_TEST_CASE(sqlite_identity_schema_corruption_policy)
 {
     auto expectVerifyFailure = [](
