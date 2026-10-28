@@ -228,10 +228,11 @@ void WriteFile(const fs::path& path, const std::string& contents)
 std::string ReadFile(const fs::path& path)
 {
     // Boost fstreams narrow Windows paths under MinGW, losing Unicode names.
+    const auto closeFile = [](FILE* file) { fclose(file); };
 #ifdef WIN32
-    std::unique_ptr<FILE, decltype(&fclose)> file(_wfopen(path.c_str(), L"rb"), &fclose);
+    std::unique_ptr<FILE, decltype(closeFile)> file(_wfopen(path.c_str(), L"rb"), closeFile);
 #else
-    std::unique_ptr<FILE, decltype(&fclose)> file(fopen(path.c_str(), "rb"), &fclose);
+    std::unique_ptr<FILE, decltype(closeFile)> file(fopen(path.c_str(), "rb"), closeFile);
 #endif
     if (!file) {
         throw std::runtime_error("Cannot read test wallet file");
