@@ -2967,7 +2967,9 @@ PublishResult PublishCandidate(
         RENAME_EXCL);
 #else
     error =
-        "Atomic no-replace SQLite publication is unavailable on this platform.";
+        "Atomic no-replace SQLite publication is unavailable on this platform. "
+        "Use a supported local filesystem for SQLite wallets and backups. "
+        "For a new wallet only, -walletdbformat=bdb selects Berkeley DB.";
     return PublishResult::FAILED;
 #endif
     const bool injected_identity_probe_failure =
@@ -3014,6 +3016,11 @@ PublishResult PublishCandidate(
             candidate.path.string(),
             final_path.string(),
             std::strerror(rename_error));
+        if (rename_error == ENOSYS || rename_error == EINVAL || rename_error == EOPNOTSUPP) {
+            error += " This filesystem does not support atomic no-replace publication. "
+                "Use a supported local filesystem for SQLite wallets and backups. "
+                "For a new wallet only, -walletdbformat=bdb selects Berkeley DB.";
+        }
         return PublishResult::FAILED;
     }
 
