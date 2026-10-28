@@ -33,6 +33,11 @@ sources or require SQLite headers or libraries. It creates BDB wallets and
 rejects an existing SQLite wallet before mutation. SQLite-only wallet builds
 are not supported.
 
+After changing `NO_SQLITE` or other depends package options, use a fresh CMake
+build directory or explicitly set the desired CMake options. Reusing a build
+directory preserves cached settings; removing `NO_SQLITE=1` alone does not
+turn `ENABLE_SQLITE_WALLET` back on in that directory.
+
 The secure SQLite lifecycle publishes or replaces wallet files at the latest
 safe filesystem boundary available on each platform. Linux uses `renameat2`
 with `RENAME_NOREPLACE` or `RENAME_EXCHANGE` and `fsync`. macOS uses

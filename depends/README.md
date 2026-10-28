@@ -47,6 +47,12 @@ The following can be set when running make: make FOO=bar
 If packages are omitted, the generated toolchain sets the corresponding CMake
 cache options. For example, `NO_WALLET=1` sets `ENABLE_WALLET=OFF`.
 
+When changing depends package options, configure Firo in a fresh CMake build
+directory. An existing directory retains cached feature options, including
+`ENABLE_SQLITE_WALLET`, `ENABLE_WALLET`, `WITH_BDB`, and `WITH_ZMQ`, even after
+the depends toolchain is regenerated. Alternatively, explicitly set the desired
+CMake options when reconfiguring that directory.
+
 Additional targets:
 
     download: run 'make download' to fetch all sources without building them
