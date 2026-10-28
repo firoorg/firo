@@ -733,6 +733,18 @@ std::string ExpectedApplicationIdPragma()
         static_cast<int32_t>(applicationId));
 }
 
+class CountingSQLiteStatementExecutor final : public SQLiteStatementExecutor
+{
+    int& m_commits;
+public:
+    explicit CountingSQLiteStatementExecutor(int& commits) : m_commits(commits) {}
+    int Execute(sqlite3* database, const char* statement) override
+    {
+        if (std::string(statement) == "COMMIT TRANSACTION") ++m_commits;
+        return SQLiteStatementExecutor::Execute(database, statement);
+    }
+};
+
 class BlockingSQLiteStatementExecutor final : public SQLiteStatementExecutor
 {
 private:
@@ -7472,6 +7484,86 @@ BOOST_AUTO_TEST_CASE(sqlite_wallet_coexists_with_other_library_connections)
     database.reset();
     BOOST_CHECK_EQUAL(sqlite3_exec(other, "CREATE TABLE other_user(value)", nullptr, nullptr, nullptr), SQLITE_OK);
     RemoveSQLiteTestFiles(filename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_bulk_erase_commits_once_and_preserves_memory_on_failure)
+{
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase("sqlite_bulk_erase.dat", options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    CWallet wallet(std::move(database));
+    std::vector<uint256> hashes, removed;
+    {
+        CWalletDB db(wallet.GetDatabase());
+        for (int i = 0; i < 3; ++i) {
+            CMutableTransaction tx;
+            tx.vin.emplace_back(COutPoint(), CScript() << OP_1 << OP_1);
+            tx.vout.emplace_back(i + 1, CScript() << OP_TRUE);
+            CWalletTx wtx(&wallet, MakeTransactionRef(tx));
+            BOOST_REQUIRE(db.WriteTx(wtx));
+            hashes.push_back(wtx.GetHash());
+            wallet.mapWallet.emplace(wtx.GetHash(), wtx);
+        }
+    }
+    BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+        std::make_unique<BlockingSQLiteStatementExecutor>(std::set<std::string>{"COMMIT TRANSACTION"})));
+    {
+        CWalletDB db(wallet.GetDatabase());
+        BOOST_CHECK(db.ZapSelectTx(&wallet, hashes, removed) == DB_CORRUPT);
+    }
+    BOOST_CHECK_EQUAL(wallet.mapWallet.size(), 3);
+    BOOST_CHECK(removed.empty());
+    int commits = 0;
+    BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+        std::make_unique<CountingSQLiteStatementExecutor>(commits)));
+    {
+        CWalletDB db(wallet.GetDatabase());
+        BOOST_REQUIRE(db.ZapSelectTx(&wallet, hashes, removed) == DB_LOAD_OK);
+    }
+    BOOST_CHECK_EQUAL(commits, 1);
+    BOOST_CHECK(wallet.mapWallet.empty());
+    BOOST_CHECK_EQUAL(removed.size(), 3);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
+{
+    ShutdownRequestReset shutdownReset;
+    DatabaseOptions options;
+    options.require_create = true;
+    DatabaseStatus status;
+    std::string error;
+    auto database = MakeSQLiteDatabase("sqlite_keypool_batch.dat", options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    CWallet wallet(std::move(database));
+    wallet.GenerateNewMnemonic();
+    BOOST_REQUIRE(wallet.SetMinVersion(FEATURE_HD));
+    int commits = 0;
+    BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+        std::make_unique<CountingSQLiteStatementExecutor>(commits)));
+    BOOST_REQUIRE(wallet.TopUpKeyPool(10));
+    BOOST_CHECK_EQUAL(wallet.setKeyPool.size(), 11);
+    BOOST_CHECK_EQUAL(commits, 1);
+
+    const SecureString passphrase{"keypool test"};
+    BOOST_REQUIRE(wallet.EncryptWallet(passphrase));
+    BOOST_REQUIRE(wallet.Unlock(passphrase));
+    commits = 0;
+    BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+        std::make_unique<CountingSQLiteStatementExecutor>(commits)));
+    const auto target = wallet.setKeyPool.size() + 5;
+    BOOST_REQUIRE(wallet.TopUpKeyPool(target));
+    BOOST_CHECK_EQUAL(wallet.setKeyPool.size(), target + 1);
+    BOOST_CHECK_EQUAL(commits, 1);
+
+    BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
+        std::make_unique<BlockingSQLiteStatementExecutor>(std::set<std::string>{"COMMIT TRANSACTION"})));
+    BOOST_CHECK(!wallet.TopUpKeyPool(target + 5));
+    BOOST_CHECK(wallet.setKeyPool.empty());
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_THROW(wallet.GetDatabase().MakeBatch(), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(sqlite_required_rewrite_survives_failure_and_restart)

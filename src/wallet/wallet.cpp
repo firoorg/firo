@@ -58,6 +58,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/thread.hpp>
 #include <cstring>
 #include <vector>
@@ -910,7 +911,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
 
         // update the chain model in the database
         if(fWriteChain){
-            if (!CWalletDB(GetDatabase()).WriteHDChain(hdChain))
+            if (!(m_keyGenerationBatch ? m_keyGenerationBatch->WriteHDChain(hdChain) : CWalletDB(GetDatabase()).WriteHDChain(hdChain)))
                 throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
         }
     /* bitcoin 0.14:
@@ -922,7 +923,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
     }
 
     // Compressed public keys were introduced in version 0.6.0
-    if (fCompressed && !SetMinVersion(FEATURE_COMPRPUBKEY))
+    if (fCompressed && !SetMinVersion(FEATURE_COMPRPUBKEY, m_keyGenerationBatch))
         throw std::runtime_error(std::string(__func__) + ": Writing wallet version failed");
 
     CPubKey pubkey = secret.GetPubKey();
@@ -985,15 +986,17 @@ bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
     // check if we need to remove from watch-only
     CScript script;
     script = GetScriptForDestination(pubkey.GetID());
-    if (HaveWatchOnly(script))
-        RemoveWatchOnly(script);
+    if (HaveWatchOnly(script) && !RemoveWatchOnly(script) && m_keyGenerationBatch)
+        return false;
     script = GetScriptForRawPubKey(pubkey);
-    if (HaveWatchOnly(script))
-        RemoveWatchOnly(script);
+    if (HaveWatchOnly(script) && !RemoveWatchOnly(script) && m_keyGenerationBatch)
+        return false;
 
     if (!fFileBacked)
         return true;
     if (!IsCrypted()) {
+        if (m_keyGenerationBatch)
+            return m_keyGenerationBatch->WriteKey(pubkey, secret.GetPrivKey(), mapKeyMetadata[pubkey.GetID()]);
         return CWalletDB(GetDatabase()).WriteKey(pubkey, secret.GetPrivKey(), mapKeyMetadata[pubkey.GetID()]);
     }
     return true;
@@ -1012,6 +1015,8 @@ bool CWallet::AddCryptedKey(const CPubKey &vchPubKey,
             return pwalletdbEncryption->WriteCryptedKey(vchPubKey,
                                                         vchCryptedSecret,
                                                         mapKeyMetadata[vchPubKey.GetID()]);
+        else if (m_keyGenerationBatch)
+            return m_keyGenerationBatch->WriteCryptedKey(vchPubKey, vchCryptedSecret, mapKeyMetadata[vchPubKey.GetID()]);
         else
             return CWalletDB(GetDatabase()).WriteCryptedKey(vchPubKey, vchCryptedSecret, mapKeyMetadata[vchPubKey.GetID()]);
     }
@@ -1091,10 +1096,10 @@ bool CWallet::RemoveWatchOnly(const CScript &dest)
     AssertLockHeld(cs_wallet);
     if (!CCryptoKeyStore::RemoveWatchOnly(dest))
         return false;
-    if (!HaveWatchOnly())
+    if (!HaveWatchOnly() && !m_keyGenerationBatch)
         NotifyWatchonlyChanged(false);
     if (fFileBacked)
-        if (!CWalletDB(GetDatabase()).EraseWatchOnly(dest))
+        if (!(m_keyGenerationBatch ? m_keyGenerationBatch->EraseWatchOnly(dest) : CWalletDB(GetDatabase()).EraseWatchOnly(dest)))
             return false;
 
     return true;
@@ -5644,6 +5649,8 @@ bool CWallet::NewKeyPool()
 {
     {
         LOCK(cs_wallet);
+        if (GetDatabase().Format() == DatabaseFormat::SQLITE)
+            return FillSQLiteKeyPool(std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), int64_t{0}), true);
         CWalletDB walletdb(GetDatabase());
         BOOST_FOREACH(int64_t nIndex, setKeyPool)
             walletdb.ErasePool(nIndex);
@@ -5675,14 +5682,16 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
         if (IsLocked())
             return false;
 
-        CWalletDB walletdb(GetDatabase());
-
         // Top up key pool
         unsigned int nTargetSize;
         if (kpSize > 0)
             nTargetSize = kpSize;
         else
             nTargetSize = std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t) 0);
+
+        if (GetDatabase().Format() == DatabaseFormat::SQLITE)
+            return FillSQLiteKeyPool(nTargetSize + 1, false);
+        CWalletDB walletdb(GetDatabase());
 
         while (setKeyPool.size() < (nTargetSize + 1))
         {
@@ -5698,6 +5707,51 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
         }
     }
     return true;
+}
+
+bool CWallet::FillSQLiteKeyPool(unsigned int target, bool replace)
+{
+    AssertLockHeld(cs_wallet);
+    assert(!m_keyGenerationBatch);
+    if (IsLocked()) return false;
+    if (!replace && setKeyPool.size() >= target) return true;
+    const bool hadWatchOnly = HaveWatchOnly();
+    CWalletDB database(GetDatabase());
+    if (!database.TxnBegin()) return false;
+    bool committed = false;
+    BOOST_SCOPE_EXIT_ALL(&) {
+        m_keyGenerationBatch = nullptr;
+        if (!committed) {
+            if (database.HasActiveTxn()) database.TxnAbort();
+            // No caller can see the generated pool until cs_wallet is released.
+            // Do not expose keys whose persistence failed while shutting down.
+            setKeyPool.clear();
+            m_pool_key_to_index.clear();
+#ifdef USE_SQLITE
+            QuarantineSQLiteDatabase(GetDatabase());
+#endif
+            StartShutdown();
+        }
+    };
+    m_keyGenerationBatch = &database;
+    if (replace) {
+        for (const auto index : setKeyPool) {
+            if (!database.ErasePool(index)) return false;
+        }
+        setKeyPool.clear();
+        m_pool_key_to_index.clear();
+    }
+    while (setKeyPool.size() < target) {
+        const int64_t index = setKeyPool.empty() ? 1 : *setKeyPool.rbegin() + 1;
+        const CPubKey pubkey = GenerateNewKey();
+        if (!database.WritePool(index, CKeyPool(pubkey))) return false;
+        setKeyPool.insert(index);
+        m_pool_key_to_index[pubkey.GetID()] = index;
+    }
+    committed = database.TxnCommit();
+    m_keyGenerationBatch = nullptr;
+    if (committed && hadWatchOnly && !HaveWatchOnly()) NotifyWatchonlyChanged(false);
+    return committed;
 }
 
 void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool)

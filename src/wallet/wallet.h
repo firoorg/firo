@@ -684,6 +684,9 @@ private:
     bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, bool fForUseInInstantSend = true) const;
 
     std::unique_ptr<CWalletDB> pwalletdbEncryption;
+    // Borrowed only while cs_wallet protects one atomic key-pool refill.
+    CWalletDB* m_keyGenerationBatch{nullptr};
+    bool FillSQLiteKeyPool(unsigned int target, bool replace);
 
     //! the current wallet version: clients below this version are not able to load the wallet
     int nWalletVersion;

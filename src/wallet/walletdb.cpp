@@ -24,7 +24,27 @@
 #include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/thread.hpp>
+
+namespace {
+// Reuse an existing transaction (notably wallet encryption); otherwise group
+// one logical SQLite operation without changing legacy BDB durability behavior.
+class WalletRecordTransaction
+{
+    CWalletDB& m_db;
+    const bool m_owned;
+public:
+    WalletRecordTransaction(CWalletDB& db, bool enabled)
+        : m_db(db), m_owned(enabled && !db.HasActiveTxn()) {}
+    bool Begin() { return !m_owned || m_db.TxnBegin(); }
+    bool Commit() { return !m_owned || m_db.TxnCommit(); }
+    ~WalletRecordTransaction()
+    {
+        if (m_owned && m_db.HasActiveTxn()) m_db.TxnAbort();
+    }
+};
+}
 
 static uint64_t nAccountingEntryNumber = 0;
 
@@ -87,6 +107,8 @@ bool CWalletDB::EraseTx(uint256 hash)
 bool CWalletDB::WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta)
 {
     nWalletDBUpdateCounter++;
+    WalletRecordTransaction transaction(*this, m_format == DatabaseFormat::SQLITE);
+    if (!transaction.Begin()) return false;
 
     if (!Write(std::make_pair(std::string("keymeta"), vchPubKey),
                keyMeta, false))
@@ -98,7 +120,7 @@ bool CWalletDB::WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, c
     vchKey.insert(vchKey.end(), vchPubKey.begin(), vchPubKey.end());
     vchKey.insert(vchKey.end(), vchPrivKey.begin(), vchPrivKey.end());
 
-    return Write(std::make_pair(std::string("key"), vchPubKey), std::make_pair(vchPrivKey, Hash(vchKey.begin(), vchKey.end())), false);
+    return Write(std::make_pair(std::string("key"), vchPubKey), std::make_pair(vchPrivKey, Hash(vchKey.begin(), vchKey.end())), false) && transaction.Commit();
 }
 
 bool CWalletDB::WriteCryptedKey(const CPubKey& vchPubKey,
@@ -107,6 +129,8 @@ bool CWalletDB::WriteCryptedKey(const CPubKey& vchPubKey,
 {
     const bool fEraseUnencryptedKey = true;
     nWalletDBUpdateCounter++;
+    WalletRecordTransaction transaction(*this, m_format == DatabaseFormat::SQLITE);
+    if (!transaction.Begin()) return false;
 
     if (!Write(std::make_pair(std::string("keymeta"), vchPubKey),
             keyMeta))
@@ -124,7 +148,7 @@ bool CWalletDB::WriteCryptedKey(const CPubKey& vchPubKey,
             (!keyErased || !walletKeyErased))
             return false;
     }
-    return true;
+    return transaction.Commit();
 }
 
 bool CWalletDB::WriteMasterKey(unsigned int nID, const CMasterKey& kMasterKey)
@@ -298,6 +322,23 @@ DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
         txByTime.insert(std::make_pair(entry.nTime, TxPair((CWalletTx*)0, &entry)));
     }
 
+    const bool sqlite = m_format == DatabaseFormat::SQLITE;
+    std::vector<std::pair<CWalletTx*, int64_t>> originalOrder;
+    if (sqlite) {
+        for (auto& entry : pwallet->mapWallet)
+            originalOrder.emplace_back(&entry.second, entry.second.nOrderPos);
+    }
+    const int64_t originalNext = pwallet->nOrderPosNext;
+    WalletRecordTransaction transaction(*this, sqlite);
+    if (!transaction.Begin()) return DB_LOAD_FAIL;
+    bool committed = false;
+    BOOST_SCOPE_EXIT_ALL(&) {
+        if (sqlite && !committed) {
+            pwallet->nOrderPosNext = originalNext;
+            for (const auto& entry : originalOrder) entry.first->nOrderPos = entry.second;
+        }
+    };
+
     int64_t& nOrderPosNext = pwallet->nOrderPosNext;
     nOrderPosNext = 0;
     std::vector<int64_t> nOrderPosOffsets;
@@ -346,7 +387,9 @@ DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
                     return DB_LOAD_FAIL;
         }
     }
-    WriteOrderPosNext(nOrderPosNext);
+    if (!WriteOrderPosNext(nOrderPosNext) && sqlite) return DB_LOAD_FAIL;
+    committed = transaction.Commit();
+    if (!committed) return DB_LOAD_FAIL;
 
     return DB_LOAD_OK;
 }
@@ -836,9 +879,14 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update, bool checkTransact
     if ((wss.nKeys + wss.nCKeys + wss.nWatchKeys) != wss.nKeyMeta)
         pwallet->UpdateTimeFirstKey(1);
 
-    if (update) {
-        BOOST_FOREACH(uint256 hash, wss.vWalletUpgrade)
-            WriteTx(pwallet->mapWallet[hash]);
+    if (update && !wss.vWalletUpgrade.empty()) {
+        WalletRecordTransaction transaction(*this, m_format == DatabaseFormat::SQLITE);
+        if (!transaction.Begin()) return DB_LOAD_FAIL;
+        BOOST_FOREACH(uint256 hash, wss.vWalletUpgrade) {
+            if (!WriteTx(pwallet->mapWallet[hash]) && m_format == DatabaseFormat::SQLITE)
+                return DB_LOAD_FAIL;
+        }
+        if (!transaction.Commit()) return DB_LOAD_FAIL;
     }
 
     // Rewrite encrypted wallets of versions 0.4.0 and 0.5.0rc:
@@ -940,6 +988,22 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vTxHashI
     std::sort(vTxHash.begin(), vTxHash.end());
     std::sort(vTxHashIn.begin(), vTxHashIn.end());
 
+    if (m_format == DatabaseFormat::SQLITE) {
+        std::vector<uint256> selected;
+        std::set_intersection(vTxHash.begin(), vTxHash.end(), vTxHashIn.begin(), vTxHashIn.end(),
+            std::back_inserter(selected));
+        if (selected.empty()) return DB_LOAD_OK;
+        WalletRecordTransaction transaction(*this, true);
+        if (!transaction.Begin()) return DB_CORRUPT;
+        for (const auto& hash : selected) {
+            if (!EraseTx(hash)) return DB_CORRUPT;
+        }
+        if (!transaction.Commit()) return DB_CORRUPT;
+        for (const auto& hash : selected) pwallet->mapWallet.erase(hash);
+        vTxHashOut.insert(vTxHashOut.end(), selected.begin(), selected.end());
+        return DB_LOAD_OK;
+    }
+
     // erase each matching wallet TX
     bool delerror = false;
     std::vector<uint256>::iterator it = vTxHashIn.begin();
@@ -969,6 +1033,11 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vTxHashI
 DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
     // get list of spark Mints
     std::unordered_map<uint256, CSparkMintMeta> sparkMints = ListSparkMints();
+    std::list<CSparkSpendEntry> sparkSpends;
+    ListSparkSpends(sparkSpends);
+    if (sparkMints.empty() && sparkSpends.empty()) return DB_LOAD_OK;
+    WalletRecordTransaction transaction(*this, m_format == DatabaseFormat::SQLITE);
+    if (!transaction.Begin()) return DB_CORRUPT;
 
     // erase each Mint
     BOOST_FOREACH(auto & mint, sparkMints)
@@ -977,14 +1046,12 @@ DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
             return DB_CORRUPT;
     }
 
-    std::list<CSparkSpendEntry> sparkSpends;
-    ListSparkSpends(sparkSpends);
     for (const auto& spend : sparkSpends) {
         if (!EraseSparkSpendEntry(spend.lTag))
             return DB_CORRUPT;
     }
 
-    return DB_LOAD_OK;
+    return transaction.Commit() ? DB_LOAD_OK : DB_CORRUPT;
 }
 
 DBErrors CWalletDB::ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx)
@@ -994,6 +1061,9 @@ DBErrors CWalletDB::ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx)
     DBErrors err = FindWalletTx(pwallet, vTxHash, vWtx);
     if (err != DB_LOAD_OK)
         return err;
+    if (vTxHash.empty()) return DB_LOAD_OK;
+    WalletRecordTransaction transaction(*this, m_format == DatabaseFormat::SQLITE);
+    if (!transaction.Begin()) return DB_CORRUPT;
 
     // erase each wallet TX
     BOOST_FOREACH (uint256& hash, vTxHash) {
@@ -1001,7 +1071,7 @@ DBErrors CWalletDB::ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx)
             return DB_CORRUPT;
     }
 
-    return DB_LOAD_OK;
+    return transaction.Commit() ? DB_LOAD_OK : DB_CORRUPT;
 }
 
 void ThreadFlushWalletDB()
