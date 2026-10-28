@@ -56,6 +56,20 @@ safe filesystem boundary available on each platform. Linux uses `renameat2`
 with `RENAME_NOREPLACE` or `RENAME_EXCHANGE` and `fsync`. macOS uses
 `renameatx_np` with `RENAME_EXCL` or `RENAME_SWAP` and `F_FULLFSYNC`.
 
+On Linux and macOS, wallets and SQLite backup destinations must be in a
+directory owned by the current user with no group or other write permission.
+The main file must be private (mode `0600`); parent directories must also be
+protected against replacement by other users. Parent symlinks are resolved,
+but the final wallet filename cannot be a symlink. Filesystems without the
+required private permissions or rename operations, including typical
+FAT32/exFAT backup media, are not supported. Back up to a protected supported
+filesystem first. Do not disable permission checks or delete journal files
+to bypass a refusal.
+
+Wallet and backup filenames cannot end in `-journal`, `-wal`, or `-shm`;
+these names belong to SQLite auxiliary files. Windows also rejects filenames
+ending in a dot or space because Windows silently normalizes those names.
+
 Windows support requires a local NTFS volume with persistent ACLs and stable
 file identities. Firo opens every relevant path component without following
 reparse points and rejects reparse entries. New candidates and backups use
