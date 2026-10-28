@@ -1808,11 +1808,25 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
         return false;
 
     bool encryptMnemonic = false;
-    bool databaseCommitSuccess = true;
     unsigned int newMasterKeyId = 0;
     bool masterKeyIdReserved = false;
     bool masterKeyInserted = false;
     bool keyMutationStarted = false;
+    auto failEncryption = [&]() {
+        AssertLockHeld(cs_wallet);
+        // Disk may still contain the old wallet. Do not allow the new in-memory
+        // master key to unlock it or persist keys while shutdown is pending.
+        mapMasterKeys.clear();
+#ifdef USE_SQLITE
+        QuarantineSQLiteDatabase(GetDatabase());
+#endif
+        StartShutdown();
+        try {
+            Lock();
+        } catch (...) {
+            // Lock clears the key before notifying listeners, which may throw.
+        }
+    };
     {
     LOCK(cs_wallet);
     try {
@@ -1840,7 +1854,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
                 --nMasterKeyMaxID;
                 if (!abortSuccess) {
                     LogPrintf("CWallet::EncryptWallet: Failed to abort database transaction after master-key write failure\n");
-                    StartShutdown();
+                    failEncryption();
                 }
                 return false;
             }
@@ -1854,9 +1868,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
                 pwalletdbEncryption->TxnAbort();
                 pwalletdbEncryption.reset();
             }
-            // We now probably have half of our keys encrypted in memory, and half not...
-            // die and let the user reload the unencrypted wallet.
-            StartShutdown();
+            failEncryption();
             return false;
         }
 
@@ -1866,7 +1878,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
                 pwalletdbEncryption->TxnAbort();
                 pwalletdbEncryption.reset();
             }
-            StartShutdown();
+            failEncryption();
             return false;
         }
 
@@ -1879,7 +1891,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
                     pwalletdbEncryption->TxnAbort();
                     pwalletdbEncryption.reset();
                 }
-                StartShutdown();
+                failEncryption();
                 return false;
             }
         }
@@ -1888,10 +1900,8 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
         {
             if (!pwalletdbEncryption->TxnCommit()) {
                 pwalletdbEncryption.reset();
-                // We now have keys encrypted in memory, but not on disk...
-                // die to avoid confusion and let the user reload the unencrypted wallet.
-                StartShutdown();
-                databaseCommitSuccess = false;
+                failEncryption();
+                return false;
             } else {
                 pwalletdbEncryption.reset();
             }
@@ -1917,7 +1927,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
         }
         LogPrintf("CWallet::EncryptWallet: Exception during encryption transaction: %s\n", error.what());
         if (keyMutationStarted || !abortSuccess) {
-            StartShutdown();
+            failEncryption();
         }
         return false;
     } catch (...) {
@@ -1941,7 +1951,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
         }
         LogPrintf("CWallet::EncryptWallet: Unknown exception during encryption transaction\n");
         if (keyMutationStarted || !abortSuccess) {
-            StartShutdown();
+            failEncryption();
         }
         return false;
     }
@@ -1977,7 +1987,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
         StartShutdown();
         return false;
     }
-    if (!databaseCommitSuccess || !initialLockSuccess) {
+    if (!initialLockSuccess) {
         return false;
     }
 

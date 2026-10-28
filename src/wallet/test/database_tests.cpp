@@ -10948,6 +10948,8 @@ BOOST_FIXTURE_TEST_CASE(
                 passphrase, &status));
         BOOST_CHECK(status == CWallet::EncryptionStatus::ENCRYPTION_STARTED);
         BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK(!walletAndKey.first->Unlock(passphrase));
+        BOOST_CHECK_THROW(walletAndKey.first->GetDatabase().MakeBatch(), std::runtime_error);
         walletAndKey.first.reset();
         checkPlainWallet(
             filename,
@@ -10969,6 +10971,8 @@ BOOST_FIXTURE_TEST_CASE(
             GetSQLiteEraseAttemptsForTesting(),
             2);
         BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK(!walletAndKey.first->Unlock(passphrase));
+        BOOST_CHECK_THROW(walletAndKey.first->GetDatabase().MakeBatch(), std::runtime_error);
         walletAndKey.first.reset();
         checkPlainWallet(
             filename,

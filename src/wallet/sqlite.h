@@ -16,6 +16,9 @@ struct sqlite3;
 struct sqlite3_stmt;
 class BerkeleyDatabase;
 
+/** Prevent further operations after the wallet's in-memory state becomes unsafe. */
+void QuarantineSQLiteDatabase(WalletDatabase& database) noexcept;
+
 enum class SQLiteMigrationPublishResult {
     SUCCESS,
     FAILED,

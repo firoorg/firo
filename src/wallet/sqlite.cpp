@@ -4655,6 +4655,7 @@ public:
     }
 
     const std::string& Filename() const override { return m_filename; }
+    void Quarantine() noexcept { Poison(); }
     DatabaseFormat Format() const override { return DatabaseFormat::SQLITE; }
     std::string RecoveryBackupPath() const override
     {
@@ -8054,6 +8055,13 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
 #endif
 }
 } // namespace
+
+void QuarantineSQLiteDatabase(WalletDatabase& database) noexcept
+{
+    if (auto* sqlite = dynamic_cast<SQLiteDatabase*>(&database)) {
+        sqlite->Quarantine();
+    }
+}
 
 int SQLiteStatementExecutor::Execute(
     sqlite3* database,
