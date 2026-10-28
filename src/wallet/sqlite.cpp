@@ -1327,6 +1327,10 @@ bool VerifyDatabase(sqlite3* database, std::string& error)
 
 bool SetConnectionPragmas(sqlite3* database, std::string& error)
 {
+    if (sqlite3_compileoption_used("TEMP_STORE=0")) {
+        error = "SQLite wallet support requires a library that permits in-memory temporary storage.";
+        return false;
+    }
     const std::optional<std::string> journal_mode = ReadPragmaText(
         database,
         "PRAGMA journal_mode = DELETE",
