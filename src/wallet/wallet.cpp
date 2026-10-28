@@ -1838,66 +1838,43 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
         }
     };
     {
-    LOCK(cs_wallet);
-    try {
-        newMasterKeyId = ++nMasterKeyMaxID;
-        masterKeyIdReserved = true;
-        if (!mapMasterKeys.emplace(newMasterKeyId, kMasterKey).second) {
-            --nMasterKeyMaxID;
-            return false;
-        }
-        masterKeyInserted = true;
-        if (fFileBacked)
-        {
-            assert(!pwalletdbEncryption);
-            pwalletdbEncryption = std::make_unique<CWalletDB>(GetDatabase());
-            if (!pwalletdbEncryption->TxnBegin()) {
-                pwalletdbEncryption.reset();
-                mapMasterKeys.erase(newMasterKeyId);
+        LOCK(cs_wallet);
+        try {
+            newMasterKeyId = ++nMasterKeyMaxID;
+            masterKeyIdReserved = true;
+            if (!mapMasterKeys.emplace(newMasterKeyId, kMasterKey).second) {
                 --nMasterKeyMaxID;
                 return false;
             }
-            if (!pwalletdbEncryption->WriteMasterKey(newMasterKeyId, kMasterKey) ||
-                !pwalletdbEncryption->WriteRewriteRequired()) {
-                const bool abortSuccess = pwalletdbEncryption->TxnAbort();
-                pwalletdbEncryption.reset();
-                mapMasterKeys.erase(newMasterKeyId);
-                --nMasterKeyMaxID;
-                if (!abortSuccess) {
-                    LogPrintf("CWallet::EncryptWallet: Failed to abort database transaction after master-key write failure\n");
-                    failEncryption();
+            masterKeyInserted = true;
+            if (fFileBacked)
+            {
+                assert(!pwalletdbEncryption);
+                pwalletdbEncryption = std::make_unique<CWalletDB>(GetDatabase());
+                if (!pwalletdbEncryption->TxnBegin()) {
+                    pwalletdbEncryption.reset();
+                    mapMasterKeys.erase(newMasterKeyId);
+                    --nMasterKeyMaxID;
+                    return false;
                 }
-                return false;
+                if (!pwalletdbEncryption->WriteMasterKey(newMasterKeyId, kMasterKey) ||
+                    !pwalletdbEncryption->WriteRewriteRequired()) {
+                    const bool abortSuccess = pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                    mapMasterKeys.erase(newMasterKeyId);
+                    --nMasterKeyMaxID;
+                    if (!abortSuccess) {
+                        LogPrintf("CWallet::EncryptWallet: Failed to abort database transaction after master-key write failure\n");
+                        failEncryption();
+                    }
+                    return false;
+                }
             }
-        }
 
-        keyMutationStarted = true;
-        result = EncryptionStatus::ENCRYPTION_STARTED;
-        if (!EncryptKeys(vMasterKey))
-        {
-            if (fFileBacked) {
-                pwalletdbEncryption->TxnAbort();
-                pwalletdbEncryption.reset();
-            }
-            failEncryption();
-            return false;
-        }
-
-        // Encryption was introduced in version 0.4.0
-        if (!SetMinVersion(FEATURE_WALLETCRYPT, pwalletdbEncryption.get(), true)) {
-            if (fFileBacked) {
-                pwalletdbEncryption->TxnAbort();
-                pwalletdbEncryption.reset();
-            }
-            failEncryption();
-            return false;
-        }
-
-        encryptMnemonic = !mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39;
-        if (encryptMnemonic) {
-            if (!EncryptMnemonicContainer(vMasterKey) ||
-                (fFileBacked && !pwalletdbEncryption->WriteMnemonic(mnemonicContainer)) ||
-                !SetMinVersion(FEATURE_HD, pwalletdbEncryption.get())) {
+            keyMutationStarted = true;
+            result = EncryptionStatus::ENCRYPTION_STARTED;
+            if (!EncryptKeys(vMasterKey))
+            {
                 if (fFileBacked) {
                     pwalletdbEncryption->TxnAbort();
                     pwalletdbEncryption.reset();
@@ -1905,68 +1882,90 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionS
                 failEncryption();
                 return false;
             }
-        }
 
-        if (fFileBacked)
-        {
-            if (!pwalletdbEncryption->TxnCommit()) {
-                pwalletdbEncryption.reset();
+            // Encryption was introduced in version 0.4.0
+            if (!SetMinVersion(FEATURE_WALLETCRYPT, pwalletdbEncryption.get(), true)) {
+                if (fFileBacked) {
+                    pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                }
                 failEncryption();
                 return false;
-            } else {
-                pwalletdbEncryption.reset();
             }
-        }
-    } catch (const std::exception& error) {
-        bool abortSuccess = true;
-        {
-            LOCK(cs_wallet);
-            if (pwalletdbEncryption) {
-                if (pwalletdbEncryption->HasActiveTxn()) {
-                    abortSuccess = pwalletdbEncryption->TxnAbort();
-                }
-                pwalletdbEncryption.reset();
-            }
-            if (!keyMutationStarted) {
-                if (masterKeyInserted) {
-                    mapMasterKeys.erase(newMasterKeyId);
-                }
-                if (masterKeyIdReserved && nMasterKeyMaxID == newMasterKeyId) {
-                    --nMasterKeyMaxID;
-                }
-            }
-        }
-        LogPrintf("CWallet::EncryptWallet: Exception during encryption transaction: %s\n", error.what());
-        if (keyMutationStarted || !abortSuccess) {
-            failEncryption();
-        }
-        return false;
-    } catch (...) {
-        bool abortSuccess = true;
-        {
-            LOCK(cs_wallet);
-            if (pwalletdbEncryption) {
-                if (pwalletdbEncryption->HasActiveTxn()) {
-                    abortSuccess = pwalletdbEncryption->TxnAbort();
-                }
-                pwalletdbEncryption.reset();
-            }
-            if (!keyMutationStarted) {
-                if (masterKeyInserted) {
-                    mapMasterKeys.erase(newMasterKeyId);
-                }
-                if (masterKeyIdReserved && nMasterKeyMaxID == newMasterKeyId) {
-                    --nMasterKeyMaxID;
-                }
-            }
-        }
-        LogPrintf("CWallet::EncryptWallet: Unknown exception during encryption transaction\n");
-        if (keyMutationStarted || !abortSuccess) {
-            failEncryption();
-        }
-        return false;
-    }
 
+            encryptMnemonic = !mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39;
+            if (encryptMnemonic) {
+                if (!EncryptMnemonicContainer(vMasterKey) ||
+                    (fFileBacked && !pwalletdbEncryption->WriteMnemonic(mnemonicContainer)) ||
+                    !SetMinVersion(FEATURE_HD, pwalletdbEncryption.get())) {
+                    if (fFileBacked) {
+                        pwalletdbEncryption->TxnAbort();
+                        pwalletdbEncryption.reset();
+                    }
+                    failEncryption();
+                    return false;
+                }
+            }
+
+            if (fFileBacked)
+            {
+                if (!pwalletdbEncryption->TxnCommit()) {
+                    pwalletdbEncryption.reset();
+                    failEncryption();
+                    return false;
+                } else {
+                    pwalletdbEncryption.reset();
+                }
+            }
+        } catch (const std::exception& error) {
+            bool abortSuccess = true;
+            {
+                LOCK(cs_wallet);
+                if (pwalletdbEncryption) {
+                    if (pwalletdbEncryption->HasActiveTxn()) {
+                        abortSuccess = pwalletdbEncryption->TxnAbort();
+                    }
+                    pwalletdbEncryption.reset();
+                }
+                if (!keyMutationStarted) {
+                    if (masterKeyInserted) {
+                        mapMasterKeys.erase(newMasterKeyId);
+                    }
+                    if (masterKeyIdReserved && nMasterKeyMaxID == newMasterKeyId) {
+                        --nMasterKeyMaxID;
+                    }
+                }
+            }
+            LogPrintf("CWallet::EncryptWallet: Exception during encryption transaction: %s\n", error.what());
+            if (keyMutationStarted || !abortSuccess) {
+                failEncryption();
+            }
+            return false;
+        } catch (...) {
+            bool abortSuccess = true;
+            {
+                LOCK(cs_wallet);
+                if (pwalletdbEncryption) {
+                    if (pwalletdbEncryption->HasActiveTxn()) {
+                        abortSuccess = pwalletdbEncryption->TxnAbort();
+                    }
+                    pwalletdbEncryption.reset();
+                }
+                if (!keyMutationStarted) {
+                    if (masterKeyInserted) {
+                        mapMasterKeys.erase(newMasterKeyId);
+                    }
+                    if (masterKeyIdReserved && nMasterKeyMaxID == newMasterKeyId) {
+                        --nMasterKeyMaxID;
+                    }
+                }
+            }
+            LogPrintf("CWallet::EncryptWallet: Unknown exception during encryption transaction\n");
+            if (keyMutationStarted || !abortSuccess) {
+                failEncryption();
+            }
+            return false;
+        }
     }
 
     bool initialLockSuccess = false;
