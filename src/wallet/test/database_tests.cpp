@@ -6228,9 +6228,17 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
         BOOST_CHECK(!fs::exists(
             publicationCollisionPath.string() + suffix));
     }
+    std::set<std::string> expectedEntriesAfterPublicationCollision =
+        entriesBeforePublicationCollision;
+#ifdef WIN32
+    // The reopen above closed the exclusive connection, which deleted the
+    // rollback journal it kept; the read since then does not recreate it.
+    expectedEntriesAfterPublicationCollision.erase(
+        journalPath.filename().string());
+#endif
     BOOST_CHECK(
         SQLiteTestDirectoryEntries() ==
-        entriesBeforePublicationCollision);
+        expectedEntriesAfterPublicationCollision);
 #ifndef WIN32
     BOOST_CHECK_EQUAL(
         fs::status(backupPath).permissions() & (fs::group_all | fs::others_all),
