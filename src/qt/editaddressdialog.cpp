@@ -206,6 +206,9 @@ void EditAddressDialog::accept()
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::KEY_GENERATION_FAILURE:
+            // Spark generation already reports the persistence error through WalletModel.
+            if (mode == NewSparkReceivingAddress)
+                break;
             QMessageBox::critical(this, windowTitle(),
                 tr("New key generation failed."),
                 QMessageBox::Ok, QMessageBox::Ok);

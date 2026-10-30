@@ -131,7 +131,8 @@ void AskPassphraseDialog::accept()
         {
             if(newpass1 == newpass2)
             {
-                if(model->setWalletEncrypted(true, newpass1))
+                CWallet::EncryptionStatus encryptionStatus;
+                if(model->setWalletEncrypted(true, newpass1, &encryptionStatus))
                 {
                     QMessageBox::warning(this, tr("Wallet encrypted"),
                                          "<qt>" +
@@ -141,15 +142,30 @@ void AskPassphraseDialog::accept()
                                          "<br><br><b>" +
                                          tr("IMPORTANT: Any previous backups you have made of your wallet file "
                                          "should be replaced with the newly generated, encrypted wallet file. "
-                                         "For security reasons, previous backups of the unencrypted wallet file "
-                                         "will become useless as soon as you start using the new, encrypted wallet.") +
+                                         "Previous unencrypted backups, including database migration backups, "
+                                         "still contain usable private keys. Encryption and later passphrase "
+                                         "changes do not protect those copies. Keep them secure.") +
                                          "</b></qt>");
                     QApplication::quit();
                 }
                 else
                 {
-                    QMessageBox::critical(this, tr("Wallet encryption failed"),
-                                         tr("Wallet encryption failed due to an internal error. Your wallet was not encrypted."));
+                    if (encryptionStatus == CWallet::EncryptionStatus::ALREADY_ENCRYPTED) {
+                        QMessageBox::critical(this, tr("Wallet already encrypted"),
+                                              tr("Another request encrypted this wallet. This request did not change its passphrase."));
+                    } else if (model->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+                               encryptionStatus == CWallet::EncryptionStatus::ENCRYPTION_STARTED) {
+                        QMessageBox::critical(
+                            this,
+                            tr("Wallet encryption incomplete"),
+                            tr("Wallet encryption did not complete cleanly, but encrypted wallet data may already have been written. "
+                               "Keep the new passphrase; it may be required after restart. %1 will close now.")
+                                .arg(tr(PACKAGE_NAME)));
+                        QApplication::quit();
+                    } else {
+                        QMessageBox::critical(this, tr("Wallet encryption failed"),
+                                         tr("Wallet encryption failed due to an internal error. This request did not encrypt your wallet."));
+                    }
                 }
                 QDialog::accept(); // Success
             }
@@ -189,11 +205,37 @@ void AskPassphraseDialog::accept()
     case ChangePass:
         if(newpass1 == newpass2)
         {
-            if(model->changePassphrase(oldpass, newpass1))
+            bool indeterminate = false;
+            bool databaseError = false;
+            if(model->changePassphrase(
+                    oldpass,
+                    newpass1,
+                    &indeterminate,
+                    &databaseError))
             {
                 QMessageBox::information(this, tr("Wallet encrypted"),
                                      tr("Wallet passphrase was successfully changed."));
                 QDialog::accept(); // Success
+            }
+            else if (model->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+                     indeterminate)
+            {
+                QMessageBox::critical(
+                    this,
+                    tr("Wallet passphrase change incomplete"),
+                    tr("The wallet passphrase change did not complete cleanly, and the new passphrase may already be required. "
+                       "Keep both the old and new passphrases. %1 will close now; restart and try both passphrases before making another change.")
+                        .arg(tr(PACKAGE_NAME)));
+                QApplication::quit();
+            }
+            else if (databaseError)
+            {
+                QMessageBox::critical(
+                    this,
+                    tr("Wallet passphrase change failed"),
+                    tr("SQLite wallet '%1': failed to store the new passphrase. "
+                       "The old passphrase remains valid; resolve the database error before retrying.")
+                        .arg(QString::fromStdString(model->getWallet()->strWalletFile)));
             }
             else
             {

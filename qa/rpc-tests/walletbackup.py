@@ -38,6 +38,7 @@ from test_framework.util import *
 from test_framework.test_helper import get_dumpwallet_otp 
 from random import randint
 import logging
+import stat
 logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO, stream=sys.stdout)
 
 class WalletBackupTest(BitcoinTestFramework):
@@ -169,6 +170,10 @@ class WalletBackupTest(BitcoinTestFramework):
         balance1 = self.nodes[1].getbalance()
         balance2 = self.nodes[2].getbalance()
         balance3 = self.nodes[3].getbalance()
+        wallet_formats = [
+            self.nodes[index].getwalletinfo()["format"]
+            for index in range(3)
+        ]
         total = balance0 + balance1 + balance2 + balance3
 
         # At this point, there are 214 blocks (103 for setup, then 10 rounds, then 101.)
@@ -187,9 +192,22 @@ class WalletBackupTest(BitcoinTestFramework):
         shutil.rmtree(self.options.tmpdir + "/node2/regtest/chainstate")
 
         # Restore wallets from backup
-        shutil.copyfile(tmpdir + "/node0/wallet.bak", tmpdir + "/node0/regtest/wallet.dat")
-        shutil.copyfile(tmpdir + "/node1/wallet.bak", tmpdir + "/node1/regtest/wallet.dat")
-        shutil.copyfile(tmpdir + "/node2/wallet.bak", tmpdir + "/node2/regtest/wallet.dat")
+        for index in range(3):
+            backup_path = tmpdir + "/node%d/wallet.bak" % index
+            restore_path = tmpdir + "/node%d/regtest/wallet.dat" % index
+            shutil.copy2(backup_path, restore_path)
+            if os.name == "posix":
+                backup_stat = os.lstat(backup_path)
+                restore_stat = os.lstat(restore_path)
+                assert_equal(
+                    stat.S_IMODE(restore_stat.st_mode),
+                    stat.S_IMODE(backup_stat.st_mode))
+                if wallet_formats[index] == "sqlite":
+                    assert_equal(restore_stat.st_uid, os.geteuid())
+                    assert_equal(restore_stat.st_nlink, 1)
+                    assert_equal(
+                        stat.S_IMODE(restore_stat.st_mode),
+                        0o600)
 
         logging.info("Re-starting nodes")
         self.start_three()

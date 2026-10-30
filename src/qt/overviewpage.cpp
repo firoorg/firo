@@ -708,6 +708,9 @@ void OverviewPage::on_anonymizeButton_clicked()
         }
         if (sparkAddress.isEmpty()) {
             sparkAddress = walletModel->generateSparkAddress();
+            if (sparkAddress.isEmpty()) {
+                return;
+            }
         }
 
         const CAmount amount = amountField->value();

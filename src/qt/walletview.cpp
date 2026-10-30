@@ -322,18 +322,27 @@ void WalletView::encryptWallet(bool status)
 
 void WalletView::backupWallet()
 {
+    if (!walletModel) return;
+    const bool sqlite = walletModel->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE;
     QString filename = GUIUtil::getSaveFileName(this,
         tr("Backup Wallet"), QString(),
-        tr("Wallet Data (*.dat)"), NULL);
+        tr("Wallet Data (*.dat)"), NULL, !sqlite);
 
     if (filename.isEmpty())
         return;
 
-    if (!walletModel->backupWallet(filename)) {
-        Q_EMIT message(tr("Backup Failed"), tr("There was an error trying to save the wallet data to %1.").arg(filename),
-            CClientUIInterface::MSG_ERROR);
+    QString error;
+    if (!walletModel->backupWallet(filename, error)) {
+        if (error.isEmpty()) {
+            Q_EMIT message(tr("Backup Failed"), tr("There was an error trying to save the wallet data to %1.").arg(filename),
+                CClientUIInterface::MSG_ERROR);
+        } else {
+            Q_EMIT message(
+                tr("Backup Failed"),
+                "<qt>" + GUIUtil::HtmlEscape(error, true) + "</qt>",
+                CClientUIInterface::MSG_ERROR);
         }
-    else {
+    } else {
         Q_EMIT message(tr("Backup Successful"), tr("The wallet data was successfully saved to %1.").arg(filename),
             CClientUIInterface::MSG_INFORMATION);
     }

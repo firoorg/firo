@@ -80,7 +80,9 @@ Stop daemon:
 docker stop firod
 ```
 
-Backup wallet:
+The following copies the default wallet only after a clean shutdown. For
+backend-aware live backup and safe restoration under a new wallet filename,
+see [SQLite wallet storage](doc/sqlite-wallet.md).
 
 ```sh
 docker cp firod:/home/firod/.firo/wallet.dat .
@@ -196,6 +198,7 @@ If the build succeeded, binaries will be generated in `build/bin/`: `firod`, `fi
 | `BUILD_GUI` | Build `firo-qt` GUI client | `ON` |
 | `BUILD_CLI` | Build `firo-tx` and other command-line tools | `ON` |
 | `ENABLE_WALLET` | Enable wallet functionality | `ON` |
+| `ENABLE_SQLITE_WALLET` | Enable writable SQLite wallets on Linux, macOS, and Windows; new wallets remain BDB unless SQLite is explicitly selected | `ON` |
 | `BUILD_TESTS` | Build test suite | `OFF` |
 | `BUILD_TX` | Build `firo-tx` transaction tool | Subset of `BUILD_CLI` |
 | `ENABLE_CRASH_HOOKS` | Enable crash reporting/stack traces | `OFF` |

@@ -3,11 +3,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "config/bitcoin-config.h"
+
 #include "wallet.h"
 #include "boost/filesystem/operations.hpp"
+#include "wallet/sparkspendbatch.h"
 #include "libspark/keys.h"
 #include "serialize.h"
 #include "support/allocators/secure.h"
+#include "support/cleanse.h"
 #include "sync.h"
 #include "walletexcept.h"
 #include "amount.h"
@@ -15,7 +19,6 @@
 #include "checkpoints.h"
 #include "chain.h"
 #include "wallet/coincontrol.h"
-#include "wallet/sparkspendbatch.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
@@ -40,6 +43,10 @@
 #include "init.h"
 #include "rpc/protocol.h"
 #include "wallet/bip39.h"
+#include "wallet/db.h"
+#ifdef USE_SQLITE
+#include "wallet/sqlite.h"
+#endif
 
 #include "crypto/hmac_sha512.h"
 #include "crypto/aes.h"
@@ -51,7 +58,9 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/thread.hpp>
+#include <cstring>
 #include <vector>
 
 #include "bip47/account.h"
@@ -69,6 +78,13 @@ bool fWalletRbf = DEFAULT_WALLET_RBF;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
 boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
+
+CWallet::CWallet()
+    : m_database(MakeDummyWalletDatabase()),
+      strWalletFile("")
+{
+    SetNull();
+}
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -111,6 +127,620 @@ static void EnsureSparkWalletAvailable()
     if (!pwalletMain || !pwalletMain->sparkWallet) {
         throw std::logic_error("Spark feature requires HD wallet");
     }
+}
+
+static bool ApplyWalletCreationFormat(
+    const std::string& walletFile,
+    DatabaseOptions& options,
+    std::string& error)
+{
+    const std::string format = GetArg("-walletdbformat", "");
+    if (format.empty()) {
+        return true;
+    }
+    if (format == "bdb") {
+        options.require_format = DatabaseFormat::BERKELEY;
+        return true;
+    }
+    if (format == "sqlite") {
+        options.require_format = DatabaseFormat::SQLITE;
+        return true;
+    }
+    error = strprintf(
+        "Invalid -walletdbformat value '%s' for wallet '%s'. Use 'sqlite' or 'bdb'.",
+        format,
+        walletFile);
+    return false;
+}
+
+namespace
+{
+#ifdef USE_SQLITE
+std::atomic<uint64_t> g_wallet_migration_path_counter{0};
+
+class MigrationRecordCleanser
+{
+private:
+    CDataStream& m_key;
+    CDataStream& m_value;
+
+public:
+    MigrationRecordCleanser(CDataStream& key, CDataStream& value)
+        : m_key(key),
+          m_value(value)
+    {
+    }
+
+    ~MigrationRecordCleanser()
+    {
+        if (!m_key.empty()) {
+            memory_cleanse(m_key.data(), m_key.size());
+        }
+        if (!m_value.empty()) {
+            memory_cleanse(m_value.data(), m_value.size());
+        }
+    }
+};
+
+std::string MigrationTemporaryFilename(
+    const char* description,
+    const char* extension)
+{
+    return strprintf(
+        ".firo-wallet-%s-%d-%d%s",
+        description,
+        GetTimeMicros(),
+        g_wallet_migration_path_counter.fetch_add(1),
+        extension);
+}
+
+bool AbortMigrationCopy(
+    DatabaseBatch& batch,
+    std::string& error)
+{
+    if (!batch.HasActiveTxn()) {
+        return true;
+    }
+    if (batch.TxnAbort()) {
+        return true;
+    }
+
+    StartShutdown();
+    error += strprintf(
+        "%sFailed to abort the SQLite migration transaction; "
+        "the candidate outcome is indeterminate and shutdown was requested.",
+        error.empty() ? "" : " ");
+    return false;
+}
+
+bool CopyMigrationRecords(
+    WalletDatabase& source,
+    WalletDatabase& candidate,
+    std::string& error)
+{
+    std::unique_ptr<DatabaseBatch> sourceBatch;
+    std::unique_ptr<DatabaseBatch> candidateBatch;
+    std::unique_ptr<DatabaseCursor> cursor;
+    try {
+        sourceBatch = source.MakeBatch(
+            {DatabaseBatchMode::READ_ONLY, false});
+        candidateBatch = candidate.MakeBatch(
+            {DatabaseBatchMode::READ_WRITE, false});
+        cursor = sourceBatch->GetCursor();
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Failed to open wallet migration record streams: %s",
+            exception.what());
+        return false;
+    }
+    if (!sourceBatch || !candidateBatch || !cursor) {
+        error =
+            "Failed to open wallet migration record streams.";
+        return false;
+    }
+    if (!candidateBatch->TxnBegin()) {
+        error =
+            "Failed to begin the SQLite migration transaction.";
+        return false;
+    }
+
+    while (true) {
+        if (ShutdownRequested()) {
+            error = "Wallet migration cancelled because shutdown was requested.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+        CDataStream key(SER_DISK, CLIENT_VERSION);
+        CDataStream value(SER_DISK, CLIENT_VERSION);
+        MigrationRecordCleanser cleanser(key, value);
+        const DatabaseCursor::Status status =
+            cursor->Next(key, value);
+        if (status == DatabaseCursor::Status::DONE) {
+            break;
+        }
+        if (status != DatabaseCursor::Status::MORE) {
+            error =
+                "Failed to read every BDB wallet record during migration.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+        if (key.empty()) {
+            error =
+                "Cannot migrate a BDB wallet containing a raw empty key "
+                "because SQLite reserves that key for creation recovery.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+        if (!candidateBatch->WriteRawRecord(
+                std::move(key),
+                std::move(value),
+                false)) {
+            error =
+                "Failed to copy a raw wallet record into the SQLite candidate.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+    }
+
+    cursor.reset();
+    sourceBatch.reset();
+    if (!candidateBatch->TxnCommit()) {
+        error =
+            "Failed to commit the SQLite migration transaction.";
+        if (!candidateBatch->HasActiveTxn()) {
+            StartShutdown();
+            error +=
+                " Its outcome is indeterminate and shutdown was requested.";
+        } else {
+            AbortMigrationCopy(*candidateBatch, error);
+        }
+        return false;
+    }
+    candidateBatch.reset();
+    return true;
+}
+
+bool MigrationStreamsEqual(
+    WalletDatabase& source,
+    WalletDatabase& candidate,
+    std::string& error)
+{
+    std::unique_ptr<DatabaseBatch> sourceBatch;
+    std::unique_ptr<DatabaseBatch> candidateBatch;
+    std::unique_ptr<DatabaseCursor> sourceCursor;
+    std::unique_ptr<DatabaseCursor> candidateCursor;
+    try {
+        sourceBatch = source.MakeBatch(
+            {DatabaseBatchMode::READ_ONLY, false});
+        candidateBatch = candidate.MakeBatch(
+            {DatabaseBatchMode::READ_ONLY, false});
+        sourceCursor = sourceBatch->GetCursor();
+        candidateCursor = candidateBatch->GetCursor();
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Failed to reopen wallet migration record streams: %s",
+            exception.what());
+        return false;
+    }
+    if (!sourceCursor || !candidateCursor) {
+        error =
+            "Failed to reopen wallet migration record streams.";
+        return false;
+    }
+
+    while (true) {
+        CDataStream sourceKey(SER_DISK, CLIENT_VERSION);
+        CDataStream sourceValue(SER_DISK, CLIENT_VERSION);
+        CDataStream candidateKey(SER_DISK, CLIENT_VERSION);
+        CDataStream candidateValue(SER_DISK, CLIENT_VERSION);
+        MigrationRecordCleanser sourceCleanser(
+            sourceKey,
+            sourceValue);
+        MigrationRecordCleanser candidateCleanser(
+            candidateKey,
+            candidateValue);
+
+        const DatabaseCursor::Status sourceStatus =
+            sourceCursor->Next(sourceKey, sourceValue);
+        const DatabaseCursor::Status candidateStatus =
+            candidateCursor->Next(
+                candidateKey,
+                candidateValue);
+        if (sourceStatus == DatabaseCursor::Status::FAIL ||
+            candidateStatus == DatabaseCursor::Status::FAIL) {
+            error =
+                "Failed to compare the migrated wallet record streams.";
+            return false;
+        }
+        if (sourceStatus == DatabaseCursor::Status::DONE ||
+            candidateStatus == DatabaseCursor::Status::DONE) {
+            if (sourceStatus == DatabaseCursor::Status::DONE &&
+                candidateStatus == DatabaseCursor::Status::DONE) {
+                return true;
+            }
+            error =
+                "The SQLite migration candidate has a different record count.";
+            return false;
+        }
+        if (sourceStatus != DatabaseCursor::Status::MORE ||
+            candidateStatus != DatabaseCursor::Status::MORE ||
+            sourceKey.size() != candidateKey.size() ||
+            sourceValue.size() != candidateValue.size() ||
+            !std::equal(
+                sourceKey.begin(),
+                sourceKey.end(),
+                candidateKey.begin()) ||
+            !std::equal(
+                sourceValue.begin(),
+                sourceValue.end(),
+                candidateValue.begin())) {
+            error =
+                "The SQLite migration candidate is not byte-identical "
+                "to the BDB wallet record stream.";
+            return false;
+        }
+    }
+}
+
+bool ValidateSparkMigrationRecords(
+    CWalletDB& database,
+    const std::string& sourceFilename,
+    std::string& error)
+{
+    try {
+        const spark::Params* const params =
+            spark::Params::get_default();
+        spark::FullViewKey fullViewKey(params);
+        int32_t diversifier = 0;
+        const DatabaseReadStatus fullViewKeyStatus =
+            database.readFullViewKeyWithStatus(
+                fullViewKey);
+        const DatabaseReadStatus diversifierStatus =
+            database.readDiversifierWithStatus(
+                diversifier);
+
+        if (fullViewKeyStatus ==
+                DatabaseReadStatus::NOT_FOUND &&
+            diversifierStatus ==
+                DatabaseReadStatus::NOT_FOUND) {
+            return true;
+        }
+        if (fullViewKeyStatus !=
+                DatabaseReadStatus::SUCCESS ||
+            diversifierStatus !=
+                DatabaseReadStatus::SUCCESS) {
+            error = strprintf(
+                "Cannot migrate BDB wallet database '%s' to SQLite: "
+                "read-only Spark validation found incomplete or unreadable "
+                "full-view-key/diversifier state; both records must be "
+                "readable or both absent. No SQLite wallet was published. "
+                "Continue using the BDB wallet and repair or restore a "
+                "known-good wallet before retrying.",
+                sourceFilename);
+            return false;
+        }
+
+        std::unordered_map<uint256, CSparkMintMeta> mints =
+            database.ListSparkMints();
+        for (auto& mint : mints) {
+            mint.second.coin.setParams(params);
+            mint.second.coin.setSerialContext(
+                mint.second.serial_context);
+        }
+        return true;
+    } catch (const boost::thread_interrupted&) {
+        throw;
+    } catch (...) {
+        error = strprintf(
+            "Cannot migrate BDB wallet database '%s' to SQLite: "
+            "read-only Spark validation found malformed or unreadable "
+            "Spark mint records. No SQLite wallet was published. Continue "
+            "using the BDB wallet and repair or restore a known-good wallet "
+            "before retrying.",
+            sourceFilename);
+        return false;
+    }
+}
+
+bool ValidateMigrationCandidate(
+    WalletDatabase& candidate,
+    const std::string& sourceFilename,
+    std::string& error)
+{
+    CWallet validationWallet;
+    DBErrors loadResult;
+    try {
+        CWalletDB validationDatabase(
+            candidate,
+            {DatabaseBatchMode::READ_ONLY, true});
+        // The block index is not loaded yet. Check decoding and txid integrity
+        // here; ordinary wallet loading performs consensus checks after startup.
+        // Migration independently compares every copied record with the source.
+        loadResult =
+            validationDatabase.LoadWallet(
+                &validationWallet,
+                false,
+                false);
+        if (loadResult == DB_LOAD_OK) {
+            const bool willLoadSpark =
+                validationWallet.IsHDSeedAvailable() ||
+                (!validationWallet.vchDefaultKey.IsValid() &&
+                    GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET));
+            if (willLoadSpark &&
+                !ValidateSparkMigrationRecords(
+                    validationDatabase,
+                    sourceFilename,
+                    error)) {
+                return false;
+            }
+            bip47::CWallet validationBip47Wallet(
+                validationWallet.vchDefaultKey.GetHash());
+            validationDatabase.LoadBip47Accounts(
+                validationBip47Wallet);
+        }
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Failed to validate the SQLite migration candidate through "
+            "the wallet and BIP47 account loaders: %s",
+            exception.what());
+        return false;
+    }
+    if (loadResult != DB_LOAD_OK) {
+        error = strprintf(
+            "The SQLite migration candidate failed wallet loading "
+            "with status %d.",
+            static_cast<int>(loadResult));
+        return false;
+    }
+    return true;
+}
+
+std::unique_ptr<WalletDatabase> CreateMigrationCandidate(
+    std::string& filename,
+    std::string& error)
+{
+    DatabaseOptions options;
+    options.require_create = true;
+    options.require_format = DatabaseFormat::SQLITE;
+    options.logical_wallet_create = true;
+    options.sqlite_migration_candidate = true;
+
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        filename = MigrationTemporaryFilename(
+            "sqlite-migration",
+            ".tmp");
+        DatabaseStatus status;
+        std::unique_ptr<WalletDatabase> candidate =
+            MakeWalletDatabase(
+                filename,
+                options,
+                status,
+                error);
+        if (candidate) {
+            return candidate;
+        }
+        if (status !=
+            DatabaseStatus::FAILED_ALREADY_EXISTS) {
+            return nullptr;
+        }
+    }
+
+    error =
+        "Failed to allocate a collision-free SQLite migration candidate.";
+    return nullptr;
+}
+#endif
+} // namespace
+
+bool MigrateWalletDatabaseToSQLite(
+    WalletDatabase& source,
+    std::string& backupPath,
+    std::string& error)
+{
+    backupPath.clear();
+    error.clear();
+    if (source.Format() !=
+        DatabaseFormat::BERKELEY) {
+        error = strprintf(
+            "Wallet database '%s' is not a BDB wallet.",
+            source.Filename());
+        return false;
+    }
+
+#ifndef USE_SQLITE
+    error = strprintf(
+        "Cannot migrate wallet database '%s': this build has SQLite "
+        "wallet support disabled.",
+        source.Filename());
+    return false;
+#else
+    BerkeleyDatabase* const berkeley =
+        dynamic_cast<BerkeleyDatabase*>(&source);
+    if (!berkeley) {
+        error =
+            "The selected BDB wallet does not have a Berkeley database owner.";
+        return false;
+    }
+
+    bool backupCreated = false;
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        const std::string backupFilename =
+            MigrationTemporaryFilename(
+                "bdb-backup",
+                ".bak");
+        const MigrationBackupResult result =
+            berkeley->CreateMigrationBackup(
+                backupFilename,
+                error);
+        if (result == MigrationBackupResult::SUCCESS) {
+            backupPath =
+                berkeley->MigrationBackupPath().string();
+            backupCreated = true;
+            break;
+        }
+        if (result ==
+            MigrationBackupResult::INDETERMINATE) {
+            StartShutdown();
+            return false;
+        }
+        if (result != MigrationBackupResult::EXISTS) {
+            return false;
+        }
+    }
+    if (!backupCreated) {
+        error =
+            "Failed to allocate a collision-free mandatory BDB backup.";
+        return false;
+    }
+
+    auto failAfterBackup = [&]() {
+        error += strprintf(
+            "%sBerkeley DB backup retained at '%s'.",
+            error.empty() ? "" : " ",
+            backupPath);
+        return false;
+    };
+
+#ifdef WIN32
+    std::unique_ptr<WalletDatabase> candidate;
+    auto failCandidate = [&]() {
+        const std::string primaryError = error;
+        std::string abortError;
+        const SQLiteMigrationPublishResult abortResult =
+            AbortSQLiteMigrationCandidate(
+                *candidate,
+                abortError);
+        error = primaryError;
+        if (!error.empty()) {
+            error += " ";
+        }
+        error += abortError.empty() ?
+                     "SQLite migration candidate cleanup did not provide a diagnostic." :
+                     abortError;
+        if (abortResult !=
+            SQLiteMigrationPublishResult::SUCCESS) {
+            StartShutdown();
+        }
+        return failAfterBackup();
+    };
+#endif
+
+    try {
+        std::string candidateFilename;
+#ifdef WIN32
+        candidate = CreateMigrationCandidate(
+            candidateFilename,
+            error);
+#else
+        std::unique_ptr<WalletDatabase> candidate =
+            CreateMigrationCandidate(
+                candidateFilename,
+                error);
+#endif
+        if (!candidate) {
+            return failAfterBackup();
+        }
+        if (!CopyMigrationRecords(
+                source,
+                *candidate,
+                error) ||
+            !MigrationStreamsEqual(
+                source,
+                *candidate,
+                error) ||
+            !ValidateMigrationCandidate(
+                *candidate,
+                source.Filename(),
+                error) ||
+            !MigrationStreamsEqual(
+                source,
+                *candidate,
+                error)) {
+#ifdef WIN32
+            return failCandidate();
+#else
+            return failAfterBackup();
+#endif
+        }
+        if (!berkeley->PrepareForMigrationPublication(
+                error)) {
+#ifdef WIN32
+            return failCandidate();
+#else
+            return failAfterBackup();
+#endif
+        }
+
+        std::string creationError;
+        const DatabaseCreationResult creationResult =
+            candidate->CompleteCreation(
+                creationError);
+        if (creationResult !=
+            DatabaseCreationResult::COMPLETE) {
+            error = creationError.empty() ?
+                        strprintf(
+                            "Failed to complete SQLite migration candidate '%s'.",
+                            candidateFilename) :
+                        creationError;
+            if (creationResult ==
+                DatabaseCreationResult::INDETERMINATE) {
+                StartShutdown();
+            }
+#ifdef WIN32
+            return failCandidate();
+#else
+            return failAfterBackup();
+#endif
+        }
+
+        const SQLiteMigrationPublishResult publishResult =
+            PublishSQLiteMigrationCandidate(
+                *candidate,
+                *berkeley,
+                error);
+        if (publishResult !=
+            SQLiteMigrationPublishResult::SUCCESS) {
+            if (publishResult ==
+                SQLiteMigrationPublishResult::INDETERMINATE) {
+                StartShutdown();
+            }
+#ifdef WIN32
+            return failCandidate();
+#else
+            return failAfterBackup();
+#endif
+        }
+
+        error.clear();
+        return true;
+    } catch (const boost::thread_interrupted&) {
+#ifdef WIN32
+        if (candidate) {
+            (void)failCandidate();
+        }
+#endif
+        throw;
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Wallet database migration failed with an exception: %s",
+            exception.what());
+#ifdef WIN32
+        if (candidate) {
+            return failCandidate();
+        }
+#endif
+        return failAfterBackup();
+    } catch (...) {
+        error =
+            "Wallet database migration failed with an unknown exception.";
+#ifdef WIN32
+        if (candidate) {
+            return failCandidate();
+        }
+#endif
+        return failAfterBackup();
+    }
+#endif
 }
 
 std::string COutput::ToString() const {
@@ -281,7 +911,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
 
         // update the chain model in the database
         if(fWriteChain){
-            if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
+            if (!(m_keyGenerationBatch ? m_keyGenerationBatch->WriteHDChain(hdChain) : CWalletDB(GetDatabase()).WriteHDChain(hdChain)))
                 throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
         }
     /* bitcoin 0.14:
@@ -293,8 +923,8 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
     }
 
     // Compressed public keys were introduced in version 0.6.0
-    if (fCompressed)
-        SetMinVersion(FEATURE_COMPRPUBKEY);
+    if (fCompressed && !SetMinVersion(FEATURE_COMPRPUBKEY, m_keyGenerationBatch))
+        throw std::runtime_error(std::string(__func__) + ": Writing wallet version failed");
 
     CPubKey pubkey = secret.GetPubKey();
     assert(secret.VerifyPubKey(pubkey));
@@ -343,7 +973,7 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret)
     secret = childKey.key;
 
     // update the chain model in the database
-    if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
+    if (!CWalletDB(GetDatabase()).WriteHDChain(hdChain))
         throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
 }
 
@@ -356,18 +986,18 @@ bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
     // check if we need to remove from watch-only
     CScript script;
     script = GetScriptForDestination(pubkey.GetID());
-    if (HaveWatchOnly(script))
-        RemoveWatchOnly(script);
+    if (HaveWatchOnly(script) && !RemoveWatchOnly(script) && m_keyGenerationBatch)
+        return false;
     script = GetScriptForRawPubKey(pubkey);
-    if (HaveWatchOnly(script))
-        RemoveWatchOnly(script);
+    if (HaveWatchOnly(script) && !RemoveWatchOnly(script) && m_keyGenerationBatch)
+        return false;
 
     if (!fFileBacked)
         return true;
     if (!IsCrypted()) {
-        return CWalletDB(strWalletFile).WriteKey(pubkey,
-                                                 secret.GetPrivKey(),
-                                                 mapKeyMetadata[pubkey.GetID()]);
+        if (m_keyGenerationBatch)
+            return m_keyGenerationBatch->WriteKey(pubkey, secret.GetPrivKey(), mapKeyMetadata[pubkey.GetID()]);
+        return CWalletDB(GetDatabase()).WriteKey(pubkey, secret.GetPrivKey(), mapKeyMetadata[pubkey.GetID()]);
     }
     return true;
 }
@@ -385,10 +1015,10 @@ bool CWallet::AddCryptedKey(const CPubKey &vchPubKey,
             return pwalletdbEncryption->WriteCryptedKey(vchPubKey,
                                                         vchCryptedSecret,
                                                         mapKeyMetadata[vchPubKey.GetID()]);
+        else if (m_keyGenerationBatch)
+            return m_keyGenerationBatch->WriteCryptedKey(vchPubKey, vchCryptedSecret, mapKeyMetadata[vchPubKey.GetID()]);
         else
-            return CWalletDB(strWalletFile).WriteCryptedKey(vchPubKey,
-                                                            vchCryptedSecret,
-                                                            mapKeyMetadata[vchPubKey.GetID()]);
+            return CWalletDB(GetDatabase()).WriteCryptedKey(vchPubKey, vchCryptedSecret, mapKeyMetadata[vchPubKey.GetID()]);
     }
     return false;
 }
@@ -424,7 +1054,7 @@ bool CWallet::AddCScript(const CScript& redeemScript)
         return false;
     if (!fFileBacked)
         return true;
-    return CWalletDB(strWalletFile).WriteCScript(Hash160(redeemScript), redeemScript);
+    return CWalletDB(GetDatabase()).WriteCScript(Hash160(redeemScript), redeemScript);
 }
 
 bool CWallet::LoadCScript(const CScript& redeemScript)
@@ -452,7 +1082,7 @@ bool CWallet::AddWatchOnly(const CScript& dest)
     NotifyWatchonlyChanged(true);
     if (!fFileBacked)
         return true;
-    return CWalletDB(strWalletFile).WriteWatchOnly(dest, meta);
+    return CWalletDB(GetDatabase()).WriteWatchOnly(dest, meta);
 }
 
 bool CWallet::AddWatchOnly(const CScript& dest, int64_t nCreateTime)
@@ -466,10 +1096,10 @@ bool CWallet::RemoveWatchOnly(const CScript &dest)
     AssertLockHeld(cs_wallet);
     if (!CCryptoKeyStore::RemoveWatchOnly(dest))
         return false;
-    if (!HaveWatchOnly())
+    if (!HaveWatchOnly() && !m_keyGenerationBatch)
         NotifyWatchonlyChanged(false);
     if (fFileBacked)
-        if (!CWalletDB(strWalletFile).EraseWatchOnly(dest))
+        if (!(m_keyGenerationBatch ? m_keyGenerationBatch->EraseWatchOnly(dest) : CWalletDB(GetDatabase()).EraseWatchOnly(dest)))
             return false;
 
     return true;
@@ -524,55 +1154,163 @@ bool CWallet::WaitForUnlock() {
     return true;
 }
 
-bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
+bool CWallet::ChangeWalletPassphrase(
+    const SecureString& strOldWalletPassphrase,
+    const SecureString& strNewWalletPassphrase,
+    bool* indeterminate,
+    bool* databaseError)
 {
-    bool fWasLocked = IsLocked();
+    if (indeterminate) {
+        *indeterminate = false;
+    }
+    if (databaseError) {
+        *databaseError = false;
+    }
 
-    {
-        LOCK(cs_wallet);
-        Lock();
+    if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        bool fWasLocked = IsLocked();
 
+        {
+            LOCK(cs_wallet);
+            Lock();
+
+            CCrypter crypter;
+            CKeyingMaterial vMasterKey;
+            BOOST_FOREACH(MasterKeyMap::value_type& pMasterKey, mapMasterKeys)
+            {
+                if(!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+                    return false;
+                if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
+                    return false;
+                if (CCryptoKeyStore::Unlock(vMasterKey))
+                {
+                    int64_t nStartTime = GetTimeMillis();
+                    crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
+                    pMasterKey.second.nDeriveIterations = pMasterKey.second.nDeriveIterations * (100 / ((double)(GetTimeMillis() - nStartTime)));
+
+                    nStartTime = GetTimeMillis();
+                    crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
+                    pMasterKey.second.nDeriveIterations = (pMasterKey.second.nDeriveIterations + pMasterKey.second.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
+
+                    if (pMasterKey.second.nDeriveIterations < 25000)
+                        pMasterKey.second.nDeriveIterations = 25000;
+
+                    LogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", pMasterKey.second.nDeriveIterations);
+
+                    if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+                        return false;
+                    if (!crypter.Encrypt(vMasterKey, pMasterKey.second.vchCryptedKey))
+                        return false;
+                    CWalletDB(GetDatabase()).WriteMasterKey(pMasterKey.first, pMasterKey.second);
+                    if (fWasLocked)
+                        Lock();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    LOCK(cs_wallet);
+    const bool fWasLocked = IsLocked();
+    Lock();
+
+    bool success = false;
+    bool databaseWriteAttempted = false;
+    bool memoryUpdated = false;
+    unsigned int updatedDeriveIterations = 0;
+    try {
         CCrypter crypter;
         CKeyingMaterial vMasterKey;
-        BOOST_FOREACH(MasterKeyMap::value_type& pMasterKey, mapMasterKeys)
-        {
-            if(!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
-                return false;
-            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
-                return false;
-            if (CCryptoKeyStore::Unlock(vMasterKey))
-            {
+        BOOST_FOREACH (MasterKeyMap::value_type& pMasterKey, mapMasterKeys) {
+            if (!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod) ||
+                !crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey)) {
+                break;
+            }
+            if (CCryptoKeyStore::Unlock(vMasterKey)) {
+                CMasterKey updatedMasterKey = pMasterKey.second;
                 int64_t nStartTime = GetTimeMillis();
-                crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
-                pMasterKey.second.nDeriveIterations = pMasterKey.second.nDeriveIterations * (100 / ((double)(GetTimeMillis() - nStartTime)));
+                if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, updatedMasterKey.vchSalt, updatedMasterKey.nDeriveIterations, updatedMasterKey.nDerivationMethod))
+                    break;
+                updatedMasterKey.nDeriveIterations = updatedMasterKey.nDeriveIterations * (100 / ((double)(GetTimeMillis() - nStartTime)));
 
                 nStartTime = GetTimeMillis();
-                crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
-                pMasterKey.second.nDeriveIterations = (pMasterKey.second.nDeriveIterations + pMasterKey.second.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
+                if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, updatedMasterKey.vchSalt, updatedMasterKey.nDeriveIterations, updatedMasterKey.nDerivationMethod))
+                    break;
+                updatedMasterKey.nDeriveIterations = (updatedMasterKey.nDeriveIterations + updatedMasterKey.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
 
-                if (pMasterKey.second.nDeriveIterations < 25000)
-                    pMasterKey.second.nDeriveIterations = 25000;
+                if (updatedMasterKey.nDeriveIterations < 25000)
+                    updatedMasterKey.nDeriveIterations = 25000;
 
-                LogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", pMasterKey.second.nDeriveIterations);
+                if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, updatedMasterKey.vchSalt, updatedMasterKey.nDeriveIterations, updatedMasterKey.nDerivationMethod) ||
+                    !crypter.Encrypt(vMasterKey, updatedMasterKey.vchCryptedKey)) {
+                    break;
+                }
+                if (fFileBacked) {
+                    if (databaseError) {
+                        *databaseError = true;
+                    }
+                    CWalletDB walletdb(GetDatabase());
+                    databaseWriteAttempted = true;
+                    if (!walletdb.WriteMasterKey(pMasterKey.first, updatedMasterKey)) {
+                        break;
+                    }
+                    if (databaseError) {
+                        *databaseError = false;
+                    }
+                }
 
-                if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
-                    return false;
-                if (!crypter.Encrypt(vMasterKey, pMasterKey.second.vchCryptedKey))
-                    return false;
-                CWalletDB(strWalletFile).WriteMasterKey(pMasterKey.first, pMasterKey.second);
-                if (fWasLocked)
-                    Lock();
-                return true;
+                updatedDeriveIterations = updatedMasterKey.nDeriveIterations;
+                pMasterKey.second = std::move(updatedMasterKey);
+                memoryUpdated = true;
+                success = true;
+                break;
             }
+        }
+    } catch (const std::exception& error) {
+        LogPrintf("CWallet::ChangeWalletPassphrase: Exception while changing passphrase: %s\n", error.what());
+        if (databaseWriteAttempted && !memoryUpdated) {
+            if (indeterminate) {
+                *indeterminate = true;
+            }
+            StartShutdown();
+        }
+    } catch (...) {
+        LogPrintf("CWallet::ChangeWalletPassphrase: Unknown exception while changing passphrase\n");
+        if (databaseWriteAttempted && !memoryUpdated) {
+            if (indeterminate) {
+                *indeterminate = true;
+            }
+            StartShutdown();
         }
     }
 
-    return false;
+    if (fWasLocked) {
+        bool relockSuccess = false;
+        try {
+            relockSuccess = Lock();
+        } catch (const std::exception& error) {
+            LogPrintf("CWallet::ChangeWalletPassphrase: Exception while relocking wallet: %s\n", error.what());
+            relockSuccess = IsLocked();
+        } catch (...) {
+            LogPrintf("CWallet::ChangeWalletPassphrase: Unknown exception while relocking wallet\n");
+            relockSuccess = IsLocked();
+        }
+        if (!relockSuccess) {
+            StartShutdown();
+            success = false;
+        }
+    }
+    if (success) {
+        LogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", updatedDeriveIterations);
+    }
+    return success;
 }
 
 void CWallet::SetBestChain(const CBlockLocator& loc)
 {
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
     walletdb.WriteBestBlock(loc);
 }
 
@@ -586,19 +1324,42 @@ bool CWallet::SetMinVersion(enum WalletFeature nVersion, CWalletDB* pwalletdbIn,
     if (fExplicit && nVersion > nWalletMaxVersion)
             nVersion = FEATURE_LATEST;
 
-    nWalletVersion = nVersion;
+    if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        nWalletVersion = nVersion;
 
-    if (nVersion > nWalletMaxVersion)
-        nWalletMaxVersion = nVersion;
+        if (nVersion > nWalletMaxVersion)
+            nWalletMaxVersion = nVersion;
+
+        if (fFileBacked)
+        {
+            std::unique_ptr<CWalletDB> ownedWalletDb;
+            CWalletDB* pwalletdb = pwalletdbIn;
+            if (!pwalletdb) {
+                ownedWalletDb = std::make_unique<CWalletDB>(GetDatabase());
+                pwalletdb = ownedWalletDb.get();
+            }
+            if (nWalletVersion > 40000)
+                pwalletdb->WriteMinVersion(nWalletVersion);
+        }
+
+        return true;
+    }
 
     if (fFileBacked)
     {
-        CWalletDB* pwalletdb = pwalletdbIn ? pwalletdbIn : new CWalletDB(strWalletFile);
-        if (nWalletVersion > 40000)
-            pwalletdb->WriteMinVersion(nWalletVersion);
-        if (!pwalletdbIn)
-            delete pwalletdb;
+        std::unique_ptr<CWalletDB> ownedWalletDb;
+        CWalletDB* pwalletdb = pwalletdbIn;
+        if (!pwalletdb) {
+            ownedWalletDb = std::make_unique<CWalletDB>(GetDatabase());
+            pwalletdb = ownedWalletDb.get();
+        }
+        if (nVersion > 40000 && !pwalletdb->WriteMinVersion(nVersion))
+            return false;
     }
+
+    nWalletVersion = nVersion;
+    if (nVersion > nWalletMaxVersion)
+        nWalletMaxVersion = nVersion;
 
     return true;
 }
@@ -647,7 +1408,9 @@ bool CWallet::HasWalletSpend(const uint256& txid) const
 
 void CWallet::Flush(bool shutdown)
 {
-    bitdb.Flush(shutdown);
+    if (m_database) {
+        m_database->Flush(shutdown);
+    }
 }
 
 bool CWallet::Verify()
@@ -655,55 +1418,139 @@ bool CWallet::Verify()
     if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return true;
 
-    LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    const bool migrateDatabase =
+        GetBoolArg("-migratewalletdb", false);
 
-    LogPrintf("Using wallet %s\n", walletFile);
+#ifndef USE_SQLITE
+    if (migrateDatabase) {
+        return InitError(strprintf(
+            "Cannot migrate wallet database '%s': this build has SQLite "
+            "wallet support disabled.",
+            walletFile));
+    }
+#else
+    if (migrateDatabase) {
+        std::optional<DatabaseFormat> existingFormat;
+        std::string inspectionError;
+        if (!ReadWalletDatabaseFormat(
+                walletFile,
+                existingFormat,
+                inspectionError)) {
+            return InitError(inspectionError);
+        }
+        if (existingFormat ==
+            DatabaseFormat::SQLITE) {
+            return InitError(strprintf(
+                "Wallet database '%s' already uses SQLite; remove -migratewalletdb.",
+                walletFile));
+        }
+    }
+#endif
+
     uiInterface.InitMessage(_("Verifying wallet..."));
 
-    // Wallet file must be a plain filename without a directory
-    if (walletFile != boost::filesystem::path(walletFile).stem().string() + boost::filesystem::path(walletFile).extension().string())
-        return InitError(strprintf(_("Wallet %s resides outside data directory %s"), walletFile, GetDataDir().string()));
-
-    if (!bitdb.Open(GetDataDir()))
-    {
-        // try moving the database env out of the way
-        boost::filesystem::path pathDatabase = GetDataDir() / "database";
-        boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%d.bak", GetTime());
-        try {
-            boost::filesystem::rename(pathDatabase, pathDatabaseBak);
-            LogPrintf("Moved old %s to %s. Retrying.\n", pathDatabase.string(), pathDatabaseBak.string());
-        } catch (const boost::filesystem::filesystem_error&) {
-            // failure is ok (well, not really, but it's not worse than what we started with)
+    DatabaseOptions options;
+    options.salvage = GetBoolArg("-salvagewallet", false);
+    options.require_existing = true;
+    options.recover = !migrateDatabase;
+    if (migrateDatabase) {
+        options.require_format =
+            DatabaseFormat::BERKELEY;
+        options.bdb_migration_source = true;
+    }
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
+    if (!database && status == DatabaseStatus::FAILED_NOT_FOUND && !options.salvage) {
+        if (migrateDatabase) {
+            return InitError(strprintf(
+                "Cannot migrate wallet database '%s': the BDB source does not exist.",
+                walletFile));
         }
-
-        // try again
-        if (!bitdb.Open(GetDataDir())) {
-            // if it still fails, it probably means we can't even create the database env
-            return InitError(strprintf(_("Error initializing wallet database environment %s!"), GetDataDir()));
-        }
+        return true;
+    }
+    if (!database) {
+        return InitError(error);
     }
 
-    if (GetBoolArg("-salvagewallet", false))
-    {
-        // Recover readable keypairs:
-        if (!CWalletDB::Recover(bitdb, walletFile, true))
-            return false;
+    std::string migrationBackup;
+    if (migrateDatabase) {
+        if (database->Format() ==
+            DatabaseFormat::SQLITE) {
+            return InitError(strprintf(
+                "Wallet database '%s' already uses SQLite; remove -migratewalletdb.",
+                walletFile));
+        }
+        if (status != DatabaseStatus::SUCCESS) {
+            return InitError(strprintf(
+                "Cannot migrate wallet database '%s': the BDB source was not "
+                "verified without recovery.",
+                walletFile));
+        }
+        if (!MigrateWalletDatabaseToSQLite(
+                *database,
+                migrationBackup,
+                error)) {
+            return InitError(error);
+        }
+
+        database.reset();
+        DatabaseOptions migratedOptions;
+        migratedOptions.require_existing = true;
+        migratedOptions.require_format =
+            DatabaseFormat::SQLITE;
+        migratedOptions.recover = false;
+        database = MakeWalletDatabase(
+            walletFile,
+            migratedOptions,
+            status,
+            error);
+        if (!database) {
+            return InitError(strprintf(
+                "Migrated wallet database '%s' could not be reopened: %s "
+                "Berkeley DB backup retained at '%s'.",
+                walletFile,
+                error,
+                migrationBackup));
+        }
+        const std::string message = strprintf(
+            "Wallet database migration succeeded for '%s'; "
+            "Berkeley DB backup retained at '%s'. This backup retains its original "
+            "private keys and encryption state. Later encryption or passphrase "
+            "changes do not protect or invalidate it. Keep it secure.",
+            walletFile,
+            migrationBackup);
+        LogPrintf("%s\n", message);
+        InitWarning(message);
     }
 
-    if (boost::filesystem::exists(GetDataDir() / walletFile))
-    {
-        CDBEnv::VerifyResult r = bitdb.Verify(walletFile, CWalletDB::Recover);
-        if (r == CDBEnv::RECOVER_OK)
-        {
+    LogPrintf(
+        "Using %s wallet database %s\n",
+        DatabaseFormatName(database->Format()),
+        walletFile);
+    if (database->Format() == DatabaseFormat::BERKELEY) {
+        LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
+    }
+
+    if (status == DatabaseStatus::SUCCESS_RECOVERED) {
+        const std::string recoveryBackup =
+            database->RecoveryBackupPath();
+        if (!recoveryBackup.empty()) {
+            InitWarning(strprintf(
+                _("Warning: Wallet file corrupt, data salvaged! Source copy of "
+                  "%s retained at %s after any database journal recovery. "
+                  "If your balance or transactions are incorrect, restore "
+                  "from a known-good backup."),
+                walletFile,
+                recoveryBackup));
+        } else {
             InitWarning(strprintf(_("Warning: Wallet file corrupt, data salvaged!"
-                                         " Original %s saved as %s in %s; if"
-                                         " your balance or transactions are incorrect you should"
-                                         " restore from a backup."),
+                                    " Original %s saved as %s in %s; if"
+                                    " your balance or transactions are incorrect you should"
+                                    " restore from a backup."),
                 walletFile, "wallet.{timestamp}.bak", GetDataDir()));
         }
-        if (r == CDBEnv::RECOVER_FAIL)
-            return InitError(strprintf(_("%s corrupt, salvage failed"), walletFile));
     }
 
     return true;
@@ -830,10 +1677,116 @@ void CWallet::AddToSpends(const uint256& wtxid)
     }
 }
 
-bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
+bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase, EncryptionStatus* status)
 {
-    if (IsCrypted())
+    EncryptionStatus ignoredStatus;
+    EncryptionStatus& result = status ? *status : ignoredStatus;
+    result = EncryptionStatus::UNCHANGED;
+    if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        if (IsCrypted()) {
+            result = EncryptionStatus::ALREADY_ENCRYPTED;
+            return false;
+        }
+
+        CKeyingMaterial vMasterKey;
+
+        vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
+        GetStrongRandBytes(&vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
+
+        CMasterKey kMasterKey;
+
+        kMasterKey.vchSalt.resize(WALLET_CRYPTO_SALT_SIZE);
+        GetStrongRandBytes(&kMasterKey.vchSalt[0], WALLET_CRYPTO_SALT_SIZE);
+
+        CCrypter crypter;
+        int64_t nStartTime = GetTimeMillis();
+        crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, 25000, kMasterKey.nDerivationMethod);
+        kMasterKey.nDeriveIterations = 2500000 / ((double)(GetTimeMillis() - nStartTime));
+
+        nStartTime = GetTimeMillis();
+        crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod);
+        kMasterKey.nDeriveIterations = (kMasterKey.nDeriveIterations + kMasterKey.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
+
+        if (kMasterKey.nDeriveIterations < 25000)
+            kMasterKey.nDeriveIterations = 25000;
+
+        LogPrintf("Encrypting Wallet with an nDeriveIterations of %i\n", kMasterKey.nDeriveIterations);
+
+        if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod))
+            return false;
+        if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
+            return false;
+
+        {
+            LOCK(cs_wallet);
+            mapMasterKeys[++nMasterKeyMaxID] = kMasterKey;
+            if (fFileBacked)
+            {
+                assert(!pwalletdbEncryption);
+                pwalletdbEncryption = std::make_unique<CWalletDB>(GetDatabase());
+                if (!pwalletdbEncryption->TxnBegin()) {
+                    pwalletdbEncryption.reset();
+                    return false;
+                }
+                pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
+            }
+
+            result = EncryptionStatus::ENCRYPTION_STARTED;
+            if (!EncryptKeys(vMasterKey))
+            {
+                if (fFileBacked) {
+                    pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                }
+                // We now probably have half of our keys encrypted in memory, and half not...
+                // die and let the user reload the unencrypted wallet.
+                assert(false);
+            }
+
+            // Encryption was introduced in version 0.4.0
+            SetMinVersion(FEATURE_WALLETCRYPT, pwalletdbEncryption.get(), true);
+
+            if (fFileBacked)
+            {
+                if (!pwalletdbEncryption->TxnCommit()) {
+                    pwalletdbEncryption.reset();
+                    // We now have keys encrypted in memory, but not on disk...
+                    // die to avoid confusion and let the user reload the unencrypted wallet.
+                    assert(false);
+                }
+
+                pwalletdbEncryption.reset();
+            }
+
+            Lock();
+            Unlock(strWalletPassphrase, true);
+
+            if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
+                assert(EncryptMnemonicContainer(vMasterKey));
+                SetMinVersion(FEATURE_HD);
+                assert(SetMnemonicContainer(mnemonicContainer, false));
+                TopUpKeyPool();
+            }
+
+            Lock();
+
+            // Need to completely rewrite the wallet file; if we don't, bdb might keep
+            // bits of the unencrypted private key in slack space in the database file.
+            GetDatabase().Rewrite();
+
+        }
+        NotifyStatusChanged(this);
+
+        return true;
+    }
+
+    static CCriticalSection cs_encryptWallet;
+    LOCK(cs_encryptWallet);
+
+    if (IsCrypted()) {
+        result = EncryptionStatus::ALREADY_ENCRYPTED;
         return false;
+    }
 
     CKeyingMaterial vMasterKey;
 
@@ -864,74 +1817,233 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
         return false;
 
+    bool encryptMnemonic = false;
+    unsigned int newMasterKeyId = 0;
+    bool masterKeyIdReserved = false;
+    bool masterKeyInserted = false;
+    bool keyMutationStarted = false;
+    auto failEncryption = [&]() {
+        AssertLockHeld(cs_wallet);
+        // Disk may still contain the old wallet. Do not allow the new in-memory
+        // master key to unlock it or persist keys while shutdown is pending.
+        mapMasterKeys.clear();
+#ifdef USE_SQLITE
+        QuarantineSQLiteDatabase(GetDatabase());
+#endif
+        StartShutdown();
+        try {
+            Lock();
+        } catch (...) {
+            // Lock clears the key before notifying listeners, which may throw.
+        }
+    };
     {
         LOCK(cs_wallet);
-        mapMasterKeys[++nMasterKeyMaxID] = kMasterKey;
-        if (fFileBacked)
-        {
-            assert(!pwalletdbEncryption);
-            pwalletdbEncryption = new CWalletDB(strWalletFile);
-            if (!pwalletdbEncryption->TxnBegin()) {
-                delete pwalletdbEncryption;
-                pwalletdbEncryption = NULL;
+        try {
+            newMasterKeyId = ++nMasterKeyMaxID;
+            masterKeyIdReserved = true;
+            if (!mapMasterKeys.emplace(newMasterKeyId, kMasterKey).second) {
+                --nMasterKeyMaxID;
                 return false;
             }
-            pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
-        }
-
-        if (!EncryptKeys(vMasterKey))
-        {
-            if (fFileBacked) {
-                pwalletdbEncryption->TxnAbort();
-                delete pwalletdbEncryption;
+            masterKeyInserted = true;
+            if (fFileBacked)
+            {
+                assert(!pwalletdbEncryption);
+                pwalletdbEncryption = std::make_unique<CWalletDB>(GetDatabase());
+                if (!pwalletdbEncryption->TxnBegin()) {
+                    pwalletdbEncryption.reset();
+                    mapMasterKeys.erase(newMasterKeyId);
+                    --nMasterKeyMaxID;
+                    return false;
+                }
+                if (!pwalletdbEncryption->WriteMasterKey(newMasterKeyId, kMasterKey) ||
+                    !pwalletdbEncryption->WriteRewriteRequired()) {
+                    const bool abortSuccess = pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                    mapMasterKeys.erase(newMasterKeyId);
+                    --nMasterKeyMaxID;
+                    if (!abortSuccess) {
+                        LogPrintf("CWallet::EncryptWallet: Failed to abort database transaction after master-key write failure\n");
+                        failEncryption();
+                    }
+                    return false;
+                }
             }
-            // We now probably have half of our keys encrypted in memory, and half not...
-            // die and let the user reload the unencrypted wallet.
-            assert(false);
-        }
 
-        // Encryption was introduced in version 0.4.0
-        SetMinVersion(FEATURE_WALLETCRYPT, pwalletdbEncryption, true);
-
-        if (fFileBacked)
-        {
-            if (!pwalletdbEncryption->TxnCommit()) {
-                delete pwalletdbEncryption;
-                // We now have keys encrypted in memory, but not on disk...
-                // die to avoid confusion and let the user reload the unencrypted wallet.
-                assert(false);
+            keyMutationStarted = true;
+            result = EncryptionStatus::ENCRYPTION_STARTED;
+            if (!EncryptKeys(vMasterKey))
+            {
+                if (fFileBacked) {
+                    pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                }
+                failEncryption();
+                return false;
             }
 
-            delete pwalletdbEncryption;
-            pwalletdbEncryption = NULL;
+            // Encryption was introduced in version 0.4.0
+            if (!SetMinVersion(FEATURE_WALLETCRYPT, pwalletdbEncryption.get(), true)) {
+                if (fFileBacked) {
+                    pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                }
+                failEncryption();
+                return false;
+            }
+
+            encryptMnemonic = !mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39;
+            if (encryptMnemonic) {
+                if (!EncryptMnemonicContainer(vMasterKey) ||
+                    (fFileBacked && !pwalletdbEncryption->WriteMnemonic(mnemonicContainer)) ||
+                    !SetMinVersion(FEATURE_HD, pwalletdbEncryption.get())) {
+                    if (fFileBacked) {
+                        pwalletdbEncryption->TxnAbort();
+                        pwalletdbEncryption.reset();
+                    }
+                    failEncryption();
+                    return false;
+                }
+            }
+
+            if (fFileBacked)
+            {
+                if (!pwalletdbEncryption->TxnCommit()) {
+                    pwalletdbEncryption.reset();
+                    failEncryption();
+                    return false;
+                } else {
+                    pwalletdbEncryption.reset();
+                }
+            }
+        } catch (const std::exception& error) {
+            bool abortSuccess = true;
+            {
+                LOCK(cs_wallet);
+                if (pwalletdbEncryption) {
+                    if (pwalletdbEncryption->HasActiveTxn()) {
+                        abortSuccess = pwalletdbEncryption->TxnAbort();
+                    }
+                    pwalletdbEncryption.reset();
+                }
+                if (!keyMutationStarted) {
+                    if (masterKeyInserted) {
+                        mapMasterKeys.erase(newMasterKeyId);
+                    }
+                    if (masterKeyIdReserved && nMasterKeyMaxID == newMasterKeyId) {
+                        --nMasterKeyMaxID;
+                    }
+                }
+            }
+            LogPrintf("CWallet::EncryptWallet: Exception during encryption transaction: %s\n", error.what());
+            if (keyMutationStarted || !abortSuccess) {
+                failEncryption();
+            }
+            return false;
+        } catch (...) {
+            bool abortSuccess = true;
+            {
+                LOCK(cs_wallet);
+                if (pwalletdbEncryption) {
+                    if (pwalletdbEncryption->HasActiveTxn()) {
+                        abortSuccess = pwalletdbEncryption->TxnAbort();
+                    }
+                    pwalletdbEncryption.reset();
+                }
+                if (!keyMutationStarted) {
+                    if (masterKeyInserted) {
+                        mapMasterKeys.erase(newMasterKeyId);
+                    }
+                    if (masterKeyIdReserved && nMasterKeyMaxID == newMasterKeyId) {
+                        --nMasterKeyMaxID;
+                    }
+                }
+            }
+            LogPrintf("CWallet::EncryptWallet: Unknown exception during encryption transaction\n");
+            if (keyMutationStarted || !abortSuccess) {
+                failEncryption();
+            }
+            return false;
         }
-
-        Lock();
-        Unlock(strWalletPassphrase, true);
-
-        if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
-            assert(EncryptMnemonicContainer(vMasterKey));
-            SetMinVersion(FEATURE_HD);
-            assert(SetMnemonicContainer(mnemonicContainer, false));
-            TopUpKeyPool();
-        }
-
-        Lock();
-
-        // Need to completely rewrite the wallet file; if we don't, bdb might keep
-        // bits of the unencrypted private key in slack space in the database file.
-        CDB::Rewrite(strWalletFile);
-
     }
-    NotifyStatusChanged(this);
 
-    return true;
+    bool initialLockSuccess = false;
+    try {
+        initialLockSuccess = Lock();
+    } catch (const std::exception& error) {
+        LogPrintf("CWallet::EncryptWallet: Exception while locking encrypted wallet: %s\n", error.what());
+        initialLockSuccess = IsLocked();
+    } catch (...) {
+        LogPrintf("CWallet::EncryptWallet: Unknown exception while locking encrypted wallet\n");
+        initialLockSuccess = IsLocked();
+    }
+    if (!initialLockSuccess) {
+        StartShutdown();
+    }
+
+    // Need to completely rewrite the wallet file; if we don't, BDB might keep
+    // bits of the unencrypted private key in slack space in the database file.
+    bool rewriteSuccess = false;
+    try {
+        rewriteSuccess = !fFileBacked || GetDatabase().Rewrite();
+    } catch (const std::exception& error) {
+        LogPrintf("CWallet::EncryptWallet: Exception while rewriting encrypted wallet %s: %s\n", strWalletFile, error.what());
+    } catch (...) {
+        LogPrintf("CWallet::EncryptWallet: Unknown exception while rewriting encrypted wallet %s\n", strWalletFile);
+    }
+    if (!rewriteSuccess) {
+        LogPrintf("CWallet::EncryptWallet: Failed to rewrite encrypted wallet %s; plaintext key remnants may remain in database slack space\n", strWalletFile);
+        StartShutdown();
+        return false;
+    }
+    if (!initialLockSuccess) {
+        return false;
+    }
+
+    bool postEncryptionSuccess = false;
+    try {
+        if (!Unlock(strWalletPassphrase, true)) {
+            LogPrintf("CWallet::EncryptWallet: Failed to unlock wallet after encryption\n");
+        } else if (encryptMnemonic && !TopUpKeyPool()) {
+            LogPrintf("CWallet::EncryptWallet: Failed to top up the encrypted wallet keypool\n");
+        } else {
+            postEncryptionSuccess = true;
+        }
+    } catch (const std::exception& error) {
+        LogPrintf("CWallet::EncryptWallet: Exception during post-encryption wallet setup: %s\n", error.what());
+    } catch (...) {
+        LogPrintf("CWallet::EncryptWallet: Unknown exception during post-encryption wallet setup\n");
+    }
+    bool finalLockSuccess = false;
+    try {
+        finalLockSuccess = Lock();
+    } catch (const std::exception& error) {
+        LogPrintf("CWallet::EncryptWallet: Exception while relocking encrypted wallet: %s\n", error.what());
+        finalLockSuccess = IsLocked();
+    } catch (...) {
+        LogPrintf("CWallet::EncryptWallet: Unknown exception while relocking encrypted wallet\n");
+        finalLockSuccess = IsLocked();
+    }
+    if (!finalLockSuccess) {
+        LogPrintf("CWallet::EncryptWallet: Failed to relock wallet after encryption\n");
+        postEncryptionSuccess = false;
+    }
+    if (!postEncryptionSuccess) {
+        StartShutdown();
+    } else {
+        NotifyStatusChanged(this);
+    }
+
+    return postEncryptionSuccess;
 }
 
 DBErrors CWallet::ReorderTransactions()
 {
     LOCK(cs_wallet);
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
+    if (GetDatabase().Format() == DatabaseFormat::SQLITE)
+        return walletdb.ReorderTransactions(this);
 
     // Old wallets didn't have any defined order for transactions
     // Probably a bad idea to change the output of this
@@ -1012,14 +2124,14 @@ int64_t CWallet::IncOrderPosNext(CWalletDB *pwalletdb)
     if (pwalletdb) {
         pwalletdb->WriteOrderPosNext(nOrderPosNext);
     } else {
-        CWalletDB(strWalletFile).WriteOrderPosNext(nOrderPosNext);
+        CWalletDB(GetDatabase()).WriteOrderPosNext(nOrderPosNext);
     }
     return nRet;
 }
 
 bool CWallet::AccountMove(std::string strFrom, std::string strTo, CAmount nAmount, std::string strComment)
 {
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
     if (!walletdb.TxnBegin())
         return false;
 
@@ -1053,7 +2165,7 @@ bool CWallet::AccountMove(std::string strFrom, std::string strTo, CAmount nAmoun
 
 bool CWallet::GetAccountPubkey(CPubKey &pubKey, std::string strAccount, bool bForceNew)
 {
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
 
     CAccount account;
     walletdb.ReadAccount(strAccount, account);
@@ -1126,7 +2238,7 @@ bool CWallet::MarkReplaced(const uint256& originalHash, const uint256& newHash)
 
     wtx.mapValue["replaced_by_txid"] = newHash.ToString();
 
-    CWalletDB walletdb(strWalletFile, "r+");
+    CWalletDB walletdb(GetDatabase());
 
     bool success = true;
     if (!walletdb.WriteTx(wtx)) {
@@ -1143,7 +2255,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 {
     LOCK(cs_wallet);
 
-    CWalletDB walletdb(strWalletFile, "r+", fFlushOnClose);
+    CWalletDB walletdb(GetDatabase(), {DatabaseBatchMode::READ_WRITE, fFlushOnClose});
 
     uint256 hash = wtxIn.GetHash();
 
@@ -1373,7 +2485,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 {
     LOCK2(cs_main, cs_wallet);
 
-    CWalletDB walletdb(strWalletFile, "r+");
+    CWalletDB walletdb(GetDatabase());
 
     std::set<uint256> todo;
     std::set<uint256> done;
@@ -1464,7 +2576,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
         return;
 
     // Do not flush the wallet here for performance reasons
-    CWalletDB walletdb(strWalletFile, "r+", false);
+    CWalletDB walletdb(GetDatabase(), {DatabaseBatchMode::READ_WRITE, false});
 
     std::set<uint256> todo;
     std::set<uint256> done;
@@ -1904,7 +3016,8 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey, const int cHDChainVersion) {
     LOCK(cs_wallet);
 
     // ensure this wallet.dat can only be opened by clients supporting HD
-    SetMinVersion(FEATURE_HD);
+    if (!SetMinVersion(FEATURE_HD))
+        return false;
 
     // store the keyid (hash160) together with
     // the child index counter in the database
@@ -1928,12 +3041,12 @@ bool CWallet::SetHDChain(const CHDChain &chain, bool memonly, bool& upgradeChain
         // whether to generate the keypool now (conditional as leads to DB deadlock if loading DB simultaneously)
         if (genNewKeyPool)
             NewKeyPool();
-        if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
+        if (!memonly && !CWalletDB(GetDatabase()).WriteHDChain(newChain))
             throw std::runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
     }
     else {
-        if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(chain))
+        if (!memonly && !CWalletDB(GetDatabase()).WriteHDChain(chain))
             throw std::runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = chain;
     }
@@ -1947,7 +3060,7 @@ bool CWallet::IsHDEnabled()
 }
 
 bool CWallet::SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly) {
-    if (!memonly && !CWalletDB(strWalletFile).WriteMnemonic(mnContainer))
+    if (!memonly && !CWalletDB(GetDatabase()).WriteMnemonic(mnContainer))
         throw std::runtime_error(std::string(__func__) + ": writing chain failed");
     mnemonicContainer = mnContainer;
     return true;
@@ -2745,7 +3858,7 @@ CAmount CWallet::GetLegacyBalance(const isminefilter& filter, int minDepth, cons
     }
 
     if (account) {
-        balance += CWalletDB(strWalletFile).GetAccountCreditDebit(*account);
+        balance += CWalletDB(GetDatabase()).GetAccountCreditDebit(*account);
     }
 
     return balance;
@@ -3947,7 +5060,7 @@ void CWallet::SetSparkOutputWriteFailureForTesting(int failAfterWrites)
 }
 
 static bool WritePendingSparkOutputsAtomically(
-    const std::string& strWalletFile,
+    WalletDatabase& database,
     const std::vector<std::pair<CScript, CSparkOutputTx>>& records,
     std::vector<CScript>& persistedScripts)
 {
@@ -3959,7 +5072,7 @@ static bool WritePendingSparkOutputsAtomically(
     if (failAfter == 0)
         return false;
 
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(database);
     if (!walletdb.TxnBegin())
         return false;
 
@@ -3987,13 +5100,13 @@ static bool WritePendingSparkOutputsAtomically(
 }
 
 static bool EraseSparkOutputScripts(
-    const std::string& strWalletFile,
+    WalletDatabase& database,
     const std::vector<CScript>& scripts)
 {
     if (scripts.empty())
         return true;
 
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(database);
     if (!walletdb.TxnBegin())
         return false;
 
@@ -4022,7 +5135,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // failed payment while the transaction remained eligible for mining.
         std::vector<CScript> persistedSparkOutputScripts;
         if (!WritePendingSparkOutputsAtomically(
-                strWalletFile,
+                GetDatabase(),
                 wtxNew.pendingSparkOutputRecords,
                 persistedSparkOutputScripts)) {
             LogPrintf("CommitTransaction(): Unable to save Spark transaction output\n");
@@ -4034,7 +5147,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // written above and return without AddToWallet.
         if (fCheckTransaction && !wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
             LogPrintf("CommitTransaction(): Transaction rejected: %s\n", state.GetRejectReason());
-            if (!EraseSparkOutputScripts(strWalletFile, persistedSparkOutputScripts)) {
+            if (!EraseSparkOutputScripts(GetDatabase(), persistedSparkOutputScripts)) {
                 LogPrintf(
                     "CommitTransaction(): failed to drop Spark output metadata after mempool rejection\n");
             }
@@ -4087,7 +5200,7 @@ bool CWallet::EraseFromWallet(uint256 hash) {
     {
         LOCK(cs_wallet);
         if (mapWallet.erase(hash))
-            CWalletDB(strWalletFile).EraseTx(hash);
+            CWalletDB(GetDatabase()).EraseTx(hash);
     }
     return true;
 }
@@ -4264,13 +5377,13 @@ std::vector<CWalletTx> CWallet::SpendAndStoreSparkSingleInput(
 }
 
 void CWallet::ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& entries) {
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
     return walletdb.ListAccountCreditDebit(strAccount, entries);
 }
 
 bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry)
 {
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
 
     return AddAccountingEntry(acentry, &walletdb);
 }
@@ -4348,11 +5461,10 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     if (!fFileBacked)
         return DB_LOAD_OK;
     fFirstRunRet = false;
-    DBErrors nLoadWalletRet = CWalletDB(strWalletFile,"cr+").LoadWallet(this);
+    DBErrors nLoadWalletRet = CWalletDB(GetDatabase(), {DatabaseBatchMode::READ_WRITE_CREATE}).LoadWallet(this);
     if (nLoadWalletRet == DB_NEED_REWRITE)
     {
-        if (CDB::Rewrite(strWalletFile, "\x04pool"))
-        {
+        if (GetDatabase().Rewrite("\x04pool")) {
             LOCK(cs_wallet);
             setKeyPool.clear();
             m_pool_key_to_index.clear();
@@ -4376,8 +5488,6 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     if (nLoadWalletRet != DB_LOAD_OK)
         return nLoadWalletRet;
     fFirstRunRet = !vchDefaultKey.IsValid();
-
-    uiInterface.LoadWallet(this);
 
     return DB_LOAD_OK;
 }
@@ -4405,11 +5515,10 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
 {
     if (!fFileBacked)
         return DB_LOAD_OK;
-    DBErrors nZapSelectTxRet = CWalletDB(strWalletFile,"cr+").ZapSelectTx(this, vHashIn, vHashOut);
+    DBErrors nZapSelectTxRet = CWalletDB(GetDatabase(), {DatabaseBatchMode::READ_WRITE_CREATE}).ZapSelectTx(this, vHashIn, vHashOut);
     if (nZapSelectTxRet == DB_NEED_REWRITE)
     {
-        if (CDB::Rewrite(strWalletFile, "\x04pool"))
-        {
+        if (GetDatabase().Rewrite("\x04pool")) {
             LOCK(cs_wallet);
             setKeyPool.clear();
             m_pool_key_to_index.clear();
@@ -4432,11 +5541,10 @@ DBErrors CWallet::ZapWalletTx(std::vector<CWalletTx>& vWtx)
 {
     if (!fFileBacked)
         return DB_LOAD_OK;
-    DBErrors nZapWalletTxRet = CWalletDB(strWalletFile,"cr+").ZapWalletTx(this, vWtx);
+    DBErrors nZapWalletTxRet = CWalletDB(GetDatabase(), {DatabaseBatchMode::READ_WRITE_CREATE}).ZapWalletTx(this, vWtx);
     if (nZapWalletTxRet == DB_NEED_REWRITE)
     {
-        if (CDB::Rewrite(strWalletFile, "\x04pool"))
-        {
+        if (GetDatabase().Rewrite("\x04pool")) {
             LOCK(cs_wallet);
             setKeyPool.clear();
             m_pool_key_to_index.clear();
@@ -4455,7 +5563,7 @@ DBErrors CWallet::ZapWalletTx(std::vector<CWalletTx>& vWtx)
 DBErrors CWallet::ZapSparkMints() {
     if (!fFileBacked)
         return DB_LOAD_OK;
-    DBErrors nZapSparkMintRet = CWalletDB(strWalletFile, "cr+").ZapSparkMints(this);
+    DBErrors nZapSparkMintRet = CWalletDB(GetDatabase(), {DatabaseBatchMode::READ_WRITE_CREATE}).ZapSparkMints(this);
     if (nZapSparkMintRet != DB_LOAD_OK){
         LogPrintf("Failed to remove spark mints from CWalletDB");
         return nZapSparkMintRet;
@@ -4479,9 +5587,9 @@ bool CWallet::SetAddressBook(const CTxDestination& address, const std::string& s
                              strPurpose, (fUpdated ? CT_UPDATED : CT_NEW) );
     if (!fFileBacked)
         return false;
-    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(CBitcoinAddress(address).ToString(), strPurpose))
+    if (!strPurpose.empty() && !CWalletDB(GetDatabase()).WritePurpose(CBitcoinAddress(address).ToString(), strPurpose))
         return false;
-    return CWalletDB(strWalletFile).WriteName(CBitcoinAddress(address).ToString(), strName);
+    return CWalletDB(GetDatabase()).WriteName(CBitcoinAddress(address).ToString(), strName);
 }
 
 bool CWallet::DelAddressBook(const CTxDestination& address)
@@ -4495,7 +5603,7 @@ bool CWallet::DelAddressBook(const CTxDestination& address)
             std::string strAddress = CBitcoinAddress(address).ToString();
             BOOST_FOREACH(const PAIRTYPE(std::string, std::string) &item, mapAddressBook[address].destdata)
             {
-                CWalletDB(strWalletFile).EraseDestData(strAddress, item.first);
+                CWalletDB(GetDatabase()).EraseDestData(strAddress, item.first);
             }
         }
         mapAddressBook.erase(address);
@@ -4505,8 +5613,8 @@ bool CWallet::DelAddressBook(const CTxDestination& address)
 
     if (!fFileBacked)
         return false;
-    CWalletDB(strWalletFile).ErasePurpose(CBitcoinAddress(address).ToString());
-    return CWalletDB(strWalletFile).EraseName(CBitcoinAddress(address).ToString());
+    CWalletDB(GetDatabase()).ErasePurpose(CBitcoinAddress(address).ToString());
+    return CWalletDB(GetDatabase()).EraseName(CBitcoinAddress(address).ToString());
 }
 
 const std::string& CWallet::GetAccountName(const CScript& scriptPubKey) const
@@ -4528,7 +5636,7 @@ bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)
 {
     if (fFileBacked)
     {
-        if (!CWalletDB(strWalletFile).WriteDefaultKey(vchPubKey))
+        if (!CWalletDB(GetDatabase()).WriteDefaultKey(vchPubKey))
             return false;
     }
     vchDefaultKey = vchPubKey;
@@ -4543,7 +5651,9 @@ bool CWallet::NewKeyPool()
 {
     {
         LOCK(cs_wallet);
-        CWalletDB walletdb(strWalletFile);
+        if (GetDatabase().Format() == DatabaseFormat::SQLITE)
+            return FillSQLiteKeyPool(std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), int64_t{0}), true);
+        CWalletDB walletdb(GetDatabase());
         BOOST_FOREACH(int64_t nIndex, setKeyPool)
             walletdb.ErasePool(nIndex);
         setKeyPool.clear();
@@ -4574,14 +5684,16 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
         if (IsLocked())
             return false;
 
-        CWalletDB walletdb(strWalletFile);
-
         // Top up key pool
         unsigned int nTargetSize;
         if (kpSize > 0)
             nTargetSize = kpSize;
         else
             nTargetSize = std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t) 0);
+
+        if (GetDatabase().Format() == DatabaseFormat::SQLITE)
+            return FillSQLiteKeyPool(nTargetSize + 1, false);
+        CWalletDB walletdb(GetDatabase());
 
         while (setKeyPool.size() < (nTargetSize + 1))
         {
@@ -4599,6 +5711,51 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
     return true;
 }
 
+bool CWallet::FillSQLiteKeyPool(unsigned int target, bool replace)
+{
+    AssertLockHeld(cs_wallet);
+    assert(!m_keyGenerationBatch);
+    if (IsLocked()) return false;
+    if (!replace && setKeyPool.size() >= target) return true;
+    const bool hadWatchOnly = HaveWatchOnly();
+    CWalletDB database(GetDatabase());
+    if (!database.TxnBegin()) return false;
+    bool committed = false;
+    BOOST_SCOPE_EXIT_ALL(&) {
+        m_keyGenerationBatch = nullptr;
+        if (!committed) {
+            if (database.HasActiveTxn()) database.TxnAbort();
+            // No caller can see the generated pool until cs_wallet is released.
+            // Do not expose keys whose persistence failed while shutting down.
+            setKeyPool.clear();
+            m_pool_key_to_index.clear();
+#ifdef USE_SQLITE
+            QuarantineSQLiteDatabase(GetDatabase());
+#endif
+            StartShutdown();
+        }
+    };
+    m_keyGenerationBatch = &database;
+    if (replace) {
+        for (const auto index : setKeyPool) {
+            if (!database.ErasePool(index)) return false;
+        }
+        setKeyPool.clear();
+        m_pool_key_to_index.clear();
+    }
+    while (setKeyPool.size() < target) {
+        const int64_t index = setKeyPool.empty() ? 1 : *setKeyPool.rbegin() + 1;
+        const CPubKey pubkey = GenerateNewKey();
+        if (!database.WritePool(index, CKeyPool(pubkey))) return false;
+        setKeyPool.insert(index);
+        m_pool_key_to_index[pubkey.GetID()] = index;
+    }
+    committed = database.TxnCommit();
+    m_keyGenerationBatch = nullptr;
+    if (committed && hadWatchOnly && !HaveWatchOnly()) NotifyWatchonlyChanged(false);
+    return committed;
+}
+
 void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool)
 {
     nIndex = -1;
@@ -4613,7 +5770,7 @@ void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool)
         if(setKeyPool.empty())
             return;
 
-        CWalletDB walletdb(strWalletFile);
+        CWalletDB walletdb(GetDatabase());
 
         nIndex = *(setKeyPool.begin());
         setKeyPool.erase(setKeyPool.begin());
@@ -4633,7 +5790,7 @@ void CWallet::KeepKey(int64_t nIndex)
     // Remove from key pool
     if (fFileBacked)
     {
-        CWalletDB walletdb(strWalletFile);
+        CWalletDB walletdb(GetDatabase());
         walletdb.ErasePool(nIndex);
     }
     LogPrintf("keypool keep %d\n", nIndex);
@@ -4679,7 +5836,7 @@ int64_t CWallet::GetOldestKeyPoolTime()
 
     // load oldest key from keypool, get time and return
     CKeyPool keypool;
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
     int64_t nIndex = *(setKeyPool.begin());
     if (!walletdb.ReadPool(nIndex, keypool))
         throw std::runtime_error(std::string(__func__) + ": read oldest key in keypool failed");
@@ -4873,7 +6030,7 @@ void CWallet::MarkReserveKeysAsUsed(int64_t keypool_id)
     AssertLockHeld(cs_wallet);
     auto it = setKeyPool.begin();
 
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
     while (it != std::end(setKeyPool)) {
         const int64_t& index = *(it);
         if (index > keypool_id) break; // set*KeyPool is ordered
@@ -4885,9 +6042,16 @@ void CWallet::MarkReserveKeysAsUsed(int64_t keypool_id)
 
 spark::FullViewKey CWallet::GetSparkViewKey() {
   LOCK(cs_wallet);
-  CWalletDB walletdb(strWalletFile);
+  CWalletDB walletdb(GetDatabase());
   spark::FullViewKey key;
-  walletdb.readFullViewKey(key);
+  if (GetDatabase().Format() == DatabaseFormat::SQLITE) {
+      if (walletdb.readFullViewKeyWithStatus(key) !=
+          DatabaseReadStatus::SUCCESS) {
+          throw std::runtime_error("Unable to read Spark view key from SQLite wallet database");
+      }
+  } else {
+      walletdb.readFullViewKey(key);
+  }
 
   return key;
 }
@@ -5060,7 +6224,7 @@ bool CWallet::AddDestData(const CTxDestination &dest, const std::string &key, co
     mapAddressBook[dest].destdata.insert(std::make_pair(key, value));
     if (!fFileBacked)
         return true;
-    return CWalletDB(strWalletFile).WriteDestData(CBitcoinAddress(dest).ToString(), key, value);
+    return CWalletDB(GetDatabase()).WriteDestData(CBitcoinAddress(dest).ToString(), key, value);
 }
 
 bool CWallet::AddDestData(const std::string &dest, const std::string &key, const std::string &value)
@@ -5077,7 +6241,7 @@ bool CWallet::AddDestData(const std::string &dest, const std::string &key, const
     }
     if (!fFileBacked)
         return true;
-    return CWalletDB(strWalletFile).WriteDestData(dest, key, value);
+    return CWalletDB(GetDatabase()).WriteDestData(dest, key, value);
 }
 
 bool CWallet::EraseDestData(const CTxDestination &dest, const std::string &key)
@@ -5086,7 +6250,7 @@ bool CWallet::EraseDestData(const CTxDestination &dest, const std::string &key)
         return false;
     if (!fFileBacked)
         return true;
-    return CWalletDB(strWalletFile).EraseDestData(CBitcoinAddress(dest).ToString(), key);
+    return CWalletDB(GetDatabase()).EraseDestData(CBitcoinAddress(dest).ToString(), key);
 }
 
 bool CWallet::EraseDestData(const std::string &dest, const std::string &key)
@@ -5104,7 +6268,7 @@ bool CWallet::EraseDestData(const std::string &dest, const std::string &key)
     }
     if (!fFileBacked)
         return true;
-    return CWalletDB(strWalletFile).EraseDestData(dest, key);
+    return CWalletDB(GetDatabase()).EraseDestData(dest, key);
 }
 
 bool CWallet::LoadDestData(const CTxDestination &dest, const std::string &key, const std::string &value)
@@ -5167,9 +6331,11 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-hdseed=<hex>", _("User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)"));
     strUsage += HelpMessageOpt("-batching", _("In case of sync/reindex verifies privacy (Spark) proofs with batch verification, default: true"));
     strUsage += HelpMessageOpt("-mobile", _("Use this argument when you want to keep additional data in block index for mobile api, default: false"));
+    strUsage += HelpMessageOpt("-migratewalletdb", _("Explicitly migrate the selected existing BDB wallet database to SQLite once at startup"));
     strUsage += HelpMessageOpt("-walletrbf", strprintf(_("Send transactions with full-RBF opt-in enabled (default: %u)"), DEFAULT_WALLET_RBF));
     strUsage += HelpMessageOpt("-upgradewallet", _("Upgrade wallet to latest format on startup"));
     strUsage += HelpMessageOpt("-wallet=<file>", _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), DEFAULT_WALLET_DAT));
+    strUsage += HelpMessageOpt("-walletdbformat=<format>", _("Database format for a newly created wallet: sqlite or bdb (default: bdb)"));
     strUsage += HelpMessageOpt("-walletbroadcast", _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST));
     strUsage += HelpMessageOpt("-walletnotify=<cmd>", _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID, %t is replaced by transaction type: 'spark' or 'regular')"));
     strUsage += HelpMessageOpt("-zapwalletmints", _("Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup"));
@@ -5191,35 +6357,72 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
 
 CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 {
-    if (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false)) {
+    std::optional<DatabaseFormat> existingFormat;
+    std::string formatError;
+    if (!ReadWalletDatabaseFormat(walletFile, existingFormat, formatError)) {
+        InitError(formatError);
+        return nullptr;
+    }
+    auto makeDatabase = [&walletFile]() {
+        DatabaseOptions options;
+        options.verify = false;
+        options.require_existing = true;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
+        if (database) {
+            return database;
+        }
+        if (status != DatabaseStatus::FAILED_NOT_FOUND) {
+            InitError(error);
+            return database;
+        }
+
+        options.require_existing = false;
+        options.require_create = true;
+        options.logical_wallet_create = true;
+        if (!ApplyWalletCreationFormat(walletFile, options, error)) {
+            InitError(error);
+            return database;
+        }
+        database = MakeWalletDatabase(walletFile, options, status, error);
+        if (!database) {
+            InitError(error);
+        }
+        return database;
+    };
+
+    if (existingFormat && (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false))) {
         uiInterface.InitMessage(_("Zapping all Sigma mints from wallet..."));
 
-        CWallet *tempWallet = new CWallet(walletFile);
+        std::unique_ptr<WalletDatabase> database = makeDatabase();
+        if (!database) {
+            return nullptr;
+        }
+        auto tempWallet = std::make_unique<CWallet>(std::move(database));
         DBErrors nZapSparkMintRet = tempWallet->ZapSparkMints();
         if (nZapSparkMintRet != DB_LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
             return NULL;
         }
-
-        delete tempWallet;
-        tempWallet = NULL;
     }
 
     // needed to restore wallet transaction meta data after -zapwallettxes
     std::vector<CWalletTx> vWtx;
 
-    if (GetBoolArg("-zapwallettxes", false)) {
+    if (existingFormat && GetBoolArg("-zapwallettxes", false)) {
         uiInterface.InitMessage(_("Zapping all transactions from wallet..."));
 
-        CWallet *tempWallet = new CWallet(walletFile);
+        std::unique_ptr<WalletDatabase> database = makeDatabase();
+        if (!database) {
+            return nullptr;
+        }
+        auto tempWallet = std::make_unique<CWallet>(std::move(database));
         DBErrors nZapWalletRet = tempWallet->ZapWalletTx(vWtx);
         if (nZapWalletRet != DB_LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
             return NULL;
         }
-
-        delete tempWallet;
-        tempWallet = NULL;
     }
 
     uiInterface.InitMessage(_("Loading wallet..."));
@@ -5227,8 +6430,36 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
     bool fRecoverMnemonic = false;
-    CWallet *walletInstance = new CWallet(walletFile);
-    pwalletMain = walletInstance;
+    std::unique_ptr<WalletDatabase> database = makeDatabase();
+    if (!database) {
+        return nullptr;
+    }
+    auto walletInstance = std::make_unique<CWallet>(std::move(database));
+    const bool isBerkeleyWallet =
+        walletInstance->GetDatabase().Format() == DatabaseFormat::BERKELEY;
+    CWallet* const previousWallet = pwalletMain;
+    pwalletMain = walletInstance.get();
+    bool validationRegistered = false;
+    auto cleanupFailedWallet =
+        [previousWallet, &validationRegistered](CWallet* wallet) {
+            if (validationRegistered) {
+                UnregisterValidationInterface(wallet);
+            }
+            if (pwalletMain == wallet) {
+                pwalletMain = previousWallet;
+            }
+        };
+    std::unique_ptr<CWallet, decltype(cleanupFailedWallet)> walletLoadGuard(
+        walletInstance.get(),
+        cleanupFailedWallet);
+    LogPrintf(
+        "Using %s wallet database %s\n",
+        DatabaseFormatName(walletInstance->GetDatabase().Format()),
+        walletFile);
+    boost::signals2::scoped_connection progressConnection(
+        walletInstance->ShowProgress.connect([](const std::string& title, int progress) {
+            uiInterface.ShowProgress(title, progress);
+        }));
 
     DBErrors nLoadWalletRet = walletInstance->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK)
@@ -5265,7 +6496,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         {
             LogPrintf("Performing wallet upgrade to %i\n", FEATURE_LATEST);
             nMaxVersion = CLIENT_VERSION;
-            walletInstance->SetMinVersion(FEATURE_LATEST); // permanently upgrade the wallet immediately
+            if (!walletInstance->SetMinVersion(FEATURE_LATEST)) {
+                InitError(_("Cannot write upgraded wallet version"));
+                return NULL;
+            }
         }
         else
             LogPrintf("Allowing wallet upgrade up to %i\n", nMaxVersion);
@@ -5287,7 +6521,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
                 }
                 // generate a new HD chain
                 walletInstance->GenerateNewMnemonic();
-                walletInstance->SetMinVersion(FEATURE_HD);
+                if (!walletInstance->SetMinVersion(FEATURE_HD)) {
+                    InitError(_("Cannot write HD wallet version"));
+                    return NULL;
+                }
                 /* set rescan to true.
                  * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
                  */
@@ -5324,9 +6561,9 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     }
 
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
-    if (pwalletMain->IsHDSeedAvailable()) {
+    if (walletInstance->IsHDSeedAvailable()) {
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
-        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(*walletInstance);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
         std::string addrStr = address.encode(spark::GetNetworkType());
@@ -5347,7 +6584,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             walletInstance->GeneratePcode("Autogenerated RAP address " + std::to_string(i));
     }
 
-    RegisterValidationInterface(walletInstance);
+    if (isBerkeleyWallet) {
+        validationRegistered = true;
+        RegisterValidationInterface(walletInstance.get());
+    }
 
     // Try to top up keypool. No-op if the wallet is locked.
     walletInstance->TopUpKeyPool();
@@ -5357,7 +6597,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         pindexRescan = chainActive.Genesis();
     else
     {
-        CWalletDB walletdb(walletFile);
+        CWalletDB walletdb(walletInstance->GetDatabase());
         CBlockLocator locator;
         if (walletdb.ReadBestBlock(locator))
             pindexRescan = FindForkInGlobalIndex(chainActive, locator);
@@ -5393,7 +6633,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         {
             std::string zwtValue = GetArg("-zapwallettxes", "1");
             if(zwtValue != "2") {
-                CWalletDB walletdb(walletFile);
+                CWalletDB walletdb(walletInstance->GetDatabase());
 
                 BOOST_FOREACH(const CWalletTx &wtxOld, vWtx)
                 {
@@ -5444,7 +6684,29 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         LogPrintf("mapAddressBook.size() = %u\n",  walletInstance->mapAddressBook.size());
     }
 
-    return walletInstance;
+    std::string creationError;
+    const DatabaseCreationResult creationResult =
+        walletInstance->GetDatabase().CompleteCreation(
+            creationError);
+    if (creationResult !=
+        DatabaseCreationResult::COMPLETE) {
+        InitError(
+            creationError.empty() ?
+                strprintf(
+                    _("Failed to complete wallet database creation for %s"),
+                    walletFile) :
+                creationError);
+        return nullptr;
+    }
+
+    CWallet* result = walletInstance.get();
+    if (!isBerkeleyWallet) {
+        validationRegistered = true;
+        RegisterValidationInterface(result);
+    }
+    uiInterface.LoadWallet(result);
+    walletLoadGuard.release();
+    return walletInstance.release();
 }
 
 bool CWallet::InitLoadWallet()
@@ -5456,12 +6718,6 @@ bool CWallet::InitLoadWallet()
     }
 
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-
-    if (walletFile.find_first_of("/\\") != std::string::npos) {
-        return InitError(_("-wallet parameter must only specify a filename (not a path)"));
-    } else if (SanitizeString(walletFile, SAFE_CHARS_FILENAME) != walletFile) {
-        return InitError(_("Invalid characters in -wallet filename"));
-    }
 
     CWallet * const pwallet = CreateWalletFromFile(walletFile);
     if (!pwallet) {
@@ -5488,8 +6744,44 @@ void CWallet::postInitProcess(boost::thread_group& threadGroup)
 
 bool CWallet::ParameterInteraction()
 {
-    if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
+    const bool migrateDatabase =
+        GetBoolArg("-migratewalletdb", false);
+    if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
+        if (migrateDatabase) {
+            return InitError(
+                "-migratewalletdb cannot be used with -disablewallet.");
+        }
         return true;
+    }
+
+    if (IsArgSet("-walletdbformat")) {
+        const std::string format =
+            GetArg("-walletdbformat", "");
+        if (format != "sqlite" && format != "bdb") {
+            return InitError(strprintf(
+                "Invalid -walletdbformat value '%s'. Use 'sqlite' or 'bdb'.",
+                format));
+        }
+    }
+    if (migrateDatabase) {
+        if (GetBoolArg("-salvagewallet", false)) {
+            return InitError(
+                "-migratewalletdb cannot be combined with -salvagewallet.");
+        }
+        if (IsArgSet("-walletdbformat")) {
+            return InitError(
+                "-migratewalletdb cannot be combined with -walletdbformat.");
+        }
+        if (GetBoolArg("-zapwalletmints", false) ||
+            GetBoolArg("-zapwallettxes", false)) {
+            return InitError(
+                "-migratewalletdb cannot be combined with wallet zap options.");
+        }
+        if (IsArgSet("-upgradewallet")) {
+            return InitError(
+                "-migratewalletdb cannot be combined with -upgradewallet.");
+        }
+    }
 
     if (GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY) && SoftSetBoolArg("-walletbroadcast", false)) {
         LogPrintf("%s: parameter interaction: -blocksonly=1 -> setting -walletbroadcast=0\n", __func__);
@@ -5588,45 +6880,27 @@ bool CWallet::ParameterInteraction()
     return true;
 }
 
-bool CWallet::BackupWallet(const std::string& strDest)
+bool CWallet::BackupWallet(const fs::path& destination)
 {
-    if (!fFileBacked)
+    std::string error;
+    return BackupWallet(destination, error);
+}
+
+bool CWallet::BackupWallet(
+    const fs::path& destination,
+    std::string& error)
+{
+    error.clear();
+    if (!fFileBacked) {
+        error = strprintf(
+            "Failed to back up %s wallet '%s' to '%s': the wallet is not "
+            "file-backed. Select a file-backed wallet and retry.",
+            DatabaseFormatName(GetDatabase().Format()),
+            strWalletFile,
+            destination.string());
         return false;
-    while (true)
-    {
-        {
-            LOCK(bitdb.cs_db);
-            if (!bitdb.mapFileUseCount.count(strWalletFile) || bitdb.mapFileUseCount[strWalletFile] == 0)
-            {
-                // Flush log data to the dat file
-                bitdb.CloseDb(strWalletFile);
-                bitdb.CheckpointLSN(strWalletFile);
-                bitdb.mapFileUseCount.erase(strWalletFile);
-
-                // Copy wallet file
-                boost::filesystem::path pathSrc = GetDataDir() / strWalletFile;
-                boost::filesystem::path pathDest(strDest);
-                if (boost::filesystem::is_directory(pathDest))
-                    pathDest /= strWalletFile;
-
-                try {
-#if BOOST_VERSION >= 104000
-                    const auto copyOptions = boost::filesystem::copy_options::overwrite_existing;
-                    boost::filesystem::copy(pathSrc, pathDest, copyOptions);
-#else
-                    boost::filesystem::copy_file(pathSrc, pathDest);
-#endif
-                    LogPrintf("copied %s to %s\n", strWalletFile, pathDest.string());
-                    return true;
-                } catch (const boost::filesystem::filesystem_error& e) {
-                    LogPrintf("error copying %s to %s - %s\n", strWalletFile, pathDest.string(), e.what());
-                    return false;
-                }
-            }
-        }
-        MilliSleep(100);
     }
-    return false;
+    return GetDatabase().Backup(destination, error);
 }
 
 bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
@@ -5642,7 +6916,7 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
             AddKey(addr.second);
         }
     }
-    CWalletDB(strWalletFile).WriteBip47Account(newAcc);
+    CWalletDB(GetDatabase()).WriteBip47Account(newAcc);
     NotifyPcodeCreated(bip47::CPaymentCodeDescription(newAcc.getAccountNum(), newAcc.getMyPcode(), newAcc.getLabel(), newAcc.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver));
     return newAcc.getMyPcode();
 }
@@ -5669,7 +6943,7 @@ bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & thei
         throw WalletError("BIP47 wallet was not created during the initialization");
 
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
-    CWalletDB(strWalletFile).WriteBip47Account(sender);
+    CWalletDB(GetDatabase()).WriteBip47Account(sender);
     return sender.getPaymentChannel();
 }
 
@@ -5680,11 +6954,11 @@ void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint25
 
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
     sender.setNotificationTxId(txid);
-    CWalletDB(strWalletFile).WriteBip47Account(sender);
+    CWalletDB(GetDatabase()).WriteBip47Account(sender);
 }
 
 namespace {
-CBitcoinAddress HandleTheirNextAddress(bip47::CWallet & wallet, std::string const & strWalletFile, bip47::CPaymentCode const & theirPcode, bool storeNextAddress)
+CBitcoinAddress HandleTheirNextAddress(bip47::CWallet& wallet, WalletDatabase& database, bip47::CPaymentCode const& theirPcode, bool storeNextAddress)
 {
     boost::optional<bip47::CAccountSender*> existingAcc;
     wallet.enumerateSenders(
@@ -5707,7 +6981,7 @@ CBitcoinAddress HandleTheirNextAddress(bip47::CWallet & wallet, std::string cons
     } else {
         result = existingAcc.get()->getTheirNextSecretAddress();
     }
-    CWalletDB(strWalletFile).WriteBip47Account(*existingAcc.get());
+    CWalletDB(database).WriteBip47Account(*existingAcc.get());
     return result;
 }
 }
@@ -5717,7 +6991,7 @@ CBitcoinAddress CWallet::GetTheirNextAddress(bip47::CPaymentCode const & theirPc
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
-    return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, false);
+    return HandleTheirNextAddress(*bip47wallet, GetDatabase(), theirPcode, false);
 }
 
 CBitcoinAddress CWallet::GenerateTheirNextAddress(bip47::CPaymentCode const & theirPcode)
@@ -5725,12 +6999,12 @@ CBitcoinAddress CWallet::GenerateTheirNextAddress(bip47::CPaymentCode const & th
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
-    return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, true);
+    return HandleTheirNextAddress(*bip47wallet, GetDatabase(), theirPcode, true);
 }
 
 void CWallet::LoadBip47Wallet()
 {
-    CWalletDB(strWalletFile).LoadBip47Accounts(*bip47wallet);
+    CWalletDB(GetDatabase()).LoadBip47Accounts(*bip47wallet);
 }
 
 std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
@@ -5841,7 +7115,7 @@ bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & add
         }
     );
     if (result)
-        CWalletDB(strWalletFile).WriteBip47Account(*result);
+        CWalletDB(GetDatabase()).WriteBip47Account(*result);
     return result;
 }
 
@@ -5900,7 +7174,7 @@ notifTxExit:
     if (success) {
         LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
         HandleSecretAddresses(*this, *accFound);
-        CWalletDB(strWalletFile).WriteBip47Account(*accFound);
+        CWalletDB(GetDatabase()).WriteBip47Account(*accFound);
         LockCoin(COutPoint(wtx.tx->GetHash(), std::distance(wtx.tx->vout.begin(), iregout))); //Locking the notif tx output to be spent only manually
     } else {
         // Checking if it uses a bip47 address
@@ -5925,7 +7199,7 @@ void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
         return;
 
     uint256 txHash = wtx.GetHash();
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
 
     // get spend linking tags and add to spark wallet
     if (wtx.tx->IsSparkSpend()) {
@@ -5946,7 +7220,7 @@ void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string 
     std::string const pcodeLbl = bip47::PcodeLabel() + pcode_.toString();
     if (label.empty())
         remove = true;
-    CWalletDB walletDb(strWalletFile);
+    CWalletDB walletDb(GetDatabase());
     if (remove) {
         walletDb.EraseKV(pcodeLbl);
         LOCK(cs_wallet);
@@ -5998,7 +7272,7 @@ void CWallet::LabelReceivingPcode(bip47::CPaymentCode const & pcode, std::string
     if(!result)
         return;
     result->setLabel(label);
-    CWalletDB(strWalletFile).WriteBip47Account(*result);
+    CWalletDB(GetDatabase()).WriteBip47Account(*result);
 }
 
 size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number)
@@ -6250,10 +7524,10 @@ bool CWallet::SetSparkAddressBook(const std::string& address, const std::string&
                              strPurpose, (fUpdated ? CT_UPDATED : CT_NEW) );
     if (!fFileBacked)
         return false;
-    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(address, strPurpose))
+    if (!strPurpose.empty() && !CWalletDB(GetDatabase()).WritePurpose(address, strPurpose))
         return false;
 
-    return CWalletDB(strWalletFile).WriteName(address, strName);
+    return CWalletDB(GetDatabase()).WriteName(address, strName);
 }
 
 bool CWallet::DelAddressBook(const std::string& address)
@@ -6282,17 +7556,17 @@ bool CWallet::DelAddressBook(const std::string& address)
             if(checkSpark){
                 BOOST_FOREACH(const PAIRTYPE(std::string, std::string) &item, mapSparkAddressBook[address].destdata)
                 {
-                    CWalletDB(strWalletFile).EraseDestData(address, item.first);
+                    CWalletDB(GetDatabase()).EraseDestData(address, item.first);
                 }
             } else if(bip47::CPaymentCode::validate(address)) {
                 BOOST_FOREACH(const PAIRTYPE(std::string, std::string) &item, mapRAPAddressBook[address].destdata)
                 {
-                    CWalletDB(strWalletFile).EraseDestData(address, item.first);
+                    CWalletDB(GetDatabase()).EraseDestData(address, item.first);
                 }
             } else if (validateAddress(address)) {
                 BOOST_FOREACH(const PAIRTYPE(std::string, std::string) &item, mapAddressBook[CBitcoinAddress(address).Get()].destdata)
                 {
-                    CWalletDB(strWalletFile).EraseDestData(address, item.first);
+                    CWalletDB(GetDatabase()).EraseDestData(address, item.first);
                 }
             }
         }
@@ -6325,8 +7599,8 @@ bool CWallet::DelAddressBook(const std::string& address)
 
     if (!fFileBacked)
         return false;
-    CWalletDB(strWalletFile).ErasePurpose(address);
-    return CWalletDB(strWalletFile).EraseName(address);
+    CWalletDB(GetDatabase()).ErasePurpose(address);
+    return CWalletDB(GetDatabase()).EraseName(address);
 }
 
 bool CWallet::validateAddress(const std::string& address)
@@ -6351,7 +7625,7 @@ bool CWallet::validateSparkAddress(const std::string& address) const
 
 bool CWallet::GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output) const
 {
-    CWalletDB walletdb(strWalletFile);
+    CWalletDB walletdb(GetDatabase());
     return  walletdb.ReadSparkOutputTx(scriptPubKey, output);
 }
 
@@ -6381,7 +7655,7 @@ bool CWallet::SetRAPAddressBook(const std::string& address, const std::string& s
 
     if (!fFileBacked)
         return false;
-    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(address, strPurpose))
+    if (!strPurpose.empty() && !CWalletDB(GetDatabase()).WritePurpose(address, strPurpose))
         return false;
-    return CWalletDB(strWalletFile).WriteName(address, strName);
+    return CWalletDB(GetDatabase()).WriteName(address, strName);
 }

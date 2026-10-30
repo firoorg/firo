@@ -729,9 +729,11 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
     else if(type == Receive)
     {
         if(addressType == AddressTableModel::Spark) {
-            spark::Address addr = wallet->sparkWallet->generateNewAddress();
-            unsigned char network = spark::GetNetworkType();
-            strAddress = addr.encode(network);
+            const QString generated = walletModel->generateSparkAddress(label);
+            if (generated.isEmpty()) {
+                editStatus = KEY_GENERATION_FAILURE;
+            }
+            return generated;
         } else {
             // Generate a new address to associate with given label
             CPubKey newKey;
