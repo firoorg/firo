@@ -7620,13 +7620,17 @@ BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
     auto database = MakeSQLiteDatabase("sqlite_keypool_batch.dat", options, status, error);
     BOOST_REQUIRE_MESSAGE(database, error);
     CWallet wallet(std::move(database));
+    const auto keyPoolSize = [&wallet] {
+        LOCK(wallet.cs_wallet);
+        return wallet.GetKeyPoolSize();
+    };
     wallet.GenerateNewMnemonic();
     BOOST_REQUIRE(wallet.SetMinVersion(FEATURE_HD));
     int commits = 0;
     BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
         std::make_unique<CountingSQLiteStatementExecutor>(commits)));
     BOOST_REQUIRE(wallet.TopUpKeyPool(10));
-    BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 11);
+    BOOST_CHECK_EQUAL(keyPoolSize(), 11);
     BOOST_CHECK_EQUAL(commits, 1);
 
     const SecureString passphrase{"keypool test"};
@@ -7635,15 +7639,15 @@ BOOST_AUTO_TEST_CASE(sqlite_keypool_refill_commits_once_and_fails_closed)
     commits = 0;
     BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
         std::make_unique<CountingSQLiteStatementExecutor>(commits)));
-    const auto target = wallet.GetKeyPoolSize() + 5;
+    const auto target = keyPoolSize() + 5;
     BOOST_REQUIRE(wallet.TopUpKeyPool(target));
-    BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), target + 1);
+    BOOST_CHECK_EQUAL(keyPoolSize(), target + 1);
     BOOST_CHECK_EQUAL(commits, 1);
 
     BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(wallet.GetDatabase(),
         std::make_unique<BlockingSQLiteStatementExecutor>(std::set<std::string>{"COMMIT TRANSACTION"})));
     BOOST_CHECK(!wallet.TopUpKeyPool(target + 5));
-    BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 0);
+    BOOST_CHECK_EQUAL(keyPoolSize(), 0);
     BOOST_CHECK(ShutdownRequested());
     BOOST_CHECK_THROW(wallet.GetDatabase().MakeBatch(), std::runtime_error);
 }
@@ -7673,6 +7677,7 @@ BOOST_AUTO_TEST_CASE(sqlite_keypoolrefill_rpc_reports_default_size_failure)
             return rpcError["code"].get_int() == RPC_WALLET_ERROR;
         });
         BOOST_CHECK(ShutdownRequested());
+        LOCK(wallet.cs_wallet);
         BOOST_CHECK_EQUAL(wallet.GetKeyPoolSize(), 0);
     }
 }
