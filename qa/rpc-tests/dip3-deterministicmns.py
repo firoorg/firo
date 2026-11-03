@@ -124,6 +124,9 @@ class DIP3Test(BitcoinTestFramework):
         for mn in mns:
             self.test_protx_update_service(mn)
 
+        self.log.info("testing ProTx fee inputs")
+        self.test_protx_fee_inputs(mns[0])
+
         self.log.info("testing P2SH/multisig for payee addresses")
         multisig = self.nodes[0].createmultisig(1, [self.nodes[0].getnewaddress(), self.nodes[0].getnewaddress()])['address']
         self.update_mn_payee(mns[0], multisig)
@@ -231,6 +234,28 @@ class DIP3Test(BitcoinTestFramework):
         # undo
         self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
         self.nodes[0].generate(1)
+
+    def test_protx_fee_inputs(self, mn):
+        # Every output at the fee source address is offered to the wallet, but the transaction
+        # must spend only as many as the fee needs, leaving the rest for the next ProTx
+        for i in range(3):
+            self.nodes[0].sendtoaddress(mn.fundsAddr, 0.001)
+        self.nodes[0].generate(1)
+        self.sync_all()
+        unspent_before = self.nodes[0].listunspent(0, 9999999, [mn.fundsAddr])
+        assert(len(unspent_before) >= 3)
+
+        txid = self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.2:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
+        assert_equal(len(self.nodes[0].getrawtransaction(txid, 1)['vin']), 1)
+        # one output spent, its change back at the same address
+        assert_equal(len(self.nodes[0].listunspent(0, 9999999, [mn.fundsAddr])), len(unspent_before))
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        # undo
+        self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
+        self.nodes[0].generate(1)
+        self.sync_all()
 
     def force_finish_mnsync(self, node):
         tm = 0
