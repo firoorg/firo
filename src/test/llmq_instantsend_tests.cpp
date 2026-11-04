@@ -2,6 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "chainparams.h"
+#include "evo/spork.h"
 #include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_instantsend.h"
 #include "test/test_bitcoin.h"
@@ -113,6 +115,37 @@ llmq::CInstantSendLock MakeLock(const CTransactionRef& tx)
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(llmq_instantsend_tests, TestingSetup)
+
+BOOST_AUTO_TEST_CASE(active_state_tracks_sporks_without_clearing_pending_locks)
+{
+    CDBWrapper database(pathTemp / "instantsend", 1 << 20, true);
+    llmq::CInstantSendManager manager(database);
+    const auto islock = MakeLock(MakeTransaction(uint256S("1")));
+    llmq::CInstantSendManagerTestAccess::AddPending(manager, islock);
+    CBlockIndex enabled;
+    CBlockIndex disabled;
+    disabled.SetActiveDisablingSporks({{CSporkAction::featureInstantSend, {0, 0}}});
+
+    LOCK(cs_main);
+    manager.UpdateActiveState(nullptr);
+    BOOST_CHECK(!manager.IsNewInstantSendEnabled());
+    manager.UpdateActiveState(&enabled);
+    BOOST_CHECK(manager.IsNewInstantSendEnabled());
+    BOOST_CHECK(manager.IsWaitingForTx(islock.txid));
+    manager.UpdateActiveState(&disabled);
+    BOOST_CHECK(!manager.IsNewInstantSendEnabled());
+    manager.UpdateActiveState(&enabled);
+    BOOST_CHECK(manager.IsNewInstantSendEnabled());
+    BOOST_CHECK(manager.IsWaitingForTx(islock.txid));
+    manager.UpdateActiveState(&disabled);
+    BOOST_CHECK(!manager.IsNewInstantSendEnabled());
+    manager.UpdateActiveState(&enabled);
+    BOOST_CHECK(manager.IsNewInstantSendEnabled());
+    manager.UpdateActiveState(nullptr);
+    BOOST_CHECK(!manager.IsNewInstantSendEnabled());
+    manager.UpdateActiveState(&enabled);
+    BOOST_CHECK(manager.IsWaitingForTx(islock.txid));
+}
 
 BOOST_AUTO_TEST_CASE(block_callback_completes_pending_lock_without_txindex)
 {
@@ -283,6 +316,48 @@ BOOST_AUTO_TEST_CASE(pending_lock_body_cannot_be_replaced_before_completion)
     BOOST_CHECK(!missingInputs);
     BOOST_CHECK(mempool.exists(tx->GetHash()));
     BOOST_CHECK(!mempool.exists(replacement.GetHash()));
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE(llmq_instantsend_activation_tests, TestChain100Setup)
+
+BOOST_AUTO_TEST_CASE(connect_and_pure_disconnect_refresh_feature_state)
+{
+    CDBWrapper database(pathTemp / "instantsend", 1 << 20, true);
+    llmq::CInstantSendManager manager(database);
+    auto* previousManager = llmq::quorumInstantSendManager;
+    auto* parent = chainActive.Tip();
+    const ActiveSporkMap parentSporks = parent->privacyData().activeDisablingSporks;
+    BOOST_SCOPE_EXIT(previousManager, parent, parentSporks) {
+        LOCK(cs_main);
+        parent->SetActiveDisablingSporks(parentSporks);
+        llmq::quorumInstantSendManager = previousManager;
+    } BOOST_SCOPE_EXIT_END
+    llmq::quorumInstantSendManager = &manager;
+    BOOST_REQUIRE(!manager.IsNewInstantSendEnabled());
+
+    // This fixture has no tip-notification listener, so activation must happen in validation.
+    const CBlock block = CreateAndProcessBlock({}, coinbaseKey);
+    BOOST_REQUIRE(chainActive.Tip()->GetBlockHash() == block.GetHash());
+    BOOST_REQUIRE(chainActive.Tip()->pprev == parent);
+    BOOST_CHECK(manager.IsNewInstantSendEnabled());
+    {
+        LOCK(cs_main);
+        parent->SetActiveDisablingSporks({{CSporkAction::featureInstantSend, {0, 0}}});
+    }
+
+    BOOST_REQUIRE(DisconnectBlocks(1));
+    BOOST_CHECK(chainActive.Tip() == parent);
+    BOOST_CHECK(!manager.IsNewInstantSendEnabled());
+    {
+        LOCK(cs_main);
+        parent->SetActiveDisablingSporks(parentSporks);
+    }
+    CValidationState state;
+    BOOST_REQUIRE(ActivateBestChain(state, Params()));
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
+    BOOST_CHECK(manager.IsNewInstantSendEnabled());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

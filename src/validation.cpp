@@ -3408,6 +3408,8 @@ void PruneAndFlush() {
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrint("validation", "UpdateTip() pindexNew.nHeight=%d\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
+    // Refresh before transaction callbacks, including initial sync and disconnects.
+    llmq::quorumInstantSendManager->UpdateActiveState(pindexNew);
 
     // New best block
     txpools.AddTransactionsUpdated(1);

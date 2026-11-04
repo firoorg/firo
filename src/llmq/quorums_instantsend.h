@@ -150,6 +150,7 @@ public:
     bool RemoveISLockByTxId(const uint256& txid);
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
+    void UpdateActiveState(const CBlockIndex* pindex);
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock);
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);

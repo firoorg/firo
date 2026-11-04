@@ -358,8 +358,7 @@ void CInstantSendManager::Start()
 
     {
         LOCK(cs_main);
-        if (chainActive.Tip())
-            isNewInstantSendEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, chainActive.Tip());
+        UpdateActiveState(chainActive.Tip());
     }
 
     workThread = std::thread(&TraceThread<std::function<void()> >, "instantsend", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
@@ -1241,6 +1240,12 @@ void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
 void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 {
     HandleFullyConfirmedBlock(pindexChainLock);
+}
+
+void CInstantSendManager::UpdateActiveState(const CBlockIndex* pindex)
+{
+    AssertLockHeld(cs_main);
+    isNewInstantSendEnabled = pindex && CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, pindex);
 }
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
