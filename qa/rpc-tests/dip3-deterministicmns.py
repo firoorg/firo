@@ -209,6 +209,10 @@ class DIP3Test(BitcoinTestFramework):
         # self.log.info("testing instant send with replaced MNs")
         # self.test_instantsend(10, 3, timeout=20)
 
+        # Last: its registrations stay in the mempool, and mining them would change the MN list.
+        self.log.info("testing register_fund with change equal to the collateral")
+        self.test_protx_register_fund_change()
+
     def spend_mn_collateral(self, mn, with_dummy_input_output=False):
         return self.spend_input(mn.collateral_txid, mn.collateral_vout, 1000, with_dummy_input_output)
 
@@ -234,6 +238,31 @@ class DIP3Test(BitcoinTestFramework):
         # undo
         self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
         self.nodes[0].generate(1)
+
+    def test_protx_register_fund_change(self):
+        # The change goes to a random position. When it comes to exactly the collateral
+        # amount and lands first, the payload must still name the requested collateral.
+        node = self.nodes[0]
+
+        def register(attempt, amount):
+            mn = prepare_mn(node, 0, 'fund-change-%d' % attempt)
+            collateral_address = node.getnewaddress()
+            node.sendtoaddress(mn.fundsAddr, amount)
+            txid = node.protx('register_fund', collateral_address, '127.0.1.%d:%d' % (attempt, mn.p2p_port), mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, node.getnewaddress(), mn.fundsAddr)
+            return txid, mn.fundsAddr, collateral_address
+
+        # These registrations are all the same size, so the first one gives the fee of the others.
+        fee = node.getmempoolentry(register(1, 1001)[0])['fee']
+
+        for attempt in range(2, 22):
+            txid, funds_address, collateral_address = register(attempt, 2000 + fee)
+            rawtx = node.getrawtransaction(txid, 1)
+            assert_equal([txout['value'] for txout in rawtx['vout']], [Decimal(1000), Decimal(1000)])
+            collateral_vout = rawtx['vout'][rawtx['proReg']['collateralIndex']]
+            assert_equal(collateral_vout['scriptPubKey']['addresses'], [collateral_address])
+            if rawtx['vout'][0]['scriptPubKey']['addresses'] == [funds_address]:
+                return
+        raise AssertionError("the change never came first")
 
     def test_protx_fee_inputs(self, mn):
         # Every output at the fee source address is offered to the wallet, but the transaction
