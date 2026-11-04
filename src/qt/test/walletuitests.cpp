@@ -1780,53 +1780,23 @@ void WalletUiTests::receiveMnemonics()
 void WalletUiTests::emptyRecoverySeed()
 {
 #ifdef ENABLE_WALLET
-    QTemporaryDir directory;
-    QVERIFY(directory.isValid());
-    const std::string oldWallet = GetArg("-wallet", DEFAULT_WALLET_DAT);
-    const auto restoreWallet = qScopeGuard([&] { ForceSetArg("-wallet", oldWallet); });
-    ForceSetArg("-wallet", directory.filePath(QStringLiteral("wallet.dat")).toStdString());
-
     for (const QString& seed : {QString(), QStringLiteral(" \t\r\n "),
                                QString(QChar(0x00a0)), QString(QChar(0x3000))}) {
         for (const bool use12 : {false, true}) {
-            QString error;
-            bool submitted = false;
-            bool timedOut = false;
-            QTimer timer;
-            QTimer::singleShot(5000, &timer, [&] {
-                timedOut = true;
-                if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
-                    dialog->reject();
-            });
-            connect(&timer, &QTimer::timeout, [&] {
-                auto* dialog = qobject_cast<Recover*>(QApplication::activeModalWidget());
-                if (!dialog)
-                    return;
-                auto* recoverExisting = dialog->findChild<QAbstractButton*>("recoverExisting");
-                auto* wordCount = dialog->findChild<QRadioButton*>(use12 ? "restore12" : "restore24");
-                auto* firstWord = dialog->findChild<QLineEdit*>("word1");
-                auto* ok = dialog->findChild<QPushButton*>("okButton");
-                auto* message = dialog->findChild<QLabel*>("errorMessage");
-                if (!recoverExisting || !wordCount || !firstWord || !ok || !message || submitted) {
-                    dialog->reject();
-                    return;
-                }
-                recoverExisting->click();
-                wordCount->click();
-                firstWord->setText(seed);
-                ok->click();
-                error = message->text();
-                submitted = true;
-                dialog->reject();
-            });
-            timer.start(0);
-            bool newWallet = false;
-            const bool accepted = Recover::askRecover(newWallet);
-            timer.stop();
-            QVERIFY(!timedOut);
-            QVERIFY(!accepted);
-            QVERIFY(submitted);
-            QCOMPARE(error, Recover::tr("Enter all %1 words.").arg(use12 ? 12 : 24));
+            Recover dialog;
+            auto* recoverExisting = dialog.findChild<QAbstractButton*>("recoverExisting");
+            auto* wordCount = dialog.findChild<QRadioButton*>(use12 ? "restore12" : "restore24");
+            auto* firstWord = dialog.findChild<QLineEdit*>("word1");
+            auto* ok = dialog.findChild<QPushButton*>("okButton");
+            auto* message = dialog.findChild<QLabel*>("errorMessage");
+            QVERIFY(recoverExisting && wordCount && firstWord && ok && message);
+            QSignalSpy accepted(&dialog, &QDialog::accepted);
+            recoverExisting->click();
+            wordCount->click();
+            firstWord->setText(seed);
+            ok->click();
+            QCOMPARE(accepted.count(), 0);
+            QCOMPARE(message->text(), Recover::tr("Enter all %1 words.").arg(use12 ? 12 : 24));
         }
     }
 #endif

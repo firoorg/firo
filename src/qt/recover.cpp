@@ -18,13 +18,9 @@
 #include <QAction>
 #include <QCalendarWidget>
 #include <QCompleter>
-#include <QFileDialog>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QSettings>
-#include <QMessageBox>
 #include <QStyle>
-#include <QVBoxLayout>
 
 namespace {
 const int MAX_WORDS = 24;
@@ -48,8 +44,7 @@ bool IsWord(const QString& text)
 
 Recover::Recover(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::Recover),
-    thread(0)
+    ui(new Ui::Recover)
 {
     // load stylesheet
     GUIUtil::loadTheme();
@@ -82,33 +77,15 @@ Recover::Recover(QWidget *parent) :
         words << word;
     }
 
-    auto* scrollContents = new QWidget(this);
-    scrollContents->setObjectName(QStringLiteral("recoverScrollContents"));
-    auto* scrollLayout = new QVBoxLayout(scrollContents);
-    scrollLayout->setContentsMargins(0, 0, 0, 0);
-    scrollLayout->setSpacing(ui->verticalLayout->spacing());
-    while (ui->verticalLayout->count() > 1) {
-        QLayoutItem* item = ui->verticalLayout->takeAt(0);
-        if (QWidget* widget = item->widget()) {
-            widget->setParent(scrollContents);
-            scrollLayout->addWidget(widget);
-            delete item;
-        } else if (QLayout* layout = item->layout()) {
-            layout->setParent(nullptr);
-            scrollLayout->addLayout(layout);
-        } else {
-            scrollLayout->addItem(item);
-        }
-    }
-
     auto* scroll = new QScrollArea(this);
     scroll->setObjectName(QStringLiteral("recoverScroll"));
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scroll->setWidget(scrollContents);
+    ui->verticalLayout->removeWidget(ui->pages);
+    scroll->setWidget(ui->pages);
     scroll->setStyleSheet(QStringLiteral(
-        "QScrollArea#recoverScroll, QWidget#recoverScrollContents { background: transparent; border: none; }"));
+        "QScrollArea#recoverScroll { background: transparent; border: none; }"));
     ui->verticalLayout->insertWidget(0, scroll, 1);
 
     const QSize available = GUIUtil::availableScreenSize(this);
@@ -182,10 +159,6 @@ Recover::Recover(QWidget *parent) :
 
     applyTheme();
     showPage(ui->welcomePage);
-    thread = new QThread(this);
-
-    connect(this, &Recover::stopThread, thread, &QThread::quit);
-    thread->start();
 }
 
 void Recover::applyTheme()
@@ -310,9 +283,6 @@ void Recover::applyTheme()
 Recover::~Recover()
 {
     delete ui;
-    /* Ensure thread is finished before it is deleted */
-    Q_EMIT stopThread();
-    thread->wait();
 }
 
 void Recover::showPage(QWidget* page)

@@ -3,7 +3,6 @@
 
 #include <QDialog>
 #include <QList>
-#include <QThread>
 
 class QLabel;
 class QLineEdit;
@@ -22,9 +21,6 @@ public:
 
     static bool askRecover(bool& newWallet);
 
-Q_SIGNALS:
-    void stopThread();
-
 private Q_SLOTS:
     void submit();
 
@@ -40,7 +36,6 @@ private:
 
 private:
     Ui::Recover *ui;
-    QThread *thread;
     QList<QLabel*> numbers;
     QList<QLineEdit*> words;
 };
