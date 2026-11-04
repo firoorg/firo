@@ -51,6 +51,7 @@
 
 #include "llmq/quorums_blockprocessor.h"
 #include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_instantsend.h"
 
 #include <utility>
 
@@ -366,6 +367,10 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
         }
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
+        if (nHeight >= chainparams.GetConsensus().nInstantSendBlockFilteringStartHeight &&
+            llmq::quorumInstantSendManager->GetConflictingLock(it->GetTx(), true)) {
+            return false;
+        }
         if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
                 return false;
         }
@@ -385,6 +390,10 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 {
     if (!spark::IsSparkSpendFormatAllowed(iter->GetTx(), nHeight)) {
+        return false;
+    }
+    if (nHeight >= chainparams.GetConsensus().nInstantSendBlockFilteringStartHeight &&
+        llmq::quorumInstantSendManager->GetConflictingLock(iter->GetTx(), true)) {
         return false;
     }
 
