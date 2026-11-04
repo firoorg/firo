@@ -74,6 +74,8 @@ public:
 
 class CInstantSendManager : public CRecoveredSigsListener
 {
+    friend struct CInstantSendManagerTestAccess;
+
 private:
     CCriticalSection cs;
     CInstantSendDb db;
