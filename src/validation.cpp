@@ -1536,7 +1536,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         pwalletMain->sparkWallet->UpdateMintStateFromMempool(sparkMintCoins, hash);
     }
 #endif
-    GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
+    // Only the mempool is public: a Dandelion stem-pool accept must not reach the validation listeners (InstantSend
+    // would sign the inputs and tell its quorum about the tx before it is fluffed). Fluffing accepts the tx into the
+    // mempool, which notifies them.
+    if (&pool == &mempool) GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
 
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
 
