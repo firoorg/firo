@@ -17,31 +17,37 @@
 namespace llmq
 {
 
+/** Friend of CInstantSendManager: reaches the private state the tests set up and inspect. */
 struct CInstantSendManagerTestAccess
 {
+    //! Flip the private InstantSend-enabled flag without a spork.
     static void SetEnabled(CInstantSendManager& manager, bool enabled)
     {
         manager.isNewInstantSendEnabled = enabled;
     }
 
+    //! Whether txid has a nonLockedTxs entry.
     static bool IsTracked(CInstantSendManager& manager, const uint256& txid)
     {
         LOCK(manager.cs);
         return manager.nonLockedTxs.count(txid) > 0;
     }
 
+    //! Entries across nonLockedTxs and nonLockedTxsByInputs; 0 means nothing leaked.
     static size_t TrackedEntries(CInstantSendManager& manager)
     {
         LOCK(manager.cs);
         return manager.nonLockedTxs.size() + manager.nonLockedTxsByInputs.size();
     }
 
+    //! Block index recorded for a tracked txid, nullptr while it is unmined.
     static const CBlockIndex* MinedBlock(CInstantSendManager& manager, const uint256& txid)
     {
         LOCK(manager.cs);
         return manager.nonLockedTxs.at(txid).pindexMined;
     }
 
+    //! Store an islock for tx so CheckCanLock accepts spends of its outputs without txindex or confirmations.
     static void MarkParentLocked(CInstantSendManager& manager, const CTransaction& tx)
     {
         CInstantSendLock islock;
@@ -59,11 +65,14 @@ struct CInstantSendManagerTestAccess
 namespace
 {
 
+/** 100-block regtest chain with InstantSend enabled and the masternode sync marked finished; validation signals
+ * are forwarded to InstantSend as firod does. */
 struct InstantSendTestingSetup : TestChain100Setup, CValidationInterface
 {
     const bool previousMasternodeMode{fMasternodeMode};
     const uint256 previousProTxHash{activeMasternodeInfo.proTxHash};
 
+    //! Enable InstantSend as a non-masternode and subscribe to validation signals.
     InstantSendTestingSetup()
     {
         fMasternodeMode = false;
@@ -74,6 +83,7 @@ struct InstantSendTestingSetup : TestChain100Setup, CValidationInterface
         RegisterValidationInterface(this);
     }
 
+    //! Unsubscribe and restore the global masternode state.
     ~InstantSendTestingSetup()
     {
         UnregisterValidationInterface(this);
@@ -83,12 +93,14 @@ struct InstantSendTestingSetup : TestChain100Setup, CValidationInterface
         activeMasternodeInfo.proTxHash = previousProTxHash;
     }
 
+    //! Feed InstantSend from validation, as CDSNotificationInterface does in firod.
     void SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock) override
     {
         llmq::quorumInstantSendManager->SyncTransaction(tx, pindex, posInBlock);
     }
 };
 
+/** One input and one anyone-can-spend (OP_TRUE) output, so a child needs no signature. */
 CMutableTransaction MakeTestTransaction(const COutPoint& prevout = COutPoint(uint256S("1"), 0))
 {
     CMutableTransaction tx;
@@ -101,8 +113,8 @@ CMutableTransaction MakeTestTransaction(const COutPoint& prevout = COutPoint(uin
 
 BOOST_FIXTURE_TEST_SUITE(llmq_instantsend_tests, InstantSendTestingSetup)
 
-// MemPoolConflictRemovalTracker reports a TX evicted from the mempool by a conflicting mined TX with a null block
-// index. InstantSend must drop it instead of treating it like a mined TX, which left it in nonLockedTxs forever.
+/** MemPoolConflictRemovalTracker reports a TX evicted from the mempool by a conflicting mined TX with a null block
+ * index. InstantSend must drop it instead of treating it like a mined TX, which left it in nonLockedTxs forever. */
 BOOST_AUTO_TEST_CASE(conflict_evicted_tx_is_untracked)
 {
     const CTransaction tx(MakeTestTransaction());
@@ -134,6 +146,7 @@ BOOST_AUTO_TEST_CASE(conflict_evicted_tx_is_untracked)
     BOOST_CHECK_EQUAL(llmq::CInstantSendManagerTestAccess::TrackedEntries(manager), 0U);
 }
 
+/** A TX reported with a block index was mined, not evicted, even though it is in neither pool. */
 BOOST_AUTO_TEST_CASE(mined_tx_absent_from_pools_is_tracked)
 {
     const CTransaction tx(MakeTestTransaction());
@@ -146,6 +159,7 @@ BOOST_AUTO_TEST_CASE(mined_tx_absent_from_pools_is_tracked)
     BOOST_CHECK(llmq::CInstantSendManagerTestAccess::MinedBlock(manager, tx.GetHash()) == chainActive.Tip());
 }
 
+/** DisconnectTip put the TX back into both pools and reports it with pprev: it stays tracked as unmined. */
 BOOST_AUTO_TEST_CASE(disconnected_tx_reaccepted_into_mempool_stays_tracked)
 {
     const CTransaction tx(MakeTestTransaction());
@@ -162,6 +176,7 @@ BOOST_AUTO_TEST_CASE(disconnected_tx_reaccepted_into_mempool_stays_tracked)
     BOOST_CHECK(llmq::CInstantSendManagerTestAccess::MinedBlock(manager, tx.GetHash()) == nullptr);
 }
 
+/** DisconnectTip could not put the TX back into the pools: it is gone and must be untracked. */
 BOOST_AUTO_TEST_CASE(disconnected_tx_not_reaccepted_is_untracked)
 {
     const CTransaction tx(MakeTestTransaction());
@@ -175,6 +190,8 @@ BOOST_AUTO_TEST_CASE(disconnected_tx_not_reaccepted_is_untracked)
     BOOST_CHECK_EQUAL(llmq::CInstantSendManagerTestAccess::TrackedEntries(manager), 0U);
 }
 
+/** Through validation: mining a conflicting TX evicts the loser, which must be untracked and must not take the
+ * input vote from the mined winner. */
 BOOST_AUTO_TEST_CASE(block_conflict_removal_does_not_vote_for_evicted_tx)
 {
     auto& manager = *llmq::quorumInstantSendManager;
