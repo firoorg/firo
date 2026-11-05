@@ -20,34 +20,34 @@ namespace llmq
 /** Friend of CInstantSendManager: reaches the private state the tests set up and inspect. */
 struct CInstantSendManagerTestAccess
 {
-    //! Flip the private InstantSend-enabled flag without a spork.
+    /** Flip the private InstantSend-enabled flag without a spork. */
     static void SetEnabled(CInstantSendManager& manager, bool enabled)
     {
         manager.isNewInstantSendEnabled = enabled;
     }
 
-    //! Whether txid has a nonLockedTxs entry.
+    /** Whether txid has a nonLockedTxs entry. */
     static bool IsTracked(CInstantSendManager& manager, const uint256& txid)
     {
         LOCK(manager.cs);
         return manager.nonLockedTxs.count(txid) > 0;
     }
 
-    //! Entries across nonLockedTxs and nonLockedTxsByInputs; 0 means nothing leaked.
+    /** Entries across nonLockedTxs and nonLockedTxsByInputs; 0 means nothing leaked. */
     static size_t TrackedEntries(CInstantSendManager& manager)
     {
         LOCK(manager.cs);
         return manager.nonLockedTxs.size() + manager.nonLockedTxsByInputs.size();
     }
 
-    //! Block index recorded for a tracked txid, nullptr while it is unmined.
+    /** Block index recorded for a tracked txid, nullptr while it is unmined. */
     static const CBlockIndex* MinedBlock(CInstantSendManager& manager, const uint256& txid)
     {
         LOCK(manager.cs);
         return manager.nonLockedTxs.at(txid).pindexMined;
     }
 
-    //! Store an islock for tx so CheckCanLock accepts spends of its outputs without txindex or confirmations.
+    /** Store an islock for tx so CheckCanLock accepts spends of its outputs without txindex or confirmations. */
     static void MarkParentLocked(CInstantSendManager& manager, const CTransaction& tx)
     {
         CInstantSendLock islock;
@@ -72,7 +72,7 @@ struct InstantSendTestingSetup : TestChain100Setup, CValidationInterface
     const bool previousMasternodeMode{fMasternodeMode};
     const uint256 previousProTxHash{activeMasternodeInfo.proTxHash};
 
-    //! Enable InstantSend as a non-masternode and subscribe to validation signals.
+    /** Enable InstantSend as a non-masternode and subscribe to validation signals. */
     InstantSendTestingSetup()
     {
         fMasternodeMode = false;
@@ -83,7 +83,7 @@ struct InstantSendTestingSetup : TestChain100Setup, CValidationInterface
         RegisterValidationInterface(this);
     }
 
-    //! Unsubscribe and restore the global masternode state.
+    /** Unsubscribe and restore the global masternode state. */
     ~InstantSendTestingSetup()
     {
         UnregisterValidationInterface(this);
@@ -93,7 +93,7 @@ struct InstantSendTestingSetup : TestChain100Setup, CValidationInterface
         activeMasternodeInfo.proTxHash = previousProTxHash;
     }
 
-    //! Feed InstantSend from validation, as CDSNotificationInterface does in firod.
+    /** Feed InstantSend from validation, as CDSNotificationInterface does in firod. */
     void SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock) override
     {
         llmq::quorumInstantSendManager->SyncTransaction(tx, pindex, posInBlock);

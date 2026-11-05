@@ -122,6 +122,14 @@ public:
     void Stop();
     void InterruptWorkerThread();
 
+    /**
+     * Called through CDSNotificationInterface for every validation SyncTransaction signal. The arguments say why:
+     * pindex set and posInBlock >= 0: tx was mined in that block;
+     * pindex set and posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK: its block was disconnected, pindex is
+     * the new tip, and tx is back in the pools unless it could not be re-accepted;
+     * pindex null: tx was accepted into a pool, or evicted from the mempool by a conflicting mined TX. The two are told
+     * apart by whether tx is still in a pool.
+     */
     void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock);
 
     bool IsLocked(const uint256& txHash);
