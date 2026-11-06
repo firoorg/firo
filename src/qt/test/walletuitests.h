@@ -23,6 +23,8 @@ private Q_SLOTS:
     void sendAmountVisibleWithAddressWarning();
     void dialogsFitWithoutScrolling();
     void receiveMnemonics();
+    void mnemonicConfirmation_data();
+    void mnemonicConfirmation();
     void emptyRecoverySeed();
     void recoveryRetryUsesFinalInput_data();
     void recoveryRetryUsesFinalInput();

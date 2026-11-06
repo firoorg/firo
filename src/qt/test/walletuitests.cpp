@@ -18,6 +18,7 @@
 #include "masternodelist.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
+#include "notifymnemonic.h"
 #include "optionsdialog.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
@@ -1775,6 +1776,86 @@ void WalletUiTests::receiveMnemonics()
         QVERIFY(label->buddy());
         QVERIFY(label->text().contains(QLatin1Char('&')));
     }
+}
+
+void WalletUiTests::mnemonicConfirmation_data()
+{
+    QTest::addColumn<QString>("seed");
+    QTest::newRow("12-words") << QStringLiteral("ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic");
+    QTest::newRow("24-words") << QStringLiteral("hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length");
+}
+
+void WalletUiTests::mnemonicConfirmation()
+{
+    QFETCH(QString, seed);
+    const QString previousClipboard = QApplication::clipboard()->text();
+    const QString previousSelection = QApplication::clipboard()->text(QClipboard::Selection);
+    const auto restoreClipboard = qScopeGuard([&] {
+        QApplication::clipboard()->setText(previousClipboard);
+        if (QApplication::clipboard()->supportsSelection())
+            QApplication::clipboard()->setText(previousSelection, QClipboard::Selection);
+    });
+    NotifyMnemonic dialog(seed);
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    auto* copy = dialog.findChild<QPushButton*>("copyButton");
+    auto* message = dialog.findChild<QLabel*>("errorMessage");
+    auto* scroll = dialog.findChild<QScrollArea*>("seedScrollArea");
+    QVERIFY(copy && message && scroll);
+    if (!QFontDatabase::families().isEmpty()) {
+        QCoreApplication::processEvents();
+        for (const char* name : {"textLabel", "mnemonic", "textLabel2", "textLabel3"}) {
+            auto* label = dialog.findChild<QLabel*>(name);
+            QVERIFY(label);
+            QVERIFY2(label->height() >= label->heightForWidth(label->width()), name);
+        }
+        scroll->ensureWidgetVisible(copy);
+        QCoreApplication::processEvents();
+        QVERIFY(scroll->viewport()->rect().contains(QRect(copy->mapTo(scroll->viewport(), QPoint()), copy->size())));
+    }
+    QVERIFY(copy->isVisible());
+    copy->click();
+    QCOMPARE(QApplication::clipboard()->text(), seed);
+    dialog.button(QWizard::NextButton)->click();
+    QVERIFY(!copy->isVisible());
+    const QStringList words = seed.split(' ');
+    QStringList answers;
+    QList<QLineEdit*> inputs;
+    for (int i = 0; i < 3; ++i) {
+        auto* label = dialog.findChild<QLabel*>(QStringLiteral("wordLabel%1").arg(i + 1));
+        auto* input = dialog.findChild<QLineEdit*>(QStringLiteral("word%1").arg(i + 1));
+        QVERIFY(label && input);
+        QCOMPARE(label->buddy(), input);
+        const int index = label->text().section(' ', -1).toInt() - 1;
+        QVERIFY(index >= i * words.size() / 3 && index < (i + 1) * words.size() / 3);
+        answers.append(words.at(index));
+        inputs.append(input);
+    }
+    QSignalSpy accepted(&dialog, &QDialog::accepted);
+    auto* finish = dialog.button(QWizard::FinishButton);
+    finish->click();
+    QCOMPARE(accepted.count(), 0);
+    QVERIFY(!message->text().isEmpty());
+    for (int i = 0; i < inputs.size(); ++i)
+        inputs[i]->setText(answers[i]);
+    for (int i = 0; i < inputs.size(); ++i) {
+        inputs[i]->setText(i == 0 ? seed : QStringLiteral("incorrect"));
+        finish->click();
+        QCOMPARE(accepted.count(), 0);
+        QCOMPARE(dialog.currentId(), 1);
+        QVERIFY(!message->text().isEmpty());
+        inputs[i]->setText(answers[i]);
+    }
+    dialog.button(QWizard::BackButton)->click();
+    QCOMPARE(dialog.currentId(), 0);
+    dialog.button(QWizard::NextButton)->click();
+    for (int i = 0; i < inputs.size(); ++i) {
+        QCOMPARE(inputs[i]->text(), answers[i]);
+        inputs[i]->setText(QStringLiteral(" %1 ").arg(answers[i].toUpper()));
+    }
+    finish->click();
+    QCOMPARE(accepted.count(), 1);
+    QVERIFY(message->text().isEmpty());
 }
 
 void WalletUiTests::emptyRecoverySeed()

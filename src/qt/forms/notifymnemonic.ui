@@ -34,6 +34,16 @@
             </property>
             <layout class="QVBoxLayout" name="verticalLayout">
                 <item>
+                    <widget class="QScrollArea" name="seedScrollArea">
+                        <property name="frameShape">
+                            <enum>QFrame::NoFrame</enum>
+                        </property>
+                        <property name="widgetResizable">
+                            <bool>true</bool>
+                        </property>
+                        <widget class="QWidget" name="seedContents">
+                            <layout class="QVBoxLayout" name="seedLayout">
+                <item>
                     <widget class="QLabel" name="textLabel">
                         <property name="sizePolicy">
                             <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
@@ -94,6 +104,16 @@
                     </widget>
                 </item>
                 <item>
+                    <widget class="QPushButton" name="copyButton">
+                        <property name="text">
+                            <string>Copy</string>
+                        </property>
+                        <property name="toolTip">
+                            <string>Copy the recovery seed phrase to the clipboard</string>
+                        </property>
+                    </widget>
+                </item>
+                <item>
                     <spacer name="horizontalSpacer">
                         <property name="orientation">
                             <enum>Qt::Horizontal</enum>
@@ -139,6 +159,10 @@
                         </property>
                     </widget>
                 </item>
+                            </layout>
+                        </widget>
+                    </widget>
+                </item>
             </layout>
         </widget>
         <widget class="QWizardPage" name="wizardPage2">
@@ -152,7 +176,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel5">
                         <property name="text">
-                            <string>Please re-enter the recovery seed phrase to ensure you have written it down correctly.</string>
+                            <string>Enter the three numbered words from your recovery seed phrase to check that you have written it down correctly.</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
@@ -160,17 +184,32 @@
                     </widget>
                 </item>
                 <item>
-                    <widget class="QTextEdit" name="words">
-                        <property name="sizePolicy">
-                            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-                                <horstretch>0</horstretch>
-                                <verstretch>0</verstretch>
-                            </sizepolicy>
-                        </property>
-                        <property name="sizeAdjustPolicy">
-                            <enum>QAbstractScrollArea::AdjustToContents</enum>
-                        </property>
-                    </widget>
+                    <layout class="QFormLayout" name="wordLayout">
+                        <item row="0" column="0">
+                            <widget class="QLabel" name="wordLabel1">
+                                <property name="buddy"><cstring>word1</cstring></property>
+                            </widget>
+                        </item>
+                        <item row="0" column="1">
+                            <widget class="QLineEdit" name="word1"/>
+                        </item>
+                        <item row="1" column="0">
+                            <widget class="QLabel" name="wordLabel2">
+                                <property name="buddy"><cstring>word2</cstring></property>
+                            </widget>
+                        </item>
+                        <item row="1" column="1">
+                            <widget class="QLineEdit" name="word2"/>
+                        </item>
+                        <item row="2" column="0">
+                            <widget class="QLabel" name="wordLabel3">
+                                <property name="buddy"><cstring>word3</cstring></property>
+                            </widget>
+                        </item>
+                        <item row="2" column="1">
+                            <widget class="QLineEdit" name="word3"/>
+                        </item>
+                    </layout>
                 </item>
                 <item>
                     <widget class="QLabel" name="errorMessage">
