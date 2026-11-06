@@ -225,8 +225,8 @@ int GetNHeight(const CBlockHeader &block) {
 
 /* Use this class to start tracking transactions that are removed from the
  * mempool and pass all those transactions through SyncTransaction when the
- * object goes out of scope. This is currently only used to call SyncTransaction
- * on conflicts removed from the mempool during block connection.  Applied in
+ * object goes out of scope. Used for conflicts removed by InstantSend locks
+ * and during block connection. Applied in
  * ActivateBestChain around ActivateBestStep which in turn calls:
  * ConnectTip->removeForBlock->removeConflicts
  */
@@ -238,6 +238,7 @@ private:
 
 public:
     MemPoolConflictRemovalTracker(CTxMemPool &_pool) : pool(_pool) {
+        LOCK(pool.cs);
         pool.NotifyEntryRemoved.connect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, _1, _2));
     }
 
@@ -248,7 +249,10 @@ public:
     }
 
     ~MemPoolConflictRemovalTracker() {
-        pool.NotifyEntryRemoved.disconnect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, _1, _2));
+        {
+            LOCK(pool.cs);
+            pool.NotifyEntryRemoved.disconnect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, _1, _2));
+        }
         for (const auto& tx : conflictedTxs) {
             GetMainSignals().SyncTransaction(*tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
         }
@@ -925,6 +929,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     std::vector<spark::Coin> sparkMintCoins;
     std::unordered_set<uint256> txSparkMints;
     std::vector<GroupElement> sparkUsedLTags;
+    const bool waitingForTx = llmq::quorumInstantSendManager->IsWaitingForTx(hash);
+    std::set<uint256> sparkConflicts;
 
     CSparkNameTxData sparkNameData;
 
@@ -947,11 +953,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             for (const auto& lTag : sparkUsedLTags) {
-                if (sparkState->IsUsedLTag(lTag) || pool.sparkState.HasLTag(lTag)) {
+                if (sparkState->IsUsedLTag(lTag) || (!waitingForTx && pool.sparkState.HasLTag(lTag))) {
                     LogPrintf("AcceptToMemoryPool(): spark linking tag %s has been used\n",
                               lTag.tostring());
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
+                if (waitingForTx && pool.sparkState.HasLTag(lTag))
+                    sparkConflicts.insert(pool.sparkState.GetMempoolConflictingTxHash(lTag));
             }
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
@@ -963,11 +971,15 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     /* nContextualFailureDoS */ 0))
                 return false;
 
-            if (!sparkNameData.name.empty() &&
-                        CSparkNameManager::IsInConflict(sparkNameData, pool.sparkNames, [=](decltype(pool.sparkNames)::const_iterator it)->std::string {
-                            return it->second.first;
-                        })) {
-                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+            if (!sparkNameData.name.empty()) {
+                const std::string upperName = CSparkNameManager::ToUpper(sparkNameData.name);
+                for (const auto& entry : pool.sparkNames) {
+                    if (entry.first == upperName || entry.second.first == sparkNameData.sparkAddress) {
+                        if (!waitingForTx)
+                            return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                        sparkConflicts.insert(entry.second.second);
+                    }
+                }
             }
         }
 
@@ -1048,6 +1060,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                          REJECT_INVALID, "tx-txlock-conflict");
     }
 
+    if (waitingForTx) {
+        MemPoolConflictRemovalTracker tracker(pool);
+        LOCK(pool.cs);
+        pool.removeConflicts(tx);
+        pool.removeProTxConflicts(tx);
+        for (const auto& conflictHash : sparkConflicts) {
+            const auto conflict = pool.get(conflictHash);
+            if (conflict)
+                pool.removeRecursive(*conflict, MemPoolRemovalReason::CONFLICT);
+        }
+    }
+
     // Check for conflicts with in-memory transactions
     std::set<uint256> setConflicts;
     {
@@ -1061,6 +1085,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 const CTransaction *ptxConflicting = itConflicting->second;
                 if (!setConflicts.count(ptxConflicting->GetHash()))
                 {
+                    if (llmq::quorumInstantSendManager->IsWaitingForTx(ptxConflicting->GetHash()))
+                        return state.Invalid(false, REJECT_CONFLICT, "tx-txlock-conflict");
+
                     // Allow opt-out of transaction replacement by setting
                     // nSequence >= maxint-1 on all inputs.
                     //
@@ -3041,21 +3068,26 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         for (const auto& tx : block.vtx) {
             // skip txes that have no inputs
             if (tx->vin.empty()) continue;
-            llmq::CInstantSendLockPtr conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(*tx);
+            llmq::CInstantSendLockPtr conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(*tx, true);
+            while (conflictLock && llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
+                llmq::quorumInstantSendManager->RemoveChainLockConflictingLock(::SerializeHash(*conflictLock), *conflictLock);
+                conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(*tx, true);
+            }
             if (!conflictLock) {
                 continue;
             }
-            if (llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
-                llmq::quorumInstantSendManager->RemoveChainLockConflictingLock(::SerializeHash(*conflictLock), *conflictLock);
-                assert(llmq::quorumInstantSendManager->GetConflictingLock(*tx) == nullptr);
-            } else {
-                // The node which relayed this should switch to correct chain.
-                // TODO: relay instantsend data/proof.
-                LOCK(cs_main);
-                mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
-                return state.DoS(10, error("ConnectBlock(DASH): transaction %s conflicts with transaction lock %s", tx->GetHash().ToString(), conflictLock->txid.ToString()),
-                                 REJECT_INVALID, "conflict-tx-lock");
+            if (llmq::quorumInstantSendManager->IsWaitingForTx(conflictLock->txid)) {
+                if (!fJustCheck) {
+                    llmq::quorumInstantSendManager->AddPendingBlockConflict(::SerializeHash(*conflictLock), pindex);
+                }
+                // The transaction body is still missing, so keep this branch eligible for reconsideration.
+                return state.DoS(0, false, REJECT_INVALID, "conflict-pending-tx-lock", true);
             }
+            // The node which relayed this should switch to correct chain.
+            // TODO: relay instantsend data/proof.
+            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+            return state.DoS(10, error("ConnectBlock(DASH): transaction %s conflicts with transaction lock %s", tx->GetHash().ToString(), conflictLock->txid.ToString()),
+                             REJECT_INVALID, "conflict-tx-lock");
         }
     }
 
@@ -3379,6 +3411,8 @@ void PruneAndFlush() {
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrint("validation", "UpdateTip() pindexNew.nHeight=%d\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
+    // Refresh before transaction callbacks, including initial sync and disconnects.
+    llmq::quorumInstantSendManager->UpdateActiveState(pindexNew);
 
     // New best block
     txpools.AddTransactionsUpdated(1);
@@ -3777,6 +3811,9 @@ static CBlockIndex* FindMostWorkChain() {
         // Find the best candidate header.
         {
             std::set<CBlockIndex*, CBlockIndexWorkComparator>::reverse_iterator it = setBlockIndexCandidates.rbegin();
+            while (it != setBlockIndexCandidates.rend() && llmq::quorumInstantSendManager->IsBlockExcluded(*it)) {
+                ++it;
+            }
             if (it == setBlockIndexCandidates.rend())
                 return NULL;
             pindexNew = *it;

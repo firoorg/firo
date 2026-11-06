@@ -13,6 +13,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 
 namespace llmq
 {
@@ -74,6 +75,9 @@ public:
 
 class CInstantSendManager : public CRecoveredSigsListener
 {
+    friend struct CInstantSendManagerTestAccess;
+    friend struct CInstantSendManagerSparkTestAccess;
+
 private:
     CCriticalSection cs;
     CInstantSendDb db;
@@ -99,6 +103,19 @@ private:
     // Incoming and not verified yet
     std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher> pendingInstantSendLocks;
 
+    struct PendingInstantSendLock {
+        NodeId from;
+        CInstantSendLock islock;
+        CTransactionRef tx;
+        const CBlockIndex* pindexMined{nullptr};
+        std::set<const CBlockIndex*> conflictingBlocks;
+        int64_t nextRequestTime{0};
+        NodeId lastRequestedPeer{-1};
+    };
+    // Keep verified locks pending until the worker can complete them with a transaction body.
+    std::unordered_map<uint256, PendingInstantSendLock, StaticSaltedHasher> pendingNoTxInstantSendLocks;
+    std::unordered_map<uint256, uint256, StaticSaltedHasher> pendingInstantSendLocksByTxid;
+
     // TXs which are neither IS locked nor ChainLocked. We use this to determine for which TXs we need to retry IS locking
     // of child TXs
     struct NonLockedTxInfo {
@@ -123,13 +140,17 @@ public:
     void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock);
 
     bool IsLocked(const uint256& txHash);
+    bool IsWaitingForTx(const uint256& txHash);
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret);
 
-    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx);
+    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx, bool includePending = false);
+    bool AddPendingBlockConflict(const uint256& islockHash, const CBlockIndex* pindex);
+    bool IsBlockExcluded(const CBlockIndex* pindex);
     void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
     bool RemoveISLockByTxId(const uint256& txid);
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
+    void UpdateActiveState(const CBlockIndex* pindex);
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock);
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
@@ -155,6 +176,7 @@ private:
     bool ProcessPendingInstantSendLocks();
     std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock);
+    void ErasePendingInstantSendLock(const uint256& hash);
     void UpdateWalletTransaction(const uint256& txid, const CTransactionRef& tx);
 
     void AddNonLockedTx(const CTransactionRef& tx);

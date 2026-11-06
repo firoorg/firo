@@ -20,6 +20,10 @@ class TestNode(SingleNodeConnCB):
         SingleNodeConnCB.__init__(self)
         self.clsigs = {}
         self.islocks = {}
+        self.tx_requests = {}
+        self.transactions = {}
+        self.received_islocks = set()
+        self.notfound_islocks = set()
 
     def send_clsig(self, clsig):
         hash = uint256_from_str(hash256(clsig.serialize()))
@@ -37,15 +41,25 @@ class TestNode(SingleNodeConnCB):
 
     def on_getdata(self, conn, message):
         for inv in message.inv:
+            if inv.type == 1:
+                self.tx_requests[inv.hash] = self.tx_requests.get(inv.hash, 0) + 1
+                if inv.hash in self.transactions:
+                    self.send_message(msg_tx(self.transactions[inv.hash]))
             if inv.hash in self.clsigs:
                 self.send_message(self.clsigs[inv.hash])
             if inv.hash in self.islocks:
                 self.send_message(self.islocks[inv.hash])
 
+    def on_islock(self, conn, message):
+        self.received_islocks.add(uint256_from_str(hash256(message.serialize())))
+
+    def on_notfound(self, conn, message):
+        self.notfound_islocks.update(inv.hash for inv in message.inv if inv.type == 30)
+
 
 class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
     def __init__(self):
-        super().__init__(6, 5)
+        super().__init__(6, 5, extra_args=[[], ['-blockprioritysize=0']] + [[]] * 4)
         #disable_mocktime()
 
     def run_test(self):
@@ -60,10 +74,231 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         # mine single block, wait for chainlock
         self.nodes[0].generate(800 - self.nodes[0].getblockcount())
         self.wait_for_chainlock_tip_all_nodes()
+        self.miner_peer = TestNode()
+        self.miner_peer.add_connection(NodeConn('127.0.0.1', p2p_port(1), self.nodes[1], self.miner_peer))
+        self.miner_peer.wait_for_verack()
 
+        self.test_islock_before_tx(False)
+        self.test_islock_before_tx(True)
+        self.test_missing_transaction_request_rotation()
+        self.no_txindex_node_idx = len(self.nodes)
+        initialize_datadir(self.options.tmpdir, self.no_txindex_node_idx)
+        self.nodes.append(start_node(self.no_txindex_node_idx, self.options.tmpdir, ['-txindex=0', '-debug=instantsend']))
+        fresh_node_pid = bitcoind_processes[self.no_txindex_node_idx].pid
+        connect_nodes(self.nodes[-1], 0)
+        self.sync_all()
+        wait_to_sync(self.nodes[-1], True)
+        self.test_islock_before_block_without_txindex(True)
+        self.test_islock_before_block_without_txindex(False)
+        assert_equal(bitcoind_processes[self.no_txindex_node_idx].pid, fresh_node_pid)
+        self.log.info("Fresh node completed InstantSend and ChainLock recovery without restarting (PID %d)", fresh_node_pid)
+        self.test_chainlock_prunes_pending_locks()
+        self.stop_node(self.no_txindex_node_idx)
+        self.nodes.pop()
         self.test_chainlock_overrides_islock(False)
         self.test_chainlock_overrides_islock(True)
         self.test_islock_overrides_nonchainlock()
+
+    def test_islock_before_tx(self, previously_rejected):
+        self.log.info("Testing IS lock before transaction (previously rejected: %s)", previously_rejected)
+        node = self.nodes[0]
+        rawtx = self.create_raw_tx(node, node, 1, 1, 1)['hex']
+        conflicting_rawtx = self.create_raw_tx(node, node, 1, 1, 1)['hex']
+        tx = FromHex(CTransaction(), rawtx)
+        tx.rehash()
+        txid = "%064x" % tx.sha256
+        conflict = FromHex(CTransaction(), conflicting_rawtx)
+        assert_equal([i.prevout.serialize() for i in tx.vin], [i.prevout.serialize() for i in conflict.vin])
+        islock = self.create_islock(rawtx)
+
+        if previously_rejected:
+            conflicting_txid = node.sendrawtransaction(conflicting_rawtx)
+            for miner in self.nodes[:2]:
+                assert wait_until(lambda: conflicting_txid in miner.getrawmempool(), timeout=10)
+            set_mocktime(get_mocktime() + 60 * 11)
+            set_node_times(self.nodes, get_mocktime())
+            for miner in self.nodes[:2]:
+                assert conflicting_txid in [entry['txid'] for entry in miner.getblocktemplate()['transactions']]
+
+        # Advertise the TX, but withhold it until the node asks again after receiving its lock.
+        self.test_node.send_message(msg_inv([CInv(1, tx.sha256)]))
+        assert wait_until(lambda: self.test_node.tx_requests.get(tx.sha256, 0) == 1, timeout=10)
+        if previously_rejected:
+            assert_raises_jsonrpc(-26, "txn-mempool-conflict", node.sendrawtransaction, rawtx)
+            # P2P rejection also populates recentRejects; this internal reject code has no wire reply.
+            self.test_node.send_message(msg_tx(tx))
+            assert self.test_node.sync_with_ping()
+            assert txid not in node.getrawmempool()
+
+        self.test_node.send_islock(islock)
+        # No mocktime advance: recovery must bypass outstanding requests and the two-minute retry delay.
+        assert wait_until(lambda: self.test_node.tx_requests.get(tx.sha256, 0) >= 2, timeout=10)
+        assert txid not in node.getrawmempool()
+        if not previously_rejected:
+            # An incomplete lock must not reject a competing transaction before its own TX is known.
+            conflicting_txid = node.sendrawtransaction(conflicting_rawtx)
+        assert conflicting_txid in node.getrawmempool()
+        lock_hash = uint256_from_str(hash256(islock.serialize()))
+        def lock_relayed_to_miner():
+            self.miner_peer.send_message(msg_getdata([CInv(30, lock_hash)]))
+            return lock_hash in self.miner_peer.received_islocks
+        assert wait_until(lock_relayed_to_miner, timeout=10)
+        for miner in self.nodes[:2]:
+            assert wait_until(lambda: conflicting_txid in miner.getrawmempool(), timeout=10)
+        # Cover priority and fee selection, including refresh of a template cached before the pending lock.
+        set_mocktime(get_mocktime() + (6 if previously_rejected else 60 * 11))
+        set_node_times(self.nodes, get_mocktime())
+        node.prioritisetransaction(conflicting_txid, 1e15, 0)
+        for miner in self.nodes[:2]:
+            assert wait_until(lambda: conflicting_txid in miner.getrawmempool(), timeout=10)
+            assert conflicting_txid not in [entry['txid'] for entry in miner.getblocktemplate()['transactions']]
+
+        self.test_node.send_message(msg_tx(tx))
+        self.wait_for_instantlock(txid, node, do_assert=True)
+        assert txid in node.getrawmempool()
+        assert conflicting_txid not in node.getrawmempool()
+
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
+        block = node.generate(1)[0]
+        assert txid in node.getblock(block)['tx']
+        self.wait_for_chainlocked_block_all_nodes(block)
+
+    def test_missing_transaction_request_rotation(self):
+        self.log.info("Testing missing locked transaction recovery after four silent peers")
+        node = self.nodes[0]
+        rawtx = self.create_raw_tx(node, node, 1, 1, 1)['hex']
+        tx = FromHex(CTransaction(), rawtx)
+        tx.rehash()
+        txid = "%064x" % tx.sha256
+        islock = self.create_islock(rawtx)
+        self.test_node.send_message(msg_inv([CInv(1, tx.sha256)]))
+        assert wait_until(lambda: self.test_node.tx_requests.get(tx.sha256, 0) == 1, timeout=10)
+
+        providers = []
+        for _ in range(4):
+            peer = TestNode()
+            peer.add_connection(NodeConn('127.0.0.1', p2p_port(0), node, peer))
+            peer.wait_for_verack()
+            peer.send_message(msg_inv([CInv(1, tx.sha256)]))
+            assert peer.sync_with_ping()
+            providers.append(peer)
+        self.test_node.send_islock(islock)
+        assert wait_until(lambda: self.test_node.tx_requests.get(tx.sha256, 0) >= 2 and
+                          all(peer.tx_requests.get(tx.sha256, 0) >= 1 for peer in providers[:3]), timeout=10)
+        assert_equal(providers[-1].tx_requests.get(tx.sha256, 0), 0)
+        assert txid not in node.getrawmempool()
+
+        # Only the fifth advertiser has the body, so recovery must rotate beyond the initial four requests.
+        providers[-1].transactions[tx.sha256] = tx
+        set_mocktime(get_mocktime() + 31)
+        set_node_times(self.nodes, get_mocktime())
+        assert wait_until(lambda: providers[-1].tx_requests.get(tx.sha256, 0) >= 1, timeout=10)
+        self.wait_for_instantlock(txid, node, do_assert=True)
+        assert txid in node.getrawmempool()
+        block = node.generate(1)[0]
+        assert txid in node.getblock(block)['tx']
+        self.wait_for_chainlocked_block_all_nodes(block)
+        for peer in providers:
+            peer.connection.disconnect_node()
+
+    def test_islock_before_block_without_txindex(self, lock_first):
+        self.log.info("Testing IS lock and block-only transaction without txindex (lock first: %s)", lock_first)
+        node = self.nodes[self.no_txindex_node_idx]
+        rawtx = self.create_raw_tx(self.nodes[0], self.nodes[0], 1, 1, 1)['hex']
+        tx = FromHex(CTransaction(), rawtx)
+        tx.rehash()
+        txid = "%064x" % tx.sha256
+        islock = self.create_islock(rawtx)
+
+        # Keep the block away from quorum members until the incomplete lock has finished.
+        isolate_node(node)
+        node.setnetworkactive(True)
+        peer = TestNode()
+        peer.add_connection(NodeConn('127.0.0.1', p2p_port(self.no_txindex_node_idx), node, peer))
+        peer.wait_for_verack()
+        peer.send_message(msg_inv([CInv(1, tx.sha256)]))
+        assert wait_until(lambda: peer.tx_requests.get(tx.sha256, 0) == 1, timeout=10)
+        if lock_first:
+            peer.send_islock(islock)
+            assert wait_until(lambda: peer.tx_requests.get(tx.sha256, 0) >= 2, timeout=10)
+        assert txid not in node.getrawmempool()
+
+        block = self.create_block(node, [tx])
+        blockhash = "%064x" % block.sha256
+        assert node.submitblock(ToHex(block)) is None
+        if not lock_first:
+            peer.send_islock(islock)
+        assert wait_until(lambda: any(t['txid'] == txid and t['instantlock']
+                                     for t in node.getblock(blockhash, 2)['tx']), timeout=10)
+        assert txid not in node.getrawmempool()
+        connect_nodes(node, 0)
+        # The lock was relayed while isolated, so explicitly introduce it to the quorum members too.
+        self.test_node.send_islock(islock)
+        self.sync_all()
+        for peer_node in self.nodes:
+            assert wait_until(lambda: peer_node.getrawtransaction(txid, True)['instantlock'] or
+                              peer_node.getblockheader(blockhash)['chainlock'], timeout=10)
+        self.wait_for_chainlocked_block_all_nodes(blockhash)
+
+    def test_chainlock_prunes_pending_locks(self):
+        self.log.info("Testing ChainLock pruning of pending parents and a child IS lock")
+        node = self.nodes[self.no_txindex_node_idx]
+        isolate_node(node)
+        node.setnetworkactive(True)
+        peer = TestNode()
+        peer.add_connection(NodeConn('127.0.0.1', p2p_port(self.no_txindex_node_idx), node, peer))
+        peer.wait_for_verack()
+
+        rawtx = self.create_raw_tx(self.nodes[0], self.nodes[0], 1, 1, 1)['hex']
+        txid = self.nodes[0].sendrawtransaction(rawtx)
+        other_rawtx = self.create_raw_tx(self.nodes[0], self.nodes[0], 1, 1, 1)['hex']
+        self.nodes[0].sendrawtransaction(other_rawtx)
+        tx = FromHex(CTransaction(), rawtx)
+        other_tx = FromHex(CTransaction(), other_rawtx)
+        assert not ({i.prevout.serialize() for i in tx.vin} & {i.prevout.serialize() for i in other_tx.vin})
+        inputs = [{"txid": txid, "vout": n} for n, out in enumerate(tx.vout) if out.nValue == COIN]
+        child_rawtx = self.nodes[0].createrawtransaction(inputs, {self.nodes[0].getnewaddress(): 0.999})
+        child_rawtx = self.nodes[0].signrawtransaction(child_rawtx)['hex']
+        self.nodes[0].sendrawtransaction(child_rawtx)
+        locks = [self.create_islock(rawtx), self.create_islock(child_rawtx), self.create_islock(other_rawtx)]
+        lock_hashes = {uint256_from_str(hash256(lock.serialize())) for lock in locks}
+
+        # The isolated node receives neither transaction body, including the pending lock's parent.
+        for lock in reversed(locks):
+            peer.send_message(msg_inv([CInv(1, lock.txid)]))
+            assert wait_until(lambda: peer.tx_requests.get(lock.txid, 0) == 1, timeout=10)
+            peer.send_islock(lock)
+            assert wait_until(lambda: peer.tx_requests.get(lock.txid, 0) >= 2, timeout=10)
+        peer.send_message(msg_getdata([CInv(30, h) for h in lock_hashes]))
+        assert wait_until(lambda: peer.received_islocks.issuperset(lock_hashes), timeout=10)
+
+        # One confirmed transaction must prune every independent conflicting lock, as well as its descendants.
+        conflict_inputs = [{"txid": "%064x" % txin.prevout.hash, "vout": txin.prevout.n}
+                           for parent in (tx, other_tx) for txin in parent.vin]
+        input_value = sum(node.gettxout(txin['txid'], txin['vout'], False)['value'] for txin in conflict_inputs)
+        conflicting_rawtx = self.nodes[0].createrawtransaction(
+            conflict_inputs, {self.nodes[0].getnewaddress(): input_value - Decimal('0.001')})
+        conflicting_rawtx = self.nodes[0].signrawtransaction(conflicting_rawtx)['hex']
+        block = self.create_block(node, [FromHex(CTransaction(), conflicting_rawtx)])
+        blockhash = "%064x" % block.sha256
+        old_tip = node.getbestblockhash()
+        assert_equal(node.submitblock(ToHex(block)), "conflict-pending-tx-lock")
+        assert_equal(node.getbestblockhash(), old_tip)
+        assert_equal(node.getblockheader(blockhash)['confirmations'], -1)
+        assert_equal(next(tip['status'] for tip in node.getchaintips() if tip['hash'] == blockhash), "valid-headers")
+        clsig = self.create_chainlock(node.getblockcount() + 1, block.sha256)
+        peer.send_message(clsig)
+        assert peer.sync_with_ping()
+        assert_equal(node.submitblock(ToHex(block)), "duplicate")
+        self.wait_for_chainlock(node, blockhash)
+        peer.send_message(msg_getdata([CInv(30, h) for h in lock_hashes]))
+        assert wait_until(lambda: peer.notfound_islocks.issuperset(lock_hashes), timeout=10)
+        self.test_node.send_message(clsig)
+        assert self.test_node.sync_with_ping()
+        connect_nodes(node, 0)
+        self.sync_all()
+        self.wait_for_chainlocked_block_all_nodes(blockhash)
 
     def test_chainlock_overrides_islock(self, test_block_conflict):
         # create three raw TXs, they will conflict with each other
@@ -169,7 +404,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         assert(self.nodes[0].getrawtransaction(rawtx1_txid, True)['confirmations'] > 0)
         assert_raises_jsonrpc(-25, "Missing inputs", self.nodes[0].sendrawtransaction, rawtx2)
 
-        # Send the ISLOCK, which should result in the last 2 blocks to be invalidated, even though the nodes don't know
+        # Send the ISLOCK, which should result in the last 2 blocks to be disconnected, even though the nodes don't know
         # the locked transaction yet
         self.test_node.send_islock(islock)
         sleep(5)
@@ -177,8 +412,24 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         assert(self.nodes[0].getbestblockhash() == good_tip)
         assert(self.nodes[1].getbestblockhash() == good_tip)
 
-        # Send the actual transaction and mine it
+        # Incomplete locks leave the conflicting transaction available until the locked TX arrives.
+        for node in self.nodes:
+            assert rawtx1_txid in node.getrawmempool()
+
+        # A new candidate must not reactivate the higher-work conflicting branch while its lock is pending.
+        block = self.create_block(self.nodes[0])
+        blockhash = "%064x" % block.sha256
+        # Deliver the lower-work candidate explicitly, since header sync still prefers the old higher-work branch.
+        for node in self.nodes:
+            assert node.submitblock(ToHex(block)) in (None, "duplicate")
+            assert_equal(node.getbestblockhash(), blockhash)
+
         self.nodes[0].sendrawtransaction(rawtx2)
+        set_mocktime(get_mocktime() + 60)
+        set_node_times(self.nodes, get_mocktime())
+        for node in self.nodes:
+            self.wait_for_instantlock(rawtx2_txid, node, do_assert=True)
+        assert_raises_jsonrpc(-26, "tx-txlock-conflict", self.nodes[0].sendrawtransaction, rawtx1)
         self.nodes[0].generate(2)
         self.sync_all()
 

@@ -391,23 +391,23 @@ class CInv(object):
 
     def __repr__(self):
         return "CInv(type=%s hash=%064x)" \
-            % (self.typemap[self.type], self.hash)
+            % (self.typemap.get(self.type, self.type), self.hash)
 
 
 class msg_notfound():
     command = b"notfound"
 
-    def __init__(self):
-        pass
+    def __init__(self, inv=None):
+        self.inv = inv if inv is not None else []
 
     def deserialize(self, f):
-        pass
+        self.inv = deser_vector(f, CInv)
 
     def serialize(self):
-        return b""
+        return ser_vector(self.inv)
 
     def __repr__(self):
-        return "msg_notfound()"
+        return "msg_notfound(inv=%s)" % repr(self.inv)
 
 
 class CBlockLocator(object):
@@ -2016,7 +2016,7 @@ class NodeConnCB(object):
     def on_open(self, conn): pass
     def on_close(self, conn): pass
     def on_mempool(self, conn): pass
-    def on_notfound(self, message): pass
+    def on_notfound(self, conn, message): pass
     def on_pong(self, conn, message): pass
     def on_feefilter(self, conn, message): pass
     def on_sendheaders(self, conn, message): pass
