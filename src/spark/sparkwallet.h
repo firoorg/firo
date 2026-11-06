@@ -107,6 +107,17 @@ public:
     void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb);
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
+
+    /**
+     * Give chain heights to Spark coins still stored as unconfirmed.
+     * Coins the chain index does not contain are left unchanged.
+     * A height is published only while the chain and mempool spend sets from
+     * that read are still held. A spent coin is marked spent, and the spend
+     * is recorded when that transaction is known, preferring one already in a block.
+     * A coin already marked spent stays spent.
+     * @param[in] txid If not null, only coins from this transaction are considered.
+     */
+    void ConfirmCachedMints(const uint256* txid = nullptr);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
     // mark the coins of the given linking tags as unspent again
     void RemoveSparkSpends(const std::vector<GroupElement>& lTags);
