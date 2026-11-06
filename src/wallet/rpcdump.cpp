@@ -1318,6 +1318,8 @@ UniValue importmulti(const JSONRPCRequest& mainRequest)
         }
 
         if (!scannedRange || scannedRange->nHeight > pindex->nHeight) {
+            // Null (e.g. shutdown during the scan) means nothing is known to be scanned: check every key against the tip.
+            if (!scannedRange) scannedRange = chainActive.Tip();
             std::vector<UniValue> results = response.getValues();
             response.clear();
             response.setArray();
