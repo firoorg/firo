@@ -566,10 +566,16 @@ Adds a private key to your wallet.
 ---
 
 #### `backupwallet "destination"`
-Safely copies wallet.dat to destination.
+Creates a consistent backup of the selected wallet database at destination.
+SQLite backups never overwrite an existing path. To restore a backup, stop
+Firo and copy it with owner-only permissions to a new absent flat wallet
+filename with no SQLite side files, then start with `-wallet=<filename>`.
 
 **Arguments:**
 1. `destination` (string, required) - Destination path/filename
+
+See [SQLite wallet storage](sqlite-wallet.md) for backend selection,
+migration, backup, and offline restoration details.
 
 ---
 

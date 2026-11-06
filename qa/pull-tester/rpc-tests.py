@@ -123,6 +123,7 @@ testScripts = [
     'wallet-hd.py',
     'wallet-dump.py',
     'walletbackup.py',
+    'wallet-database-format.py',
     # 'wallet-accounts.py',
     # 'p2p-segwit.py',
     'listtransactions.py',
