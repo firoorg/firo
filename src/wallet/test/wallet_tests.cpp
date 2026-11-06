@@ -19,16 +19,20 @@
 #include "rpc/server.h"
 #include "policy/policy.h"
 #include "test/test_bitcoin.h"
+#include "util.h"
 #include "validation.h"
 #include "wallet/test/wallet_test_fixture.h"
 
 #include <boost/foreach.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/test/unit_test.hpp>
 #include <univalue.h>
 
 extern UniValue importmulti(const JSONRPCRequest& request);
+extern UniValue importaddress(const JSONRPCRequest& request);
 extern UniValue dumpwallet(const JSONRPCRequest& request);
 extern UniValue importwallet(const JSONRPCRequest& request);
+extern std::map<std::string, std::string> mapArgs;
 
 // how many times to run all the tests to have a chance to catch errors that only show up with particular random shuffles
 #define RUN_TESTS 100
@@ -803,6 +807,66 @@ BOOST_AUTO_TEST_CASE(auto_lock_masternode_collaterals)
     locked.clear();
     testWallet.ListLockedCoins(locked);
     BOOST_CHECK(std::set<COutPoint>(locked.begin(), locked.end()) == expected);
+}
+
+struct RecoveryScanTestingSetup : TestChain100Setup
+{
+    RecoveryScanTestingSetup() : TestChain100Setup(0) {}
+};
+
+BOOST_FIXTURE_TEST_CASE(recovery_date_only_limits_startup_scan, RecoveryScanTestingSetup)
+{
+    const auto previousArgs = mapArgs;
+    CWallet* previousWallet = pwalletMain;
+    std::unique_ptr<CWallet> recovered;
+    BOOST_SCOPE_EXIT_ALL(&) {
+        if (recovered)
+            UnregisterValidationInterface(recovered.get());
+        recovered.reset();
+        pwalletMain = previousWallet;
+        mapArgs = previousArgs;
+        SetMockTime(0);
+    };
+
+    SecureString mnemonic;
+    BOOST_REQUIRE(previousWallet->GetMnemonicContainer().GetMnemonic(mnemonic));
+    const CScript seedScript = GetScriptForDestination(previousWallet->vchDefaultKey.GetID());
+    const CScript watchScript = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+
+    SetMockTime(1577880000); // 2020-01-01, before the recovery date.
+    const CBlock earlySeedBlock = CreateAndProcessBlock({}, seedScript);
+    const CBlock earlyWatchBlock = CreateAndProcessBlock({}, watchScript);
+    // Date-based scans rewind 200 blocks. Keep the early payments outside that margin.
+    for (int i = 0; i < 250; ++i)
+        CreateAndProcessBlock({}, CScript() << OP_TRUE);
+    SetMockTime(1622548800); // 2021-06-01, after the recovery date.
+    const CBlock lateSeedBlock = CreateAndProcessBlock({}, seedScript);
+    BOOST_REQUIRE(chainActive.Tip()->GetBlockHash() == lateSeedBlock.GetHash());
+
+    ForceSetArg("-usehd", "1");
+    ForceSetArg("-usemnemonic", "1");
+    ForceSetArg("-mnemonic", std::string(mnemonic.begin(), mnemonic.end()));
+    ForceSetArg("-newwallet", "0");
+    ForceSetArg("-rescan", "1");
+    ForceSetArg("-wcdate", "01-06-2020");
+    // A new database ensures only the startup scan can supply its transaction history.
+    recovered.reset(CWallet::CreateWalletFromFile("recovered.dat"));
+    BOOST_REQUIRE(recovered);
+    BOOST_REQUIRE(recovered->vchDefaultKey == previousWallet->vchDefaultKey);
+    BOOST_CHECK(recovered->GetWalletTx(lateSeedBlock.vtx[0]->GetHash()));
+    BOOST_CHECK(!recovered->GetWalletTx(earlySeedBlock.vtx[0]->GetHash()));
+    BOOST_CHECK(!recovered->GetWalletTx(earlyWatchBlock.vtx[0]->GetHash()));
+
+    // Exercise the real import RPC and verify it finds a payment older than the restore date.
+    JSONRPCRequest request;
+    request.params.setArray();
+    request.params.push_back(HexStr(watchScript));
+    request.params.push_back("old payment");
+    request.params.push_back(true);
+    ::importaddress(request);
+    const CWalletTx* imported = recovered->GetWalletTx(earlyWatchBlock.vtx[0]->GetHash());
+    BOOST_REQUIRE(imported);
+    BOOST_CHECK(imported->hashBlock == earlyWatchBlock.GetHash());
 }
 
 BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
