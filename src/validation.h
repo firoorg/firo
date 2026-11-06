@@ -299,6 +299,8 @@ void UnloadBlockIndex();
 void ThreadScriptCheck();
 /** Check whether we are doing an initial block download (synchronizing from disk or network) */
 bool IsInitialBlockDownload();
+/** Whether this index is on the anchored chain. Call with cs_main held after startup. */
+bool IsBlockIndexAnchored(const CBlockIndex* pindex, const Consensus::Params& params);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find and activate the best known block. Call without cs_main. */

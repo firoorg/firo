@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include "clientversion.h"
+#include "pow.h"
 #include "primitives/transaction.h"
 #include "random.h"
 #include "sync.h"
@@ -81,6 +82,30 @@ BOOST_AUTO_TEST_CASE(transition)
     BOOST_ASSERT(chainActive.Height() == oldHeight+1);
     BOOST_ASSERT(ppBlock.IsProgPow());
 
+    CBlockHeader header = regularBlock.GetBlockHeader();
+    header.hashPrevBlock = ppBlock.GetHash();
+    header.nTime = mutableParams.nPPSwitchTime - 1;
+    header.nBits = GetNextWorkRequired(chainActive.Tip(), &header, mutableParams);
+    while (!CheckProofOfWork(header.GetHash(), header.nBits, mutableParams))
+        ++header.nNonce;
+
+    CValidationState state;
+    BOOST_CHECK(!ProcessNewBlockHeaders({header}, state, Params()));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-blk-progpow-state");
+    {
+        LOCK(cs_main);
+        BOOST_CHECK_EQUAL(mapBlockIndex.count(header.GetHash()), 0);
+    }
+    const auto switchTime = mutableParams.nPPSwitchTime;
+    mutableParams.nPPSwitchTime = INT_MAX; // Simulate a header indexed under the old rule.
+    CValidationState indexedState;
+    const bool indexed = ProcessNewBlockHeaders({header}, indexedState, Params());
+    mutableParams.nPPSwitchTime = switchTime;
+    BOOST_REQUIRE(indexed);
+    CValidationState knownState;
+    BOOST_CHECK(!ProcessNewBlockHeaders({header}, knownState, Params()));
+    BOOST_CHECK_EQUAL(knownState.GetRejectReason(), "bad-blk-progpow-state");
+
     // Try to add regular block after PP one. Should throw an exception
     SetMockTime(mutableParams.nPPSwitchTime-1);
     try {
@@ -155,6 +180,65 @@ BOOST_AUTO_TEST_CASE(header_height_mismatch)
 
     LOCK(cs_main);
     BOOST_CHECK_EQUAL(mapBlockIndex.count(block.GetHash()), 0);
+}
+
+BOOST_AUTO_TEST_CASE(mtp_anchor)
+{
+    CBlockIndex* originalTip = chainActive.Tip();
+    CBlock block = CreateBlock({}, m_coinbaseKey);
+    mutableParams.nMTPAnchorHeight = originalTip->nHeight + 2;
+    mutableParams.hashMTPAnchor = uint256S("01");
+
+    BOOST_REQUIRE(ProcessNewBlock(Params(), std::make_shared<const CBlock>(block), true, nullptr));
+    BOOST_CHECK(chainActive.Tip() == originalTip);
+
+    CBlockHeader header = block.GetBlockHeader();
+    header.hashPrevBlock = block.GetHash();
+    ++header.nTime;
+    {
+        LOCK(cs_main);
+        header.nBits = GetNextWorkRequired(mapBlockIndex.at(block.GetHash()), &header, mutableParams);
+    }
+    while (!CheckProofOfWork(header.GetHash(), header.nBits, mutableParams))
+        ++header.nNonce;
+
+    const bool oldCheckpoints = fCheckpointsEnabled;
+    fCheckpointsEnabled = false;
+    CValidationState state;
+    const bool accepted = ProcessNewBlockHeaders({header}, state, Params());
+    fCheckpointsEnabled = oldCheckpoints;
+    BOOST_CHECK(!accepted);
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-mtp-anchor");
+    {
+        LOCK(cs_main);
+        BOOST_CHECK_EQUAL(mapBlockIndex.count(header.GetHash()), 0);
+    }
+
+    mutableParams.hashMTPAnchor = header.GetHash();
+    CValidationState anchorState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({header}, anchorState, Params()));
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(IsBlockIndexAnchored(mapBlockIndex.at(block.GetHash()), mutableParams));
+        BOOST_CHECK(IsBlockIndexAnchored(mapBlockIndex.at(header.GetHash()), mutableParams));
+    }
+    CValidationState activateState;
+    BOOST_REQUIRE(ActivateBestChain(activateState, Params()));
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
+}
+
+BOOST_AUTO_TEST_CASE(mtp_anchor_unknown_at_startup)
+{
+    // A node that stopped below the anchor height, before it saw the anchor header, must still start.
+    const uint256 tipHash = chainActive.Tip()->GetBlockHash();
+    mutableParams.nMTPAnchorHeight = chainActive.Height() + 2;
+    mutableParams.hashMTPAnchor = uint256S("01");
+
+    FlushStateToDisk();
+    UnloadBlockIndex();
+    mapPrevBlockIndex.clear();
+    BOOST_REQUIRE(LoadBlockIndex(Params()));
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == tipHash);
 }
 
 BOOST_AUTO_TEST_CASE(limit)

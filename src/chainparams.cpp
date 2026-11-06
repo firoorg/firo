@@ -262,10 +262,12 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nTimeout = SWITCH_TO_MTP_BLOCK_HEADER + consensus.nMinerConfirmationWindow*2 * 5*60;
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000017e2cd0ce4d870bd3"); // 1390000
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("50aff78270725ec253a722ec18069deb233f2e57eb7d64479f027141619cdda4 "); //184200
+        consensus.hashMTPAnchor = uint256S("0x156bf05c91cdc4a88c9d993c29402f89a901274797ed98958666b128394353c5"); // 1390000
+        consensus.nMTPAnchorHeight = 1390000;
+        consensus.defaultAssumeValid = consensus.hashMTPAnchor;
 
         consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
         consensus.nZnodePaymentsBugFixedAtBlock = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK;
@@ -391,13 +393,14 @@ public:
                 (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026"))
                 (121378, uint256S("0xa7d9a56dd2986442b5c10ad036eb4e6555eaa8d9f6645c7b9620597792a153ac"))
                 (341100, uint256S("0x1ca6cbd9f6e13db8e0e1db0b77f8b1a037b01c69558214bc1ae2ce1f81da4890"))
+                (1390000, consensus.hashMTPAnchor)
         };
 
         chainTxData = ChainTxData{
-                1545712287, // * UNIX timestamp of last checkpoint block
-                933513,     // * total number of transactions between genesis and last checkpoint
-                            //   (the tx=... number in the SetBestChain debug.log lines)
-                0.014       // * estimated number of transactions per second after checkpoint
+                1791341502, // * UNIX timestamp of block 1390000
+                4362287,    // * total number of transactions between genesis and that block
+                            //   (the tx=... number in the UpdateTip debug.log lines)
+                0.0194      // * estimated number of transactions per second after that block
         };
         consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
         consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
