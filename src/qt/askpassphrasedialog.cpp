@@ -146,6 +146,13 @@ void AskPassphraseDialog::accept()
                                          "</b></qt>");
                     QApplication::quit();
                 }
+                else if (model->getEncryptionStatus() != WalletModel::Unencrypted)
+                {
+                    QMessageBox::critical(this, tr("Wallet cleanup failed"),
+                        tr("Your wallet is encrypted and locked, but cleanup failed. Unencrypted private-key data may remain in the wallet file. "
+                           "Keep your passphrase. Firo will close; restarting does not complete this cleanup."));
+                    QApplication::quit();
+                }
                 else
                 {
                     QMessageBox::critical(this, tr("Wallet encryption failed"),
