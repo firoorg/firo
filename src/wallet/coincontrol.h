@@ -31,7 +31,7 @@ public:
     bool fAllowOtherInputs;
     //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
     bool fAllowWatchOnly;
-    //! If false, only include as many inputs as necessary to fulfill a coin selection request. Only usable together with fAllowOtherInputs
+    //! If false, only include as many of the selected inputs as necessary to fulfill a coin selection request. Only read when fAllowOtherInputs is false
     bool fRequireAllInputs;
     //! Minimum absolute fee (not per kilobyte)
     CAmount nMinimumTotalFee;
