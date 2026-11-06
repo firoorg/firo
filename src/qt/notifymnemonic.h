@@ -17,10 +17,10 @@ public:
     ~NotifyMnemonic();
 
     static void notify();
+public Q_SLOTS:
+    void reject() override;
 protected:
     bool validateCurrentPage() override;
-private Q_SLOTS:
-    void cancelEvent();
 private:
     void applyTheme();
     Ui::NotifyMnemonic *ui;

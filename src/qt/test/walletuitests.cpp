@@ -1858,6 +1858,52 @@ void WalletUiTests::mnemonicConfirmation()
     QVERIFY(message->text().isEmpty());
 }
 
+void WalletUiTests::mnemonicExitWarning_data()
+{
+    QTest::addColumn<QString>("exitMethod");
+    QTest::addColumn<bool>("confirmationPage");
+    for (const bool confirmationPage : {false, true}) {
+        for (const QString& method : {QStringLiteral("close"), QStringLiteral("cancel"), QStringLiteral("escape")})
+            QTest::newRow(qPrintable(method + (confirmationPage ? "-confirmation" : "-display"))) << method << confirmationPage;
+    }
+}
+
+void WalletUiTests::mnemonicExitWarning()
+{
+    QFETCH(QString, exitMethod);
+    QFETCH(bool, confirmationPage);
+    NotifyMnemonic dialog(QStringLiteral("ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"));
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    if (confirmationPage)
+        dialog.button(QWizard::NextButton)->click();
+    QSignalSpy rejected(&dialog, &QDialog::rejected);
+    for (const bool allowExit : {false, true}) {
+        bool warned = false;
+        bool defaultIsNo = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                warned = true;
+                defaultIsNo = box->defaultButton() == box->button(QMessageBox::No);
+                if (auto* answer = box->button(allowExit ? QMessageBox::Yes : QMessageBox::No))
+                    answer->click();
+                else
+                    box->reject();
+            }
+        });
+        if (exitMethod == "close")
+            dialog.close();
+        else if (exitMethod == "cancel")
+            dialog.button(QWizard::CancelButton)->click();
+        else
+            QTest::keyClick(&dialog, Qt::Key_Escape);
+        QVERIFY(warned);
+        QVERIFY(defaultIsNo);
+        QCOMPARE(rejected.count(), allowExit ? 1 : 0);
+        QCOMPARE(dialog.isVisible(), !allowExit);
+    }
+}
+
 void WalletUiTests::emptyRecoverySeed()
 {
 #ifdef ENABLE_WALLET

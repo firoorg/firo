@@ -37,8 +37,6 @@ NotifyMnemonic::NotifyMnemonic(const QString& mnemonic, QWidget *parent) :
         GUIUtil::setClipboard(ui->mnemonic->text());
     });
     applyTheme();
-    disconnect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &QDialog::reject);
-    connect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &NotifyMnemonic::cancelEvent);
 }
 
 void NotifyMnemonic::applyTheme()
@@ -86,12 +84,10 @@ NotifyMnemonic::~NotifyMnemonic()
     delete ui;
 }
 
-void NotifyMnemonic::cancelEvent()
+void NotifyMnemonic::reject()
 {
-    if( QMessageBox::question( this, tr( "Warning" ), tr( "Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?" ), QMessageBox::Yes, QMessageBox::No ) == QMessageBox::Yes ) {
-        // allow cancel
-        reject();
-    }
+    if (QMessageBox::question(this, tr("Warning"), tr("Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes)
+        QWizard::reject();
 }
 
 bool NotifyMnemonic::validateCurrentPage()
