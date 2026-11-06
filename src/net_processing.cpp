@@ -3175,10 +3175,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
 
         if (found) {
-            // TODO: remove this temporary solution
-            std::string command = strCommand;
-
-            // these functions must be called in transition window
             CMNAuth::ProcessMessage(pfrom, strCommand, vRecv, connman);
 
             masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);

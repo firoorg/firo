@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activemasternode.h"
-//#include "governance.h"
 #include "init.h"
 #include "validation.h"
 #include "masternode-payments.h"
@@ -45,7 +44,6 @@ std::string CMasternodeSync::GetAssetName()
     {
         case(MASTERNODE_SYNC_INITIAL):      return "MASTERNODE_SYNC_INITIAL";
         case(MASTERNODE_SYNC_WAITING):      return "MASTERNODE_SYNC_WAITING";
-        case(MASTERNODE_SYNC_GOVERNANCE):   return "MASTERNODE_SYNC_GOVERNANCE";
         case(MASTERNODE_SYNC_FAILED):       return "MASTERNODE_SYNC_FAILED";
         case MASTERNODE_SYNC_FINISHED:      return "MASTERNODE_SYNC_FINISHED";
         default:                            return "UNKNOWN";
@@ -83,7 +81,6 @@ std::string CMasternodeSync::GetSyncStatus()
     switch (masternodeSync.nCurrentAsset) {
         case MASTERNODE_SYNC_INITIAL:       return _("Synchronizing blockchain...");
         case MASTERNODE_SYNC_WAITING:       return _("Synchronization pending...");
-        case MASTERNODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects...");
         case MASTERNODE_SYNC_FAILED:        return _("Synchronization failed");
         case MASTERNODE_SYNC_FINISHED:      return _("Synchronization finished");
         default:                            return "";
