@@ -2,7 +2,10 @@
 #define FIRO_RECOVER_H
 
 #include <QDialog>
-#include <QThread>
+#include <QList>
+
+class QLabel;
+class QLineEdit;
 
 namespace Ui {
     class Recover;
@@ -18,21 +21,23 @@ public:
 
     static bool askRecover(bool& newWallet);
 
-Q_SIGNALS:
-    void stopThread();
-
 private Q_SLOTS:
-    void on_createNew_clicked();
-    void on_recoverExisting_clicked();
-    void on_usePassphrase_clicked();
+    void submit();
 
 private:
-    void setCreateNew();
     void applyTheme();
+    void showPage(QWidget* page);
+    void setWordCount(int count);
+    void wordEdited(int index);
+    void markWord(QLineEdit* word, bool invalid);
+    void fail(const QString& message, QWidget* focus);
+    int wordCount() const;
+    QString mnemonic() const;
 
 private:
     Ui::Recover *ui;
-    QThread *thread;
+    QList<QLabel*> numbers;
+    QList<QLineEdit*> words;
 };
 
 #endif //FIRO_RECOVER_H

@@ -3,6 +3,8 @@
 
 
 #include <QWizard>
+#include <QStringList>
+#include <array>
 
 namespace Ui {
     class NotifyMnemonic;
@@ -12,15 +14,19 @@ class NotifyMnemonic : public QWizard
 {
     Q_OBJECT
 public:
-    explicit NotifyMnemonic(QWidget *parent = 0);
+    explicit NotifyMnemonic(const QString& mnemonic, QWidget *parent = nullptr);
     ~NotifyMnemonic();
 
     static void notify();
-private Q_SLOTS:
-    void cancelEvent();
+public Q_SLOTS:
+    void reject() override;
+protected:
+    bool validateCurrentPage() override;
 private:
     void applyTheme();
     Ui::NotifyMnemonic *ui;
+    const QStringList mnemonicWords;
+    std::array<int, 3> wordIndexes;
 };
 
 #endif //FIRO_NOTIFYMNEMONIC_H
