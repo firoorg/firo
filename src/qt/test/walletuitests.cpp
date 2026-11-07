@@ -1801,7 +1801,13 @@ void WalletUiTests::mnemonicConfirmation()
     auto* copy = dialog.findChild<QPushButton*>("copyButton");
     auto* message = dialog.findChild<QLabel*>("errorMessage");
     auto* scroll = dialog.findChild<QScrollArea*>("seedScrollArea");
-    QVERIFY(copy && message && scroll);
+    auto* display = dialog.findChild<QLabel*>("mnemonic");
+    QVERIFY(copy && message && scroll && display);
+    const QStringList words = seed.split(' ');
+    const QStringList displayedWords = display->text().split(QStringLiteral("  "));
+    QCOMPARE(displayedWords.size(), words.size());
+    for (qsizetype i = 0; i < words.size(); ++i)
+        QCOMPARE(displayedWords[i], QStringLiteral("%1.\u00a0%2").arg(i + 1).arg(words[i]));
     if (!QFontDatabase::families().isEmpty()) {
         QCoreApplication::processEvents();
         for (const char* name : {"textLabel", "mnemonic", "textLabel2", "textLabel3"}) {
@@ -1814,11 +1820,36 @@ void WalletUiTests::mnemonicConfirmation()
         QVERIFY(scroll->viewport()->rect().contains(QRect(copy->mapTo(scroll->viewport(), QPoint()), copy->size())));
     }
     QVERIFY(copy->isVisible());
-    copy->click();
-    QCOMPARE(QApplication::clipboard()->text(), seed);
+    const QString clipboardBefore = QStringLiteral("clipboard before seed copy");
+    const QString selectionBefore = QStringLiteral("primary selection before seed copy");
+    QApplication::clipboard()->setText(clipboardBefore);
+    if (QApplication::clipboard()->supportsSelection())
+        QApplication::clipboard()->setText(selectionBefore, QClipboard::Selection);
+    for (const bool allowCopy : {false, true}) {
+        bool warned = false;
+        bool defaultIsNo = false;
+        QString warningText;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                warned = true;
+                warningText = box->text();
+                defaultIsNo = box->defaultButton() == box->button(QMessageBox::No);
+                if (auto* answer = box->button(allowCopy ? QMessageBox::Yes : QMessageBox::No))
+                    answer->click();
+                else
+                    box->reject();
+            }
+        });
+        copy->click();
+        QVERIFY(warned);
+        QVERIFY(defaultIsNo);
+        QVERIFY(warningText.contains(QStringLiteral("clipboard history")));
+        QCOMPARE(QApplication::clipboard()->text(), allowCopy ? seed : clipboardBefore);
+        if (QApplication::clipboard()->supportsSelection())
+            QCOMPARE(QApplication::clipboard()->text(QClipboard::Selection), selectionBefore);
+    }
     dialog.button(QWizard::NextButton)->click();
     QVERIFY(!copy->isVisible());
-    const QStringList words = seed.split(' ');
     QStringList answers;
     QList<QLineEdit*> inputs;
     for (int i = 0; i < 3; ++i) {

@@ -16,25 +16,32 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QAbstractButton>
+#include <QApplication>
+#include <QClipboard>
 #include <QDate>
 
 NotifyMnemonic::NotifyMnemonic(const QString& mnemonic, QWidget *parent) :
         QWizard(parent),
-        ui(new Ui::NotifyMnemonic)
+        ui(new Ui::NotifyMnemonic),
+        mnemonicWords(mnemonic.split(' ', Qt::SkipEmptyParts))
 {
     ui->setupUi(this);
-    ui->mnemonic->setText(mnemonic);
     ui->walletBirthDate->setText(tr("Wallet creation date:  %1").arg(QDate::currentDate().toString("dd-MM-yyyy")));
-    const QStringList words = mnemonic.split(' ', Qt::SkipEmptyParts);
-    Q_ASSERT(words.size() == 12 || words.size() == 24);
-    const int groupSize = static_cast<int>(words.size()) / 3;
+    Q_ASSERT(mnemonicWords.size() == 12 || mnemonicWords.size() == 24);
+    QStringList numberedWords;
+    // Keep each number with its word when the label wraps.
+    for (qsizetype i = 0; i < mnemonicWords.size(); ++i)
+        numberedWords << QStringLiteral("%1.\u00a0%2").arg(i + 1).arg(mnemonicWords[i]);
+    ui->mnemonic->setText(numberedWords.join(QStringLiteral("  ")));
+    const int groupSize = static_cast<int>(mnemonicWords.size()) / 3;
     const std::array<QLabel*, 3> labels{ui->wordLabel1, ui->wordLabel2, ui->wordLabel3};
     for (int i = 0; i < 3; ++i) {
         wordIndexes[i] = i * groupSize + GetRandInt(groupSize);
         labels[i]->setText(tr("Word %1").arg(wordIndexes[i] + 1));
     }
     connect(ui->copyButton, &QPushButton::clicked, this, [this] {
-        GUIUtil::setClipboard(ui->mnemonic->text());
+        if (QMessageBox::warning(this, tr("Copy recovery phrase"), tr("Other applications and clipboard history may read and keep your recovery phrase. Anyone who gets it can take your funds. Copy it anyway?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes)
+            QApplication::clipboard()->setText(mnemonicWords.join(QLatin1Char(' ')), QClipboard::Clipboard);
     });
     applyTheme();
 }
@@ -95,10 +102,9 @@ bool NotifyMnemonic::validateCurrentPage()
     if (currentPage() != ui->wizardPage2)
         return QWizard::validateCurrentPage();
 
-    const QStringList words = ui->mnemonic->text().split(' ', Qt::SkipEmptyParts);
     const std::array<QLineEdit*, 3> inputs{ui->word1, ui->word2, ui->word3};
     for (size_t i = 0; i < inputs.size(); ++i) {
-        if (inputs[i]->text().trimmed().compare(words.at(wordIndexes[i]), Qt::CaseInsensitive) != 0) {
+        if (inputs[i]->text().trimmed().compare(mnemonicWords.at(wordIndexes[i]), Qt::CaseInsensitive) != 0) {
             ui->errorMessage->setText(tr("The word at position %1 does not match. Go back to check your recovery phrase.").arg(wordIndexes[i] + 1));
             inputs[i]->setFocus();
             inputs[i]->selectAll();

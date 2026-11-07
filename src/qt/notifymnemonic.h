@@ -3,6 +3,7 @@
 
 
 #include <QWizard>
+#include <QStringList>
 #include <array>
 
 namespace Ui {
@@ -24,6 +25,7 @@ protected:
 private:
     void applyTheme();
     Ui::NotifyMnemonic *ui;
+    const QStringList mnemonicWords;
     std::array<int, 3> wordIndexes;
 };
 
