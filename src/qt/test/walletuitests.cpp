@@ -2025,6 +2025,56 @@ void WalletUiTests::emptyRecoverySeed()
 #endif
 }
 
+void WalletUiTests::recoveryPassphraseErrorOpensAdvanced_data()
+{
+    QTest::addColumn<QString>("passphrase");
+    QTest::addColumn<QString>("confirmation");
+    QTest::addColumn<QString>("focusName");
+    QTest::newRow("empty") << QString() << QString() << QStringLiteral("mnemonicPassPhrase");
+    const QString overlong(100, QChar(0x20ac));
+    QTest::newRow("overlong-utf8") << overlong << overlong << QStringLiteral("mnemonicPassPhrase");
+    QTest::newRow("mismatched") << QStringLiteral("one") << QStringLiteral("two") << QStringLiteral("mnemonicPassPhrase2");
+}
+
+void WalletUiTests::recoveryPassphraseErrorOpensAdvanced()
+{
+    QFETCH(QString, passphrase);
+    QFETCH(QString, confirmation);
+    QFETCH(QString, focusName);
+    Recover dialog;
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    auto* create = dialog.findChild<QAbstractButton*>("createNew");
+    auto* advanced = dialog.findChild<QToolButton*>("advancedToggle");
+    auto* options = dialog.findChild<QWidget*>("advancedOptions");
+    auto* usePassphrase = dialog.findChild<QCheckBox*>("usePassphrase");
+    auto* first = dialog.findChild<QLineEdit*>("mnemonicPassPhrase");
+    auto* second = dialog.findChild<QLineEdit*>("mnemonicPassPhrase2");
+    auto* ok = dialog.findChild<QPushButton*>("okButton");
+    auto* message = dialog.findChild<QLabel*>("errorMessage");
+    auto* expectedFocus = dialog.findChild<QLineEdit*>(focusName);
+    QVERIFY(create && advanced && options && usePassphrase && first && second && ok && message && expectedFocus);
+    create->click();
+    advanced->click();
+    usePassphrase->click();
+    first->setText(passphrase);
+    second->setText(confirmation);
+    advanced->click();
+    QVERIFY(!options->isVisible());
+    QSignalSpy accepted(&dialog, &QDialog::accepted);
+    ok->click();
+    QCOMPARE(accepted.count(), 0);
+    QVERIFY(!message->text().isEmpty());
+    QVERIFY(advanced->isChecked());
+    QVERIFY(options->isVisible());
+    QVERIFY(expectedFocus->isVisible());
+    QCOMPARE(dialog.focusWidget(), expectedFocus);
+    first->setText(QStringLiteral("corrected"));
+    second->setText(first->text());
+    ok->click();
+    QCOMPARE(accepted.count(), 1);
+}
+
 void WalletUiTests::recoveryRetryUsesFinalInput_data()
 {
     QTest::addColumn<bool>("createFirst");

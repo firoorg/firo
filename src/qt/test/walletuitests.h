@@ -30,6 +30,8 @@ private Q_SLOTS:
     void mnemonicExitWarning_data();
     void mnemonicExitWarning();
     void emptyRecoverySeed();
+    void recoveryPassphraseErrorOpensAdvanced_data();
+    void recoveryPassphraseErrorOpensAdvanced();
     void recoveryRetryUsesFinalInput_data();
     void recoveryRetryUsesFinalInput();
     void confirmationRefresh();
