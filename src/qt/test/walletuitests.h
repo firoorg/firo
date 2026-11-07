@@ -25,6 +25,8 @@ private Q_SLOTS:
     void receiveMnemonics();
     void mnemonicConfirmation_data();
     void mnemonicConfirmation();
+    void mnemonicClipboardExpiry_data();
+    void mnemonicClipboardExpiry();
     void mnemonicExitWarning_data();
     void mnemonicExitWarning();
     void emptyRecoverySeed();

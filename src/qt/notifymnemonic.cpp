@@ -19,6 +19,9 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDate>
+#include <QMimeData>
+#include <QPointer>
+#include <QTimer>
 
 NotifyMnemonic::NotifyMnemonic(const QString& mnemonic, QWidget *parent) :
         QWizard(parent),
@@ -40,8 +43,24 @@ NotifyMnemonic::NotifyMnemonic(const QString& mnemonic, QWidget *parent) :
         labels[i]->setText(tr("Word %1").arg(wordIndexes[i] + 1));
     }
     connect(ui->copyButton, &QPushButton::clicked, this, [this] {
-        if (QMessageBox::warning(this, tr("Copy recovery phrase"), tr("Other applications and clipboard history may read and keep your recovery phrase. Anyone who gets it can take your funds. Copy it anyway?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes)
-            QApplication::clipboard()->setText(mnemonicWords.join(QLatin1Char(' ')), QClipboard::Clipboard);
+        if (QMessageBox::warning(this, tr("Copy recovery phrase"), tr("Other applications and clipboard history may read and keep your recovery phrase. Anyone who gets it can take your funds. While Firo is running, it will try to clear this clipboard copy after one minute. Copy it anyway?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+            return;
+
+        auto* clipboard = QApplication::clipboard();
+        QPointer<QMimeData> copiedData = new QMimeData;
+        copiedData->setText(mnemonicWords.join(QLatin1Char(' ')));
+        clipboard->setMimeData(copiedData.data(), QClipboard::Clipboard);
+        auto* expiry = new QTimer(qApp);
+        expiry->setObjectName(QStringLiteral("seedClipboardExpiry"));
+        expiry->setSingleShot(true);
+        connect(expiry, &QTimer::timeout, expiry, [clipboard, copiedData, expiry] {
+            // Compare item identity without requesting another application's clipboard text.
+            const QMimeData* current = clipboard->mimeData(QClipboard::Clipboard);
+            if (copiedData && current == copiedData.data())
+                clipboard->clear(QClipboard::Clipboard);
+            expiry->deleteLater();
+        });
+        expiry->start(60 * 1000);
     });
     applyTheme();
 }

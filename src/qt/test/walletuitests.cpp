@@ -1844,6 +1844,7 @@ void WalletUiTests::mnemonicConfirmation()
         QVERIFY(warned);
         QVERIFY(defaultIsNo);
         QVERIFY(warningText.contains(QStringLiteral("clipboard history")));
+        QVERIFY(warningText.contains(QStringLiteral("one minute")));
         QCOMPARE(QApplication::clipboard()->text(), allowCopy ? seed : clipboardBefore);
         if (QApplication::clipboard()->supportsSelection())
             QCOMPARE(QApplication::clipboard()->text(QClipboard::Selection), selectionBefore);
@@ -1887,6 +1888,70 @@ void WalletUiTests::mnemonicConfirmation()
     finish->click();
     QCOMPARE(accepted.count(), 1);
     QVERIFY(message->text().isEmpty());
+}
+
+void WalletUiTests::mnemonicClipboardExpiry_data()
+{
+    QTest::addColumn<bool>("replaceClipboard");
+    QTest::addColumn<bool>("copyAgain");
+    QTest::newRow("expires-after-wizard-destruction") << false << false;
+    QTest::newRow("preserves-replacement") << true << false;
+    QTest::newRow("repeated-copy-gets-new-deadline") << false << true;
+}
+
+void WalletUiTests::mnemonicClipboardExpiry()
+{
+    QFETCH(bool, replaceClipboard);
+    QFETCH(bool, copyAgain);
+    auto* clipboard = QApplication::clipboard();
+    const QString previousClipboard = clipboard->text();
+    const auto restoreClipboard = qScopeGuard([&] { clipboard->setText(previousClipboard); });
+    const QString seed = QStringLiteral("ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic");
+    QPointer<QTimer> firstExpiry;
+    QPointer<QTimer> secondExpiry;
+    {
+        NotifyMnemonic dialog(seed);
+        dialog.setAttribute(Qt::WA_DontShowOnScreen);
+        dialog.show();
+        auto* copy = dialog.findChild<QPushButton*>("copyButton");
+        QVERIFY(copy);
+        for (int attempt = 0; attempt < (copyAgain ? 2 : 1); ++attempt) {
+            bool warned = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                    warned = true;
+                    box->button(QMessageBox::Yes)->click();
+                }
+            });
+            copy->click();
+            QVERIFY(warned);
+            QCOMPARE(clipboard->text(), seed);
+            const auto timers = qApp->findChildren<QTimer*>("seedClipboardExpiry", Qt::FindDirectChildrenOnly);
+            QVERIFY(!timers.isEmpty());
+            auto* expiry = timers.last();
+            QCOMPARE(expiry->interval(), 60000);
+            QVERIFY(expiry->isSingleShot());
+            QVERIFY(expiry->isActive());
+            if (attempt == 0)
+                firstExpiry = expiry;
+            else
+                secondExpiry = expiry;
+        }
+    }
+    QVERIFY(firstExpiry);
+    const QString replacement = QStringLiteral("copied after the recovery phrase");
+    if (replaceClipboard)
+        clipboard->setText(replacement);
+    firstExpiry->start(0);
+    QTRY_VERIFY(firstExpiry.isNull());
+    QCOMPARE(clipboard->text(), replaceClipboard ? replacement : copyAgain ? seed : QString());
+    if (copyAgain) {
+        QVERIFY(secondExpiry);
+        QVERIFY(secondExpiry->isActive());
+        secondExpiry->start(0);
+        QTRY_VERIFY(secondExpiry.isNull());
+        QVERIFY(clipboard->text().isEmpty());
+    }
 }
 
 void WalletUiTests::mnemonicExitWarning_data()
