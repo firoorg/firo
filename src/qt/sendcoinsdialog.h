@@ -61,6 +61,9 @@ public Q_SLOTS:
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
                     const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance);
 
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     Ui::SendCoinsDialog *ui;
     QPushButton *balanceWarning;
@@ -73,8 +76,10 @@ private:
     bool fFeeMinimized;
     bool fAnonymousMode;
     const PlatformStyle *platformStyle;
+    int coinControlColumns{0}; //!< Columns the coin-control summary is laid out in; 0 before the first layout
     void applyTheme();
     void updateBalanceTitle();
+    void updateCoinControlColumns();
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().

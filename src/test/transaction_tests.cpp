@@ -9,6 +9,7 @@
 #include "noui.h"
 
 #include "clientversion.h"
+#include "chainparams.h"
 #include "checkqueue.h"
 #include "consensus/validation.h"
 #include "core_io.h"
@@ -762,6 +763,63 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
     BOOST_CHECK(!IsStandardTx(t, reason));
+}
+
+BOOST_AUTO_TEST_CASE(negative_version_encodings)
+{
+    CMutableTransaction tx;
+    tx.nVersion = -32768;
+    tx.vin.emplace_back(uint256S("01"), 0);
+    tx.vout.emplace_back(1, CScript() << OP_TRUE);
+
+    // Serialization sign-extends the negative nVersion into the nType half,
+    // so the relayed and stored form decodes with nType == -1.
+    CDataStream canonicalStream(SER_NETWORK, PROTOCOL_VERSION);
+    canonicalStream << tx;
+    std::vector<unsigned char> rawBytes(canonicalStream.begin(), canonicalStream.end());
+    BOOST_REQUIRE_GE(rawBytes.size(), 4U);
+    BOOST_CHECK_EQUAL(HexStr(rawBytes.begin(), rawBytes.begin() + 4), "0080ffff");
+
+    // A sender can put the same transaction on the wire with nType == 0.
+    rawBytes[2] = 0;
+    rawBytes[3] = 0;
+    CDataStream rawStream(rawBytes, SER_NETWORK, PROTOCOL_VERSION);
+
+    CMutableTransaction rawTx;
+    CMutableTransaction canonicalTx;
+    rawStream >> rawTx;
+    canonicalStream >> canonicalTx;
+    BOOST_CHECK_EQUAL(rawTx.nType, TRANSACTION_NORMAL);
+    BOOST_CHECK_EQUAL(canonicalTx.nType, -1);
+
+    const CTransaction raw(rawTx);
+    const CTransaction canonical(canonicalTx);
+    BOOST_CHECK(raw.GetHash() == canonical.GetHash());
+
+    Consensus::Params consensus = Params().GetConsensus();
+    consensus.DIP0003Height = 100;
+
+    // Empty when the transaction is valid in a block at this height.
+    const auto rejectReason = [&](const CTransaction& t, int height) {
+        CBlockIndex prev;
+        prev.nHeight = height - 1;
+        CValidationState state;
+        return ContextualCheckTransaction(t, state, consensus, &prev) ? std::string() : state.GetRejectReason();
+    };
+
+    // Before DIP3 the type is not checked below version 3.
+    BOOST_CHECK_EQUAL(rejectReason(raw, consensus.DIP0003Height - 1), "");
+    BOOST_CHECK_EQUAL(rejectReason(canonical, consensus.DIP0003Height - 1), "");
+
+    // From DIP3 on, both encodings get the same result.
+    BOOST_CHECK_EQUAL(rejectReason(raw, consensus.DIP0003Height), "bad-txns-type");
+    BOOST_CHECK_EQUAL(rejectReason(canonical, consensus.DIP0003Height), "bad-txns-type");
+
+    CMutableTransaction edge(rawTx);
+    edge.nVersion = -1;
+    BOOST_CHECK_EQUAL(rejectReason(CTransaction(edge), consensus.DIP0003Height), "bad-txns-type");
+    edge.nVersion = 0;
+    BOOST_CHECK_EQUAL(rejectReason(CTransaction(edge), consensus.DIP0003Height), "");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

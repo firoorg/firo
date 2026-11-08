@@ -359,8 +359,8 @@ bool CSparkNameManager::CheckSparkNameTx(
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
 
     // After v2.1, the fee output itself must carry the spark name and address.
+    // v2.1 activates after the stage 4.1 dev fund address change and its graceful period, so only the community fund is valid here.
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
-        const CScript developmentFundScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
         const CScript communityFundScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
         bool payoutFound = false;
         for (const CTxOut &txout : tx.vout) {
@@ -373,13 +373,7 @@ bool CSparkNameManager::CheckSparkNameTx(
                 if (embeddedAddress != sparkNameData.sparkAddress)
                     return state.DoS(100, error("CheckSparkNameTx: spark address in fee output does not match transaction data"));
 
-                CScript baseScript = GetBaseScriptFromSparkNameFee(txout.scriptPubKey);
-                bool validPayoutAddress = false;
-                if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
-                    validPayoutAddress = baseScript == developmentFundScript;
-                if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
-                    validPayoutAddress = validPayoutAddress || baseScript == communityFundScript;
-                if (validPayoutAddress && txout.nValue >= nameFee)
+                if (GetBaseScriptFromSparkNameFee(txout.scriptPubKey) == communityFundScript && txout.nValue >= nameFee)
                     payoutFound = true;
             }
         }
@@ -473,13 +467,7 @@ bool CSparkNameManager::CheckSparkNameTx(
         if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
             CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
             hw << (uint64_t)existingExpirationHeight;
-            // Grace period: pre-v2.1 transfers were built without an inputsHash. Those that were
-            // already signed/broadcast before activation can still be sitting in the mempool when
-            // the fork takes effect, so accept the legacy (null inputsHash) form for a short window
-            // after activation to avoid dropping in-flight transfers.
-            bool fInGracePeriod = nHeight < consensusParams.nSparkNamesV21StartBlock + consensusParams.stage41SparkNamesGracefulPeriod;
-            bool fLegacyTransfer = fInGracePeriod && sparkNameData.inputsHash.IsNull();
-            if (sparkNameData.inputsHash != hw.GetHash() && !fLegacyTransfer)
+            if (sparkNameData.inputsHash != hw.GetHash())
                 return state.DoS(nContextualFailureDoS, error("CheckSparkNameTx: bad transfer proof inputs hash"));
         }
 

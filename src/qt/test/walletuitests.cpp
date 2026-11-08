@@ -50,6 +50,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QCalendarWidget>
+#include <QCheckBox>
 #include <QClipboard>
 #include <QColor>
 #include <QComboBox>
@@ -1365,12 +1366,17 @@ void WalletUiTests::brandTypography()
             }
             QCoreApplication::processEvents();
             for (const char* name : {"labelFeeHeadline", "labelFeeMinimized", "payTo", "labelBalance",
-                                    "labelCoinControlFee", "labelCoinControlFeeText"}) {
+                                    "labelCoinControlFee"}) {
                 auto* widget = send.findChild<QWidget*>(name);
                 QVERIFY(widget);
                 QCOMPARE(widget->font().family(), QStringLiteral("Source Sans Pro"));
                 QCOMPARE(widget->font().pixelSize(), 16);
             }
+            // Coin-control captions sit above their values in the caption style.
+            auto* feeCaption = send.findChild<QWidget*>("labelCoinControlFeeText");
+            QVERIFY(feeCaption);
+            QCOMPARE(feeCaption->font().family(), QStringLiteral("Source Sans Pro"));
+            QCOMPARE(feeCaption->font().pixelSize(), GUIUtil::brandFont(GUIUtil::TextStyle::Caption).pixelSize());
             auto* requests = receive.findChild<QTableView*>();
             QVERIFY(requests);
             QCOMPARE(requests->font().pixelSize(), 16);
@@ -1636,6 +1642,21 @@ void WalletUiTests::sendFormFitsSmallScreen()
         }
     }
 
+    // The coin-control summary spans the card in aligned columns, however many fit: the Change
+    // column ends at the card's edge and inputs sit under the amounts. A wide card holds all four amounts.
+    auto* summary = dialog.findChild<QWidget*>("widgetCoinControl");
+    QVERIFY(summary);
+    const auto summaryLabel = [&dialog](const char* name) { return dialog.findChild<QLabel*>(name); };
+    for (const bool wide : {false, true}) {
+        if (wide) {
+            dialog.resize(2100, 1400);
+            QTRY_COMPARE(summaryLabel("labelCoinControlChange")->y(), summaryLabel("labelCoinControlAmount")->y());
+        }
+        QTRY_COMPARE(summaryLabel("labelCoinControlChange")->geometry().right(), summary->contentsRect().right());
+        QCOMPARE(summaryLabel("labelCoinControlQuantity")->x(), summaryLabel("labelCoinControlAmount")->x());
+        QCOMPARE(summaryLabel("labelCoinControlBytes")->x(), summaryLabel("labelCoinControlFee")->x());
+    }
+
     dialog.resize(964, 480);
     dialog.addEntry();
     auto* chooseFee = dialog.findChild<QPushButton*>("buttonChooseFee");
@@ -1810,6 +1831,107 @@ void WalletUiTests::emptyRecoverySeed()
             QCOMPARE(error, Recover::tr("Recovery seed phrase can't be empty."));
         }
     }
+#endif
+}
+
+void WalletUiTests::recoveryRetryUsesFinalInput_data()
+{
+    QTest::addColumn<bool>("createFirst");
+    QTest::addColumn<bool>("createLast");
+    QTest::newRow("create-then-recover") << true << false;
+    QTest::newRow("recover-then-recover") << false << false;
+    QTest::newRow("recover-then-create") << false << true;
+}
+
+/** Verify a failed attempt cannot supply the accepted attempt's seed, scan date or wallet mode. */
+void WalletUiTests::recoveryRetryUsesFinalInput()
+{
+#ifdef ENABLE_WALLET
+    QFETCH(bool, createFirst);
+    QFETCH(bool, createLast);
+    extern std::map<std::string, std::string> mapArgs;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto previousArgs = mapArgs;
+    const auto restore = qScopeGuard([&] { mapArgs = previousArgs; });
+    for (const char* arg : {"-mnemonic", "-newwallet", "-wcdate", "-mnemonicpassphrase", "-use12"})
+        mapArgs.erase(arg);
+    ForceSetArg("-wallet", directory.filePath(QStringLiteral("wallet.dat")).toStdString());
+
+    const QString seed = QStringLiteral("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon "
+                                        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art");
+    const QString finalSeed = QStringLiteral("zoo ").repeated(23) + QStringLiteral("vote");
+    const QDate firstDate(2021, 6, 15);
+
+    // The first attempt fails on mismatched passphrases. Only the second attempt may set args.
+    int attempts = 0;
+    QString error;
+    QDate dateAfterError;
+    bool timedOut = false;
+    QTimer timer;
+    QTimer::singleShot(5000, &timer, [&] {
+        timedOut = true;
+        if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
+            dialog->reject();
+    });
+    connect(&timer, &QTimer::timeout, [&] {
+        auto* dialog = qobject_cast<Recover*>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        auto* createNew = dialog->findChild<QRadioButton*>("createNew");
+        auto* recoverExisting = dialog->findChild<QRadioButton*>("recoverExisting");
+        auto* words = dialog->findChild<QLineEdit*>("mnemonicWords");
+        auto* date = dialog->findChild<QDateEdit*>("dateInput");
+        auto* usePassphrase = dialog->findChild<QCheckBox*>("usePassphrase");
+        auto* passphrase = dialog->findChild<QLineEdit*>("mnemonicPassPhrase");
+        auto* passphrase2 = dialog->findChild<QLineEdit*>("mnemonicPassPhrase2");
+        auto* message = dialog->findChild<QLabel*>("errorMessage");
+        if (!createNew || !recoverExisting || !words || !date || !usePassphrase || !passphrase || !passphrase2 || !message || attempts == 2) {
+            dialog->reject();
+            return;
+        }
+        if (attempts == 0) {
+            (createFirst ? createNew : recoverExisting)->click();
+            words->setText(seed);
+            date->setDate(firstDate);
+            usePassphrase->click();
+            passphrase->setText(QStringLiteral("one"));
+            passphrase2->setText(QStringLiteral("two"));
+        } else {
+            error = message->text();
+            dateAfterError = date->date();
+            if (createLast) {
+                createNew->click();
+            } else {
+                recoverExisting->click();
+                words->setText(finalSeed);
+                date->setDate(QDate(2020, 3, 10));
+                usePassphrase->click();
+            }
+        }
+        ++attempts;
+        dialog->accept();
+    });
+    timer.start(0);
+    bool newWallet = false;
+    const bool accepted = Recover::askRecover(newWallet);
+    timer.stop();
+    QVERIFY(!timedOut);
+    QVERIFY(accepted);
+    QCOMPARE(attempts, 2);
+    QCOMPARE(error, Recover::tr("Passphrases don't match."));
+    QCOMPARE(newWallet, createLast);
+    QCOMPARE(GetBoolArg("-newwallet", false), createLast);
+    QVERIFY(!IsArgSet("-mnemonicpassphrase"));
+    if (createLast) {
+        QVERIFY(!IsArgSet("-mnemonic"));
+        QVERIFY(!IsArgSet("-wcdate"));
+    } else {
+        QCOMPARE(QString::fromStdString(GetArg("-mnemonic", "")), finalSeed);
+        QCOMPARE(QString::fromStdString(GetArg("-wcdate", "")), QStringLiteral("09-03-2020"));
+    }
+    if (!createFirst)
+        QCOMPARE(dateAfterError, firstDate);
 #endif
 }
 

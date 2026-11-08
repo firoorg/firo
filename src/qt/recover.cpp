@@ -254,17 +254,14 @@ bool Recover::askRecover(bool& newWallet)
                     use12 = true;
                 }
 
+                std::string mnemonic;
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
                     if(recover.ui->mnemonicWords->text().trimmed().isEmpty()) {
                         recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
                         continue;
                     }
-                    std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
-                    QDate date = recover.ui->dateInput->date();
-                    QDate newDate = date.addDays(-1);
-                    recover.ui->dateInput->setDate(newDate);
-                    SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
+                    mnemonic = recover.ui->mnemonicWords->text().toStdString();
                     const char* str = mnemonic.c_str();
                     bool space = true;
                     int n = 0;
@@ -293,15 +290,13 @@ bool Recover::askRecover(bool& newWallet)
                         recover.ui->errorMessage->setText(tr("You have entered an invalid recovery seed phrase. Please double check the spelling and order."));
                         continue;
                     }
-
-                    SoftSetArg("-mnemonic", mnemonic);
                 } else {
                     newWallet = true;
-                    SoftSetBoolArg("-newwallet", newWallet);
                 }
 
+                std::string mnemonicPassPhrase;
                 if(recover.ui->usePassphrase->isChecked()) {
-                    std::string mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
+                    mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
                     std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
 
                     if(mnemonicPassPhrase != mnemonicPassPhrase2) {
@@ -313,9 +308,18 @@ bool Recover::askRecover(bool& newWallet)
                         recover.ui->errorMessage->setText(tr("Passphrase can't be empty."));
                         continue;
                     }
-
-                    SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
                 }
+
+                // Set args only after every check passes: SoftSetArg never overwrites, so a failed attempt's values would stick.
+                if(newWallet) {
+                    SoftSetBoolArg("-newwallet", newWallet);
+                } else {
+                    SoftSetArg("-wcdate", recover.ui->dateInput->date().addDays(-1).toString("dd-MM-yyyy").toStdString());
+                    SoftSetArg("-mnemonic", mnemonic);
+                }
+
+                if(!mnemonicPassPhrase.empty())
+                    SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
 
                 if(use12)
                     SoftSetBoolArg("-use12", true);
