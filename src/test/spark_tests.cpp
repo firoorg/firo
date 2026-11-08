@@ -15,6 +15,8 @@
 #include "../hash.h"
 #include "../logging.h"
 #include "../ui_interface.h"
+#include "../llmq/quorums_instantsend.h"
+#include "../sparkname.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
@@ -22,6 +24,70 @@
 #include <set>
 #include <boost/scope_exit.hpp>
 #include <boost/test/unit_test.hpp>
+
+namespace llmq
+{
+struct CInstantSendManagerSparkTestAccess
+{
+    CInstantSendManager& manager;
+    bool wasEnabled;
+    uint256 hash;
+    boost::signals2::scoped_connection syncConnection;
+
+    CInstantSendManagerSparkTestAccess(CInstantSendManager& managerIn, const CTransaction& tx)
+        : manager(managerIn), wasEnabled(manager.isNewInstantSendEnabled.exchange(true))
+    {
+        CInstantSendLock islock;
+        islock.txid = tx.GetHash();
+        for (const auto& tag : spark::GetSparkUsedTags(tx))
+            islock.inputs.emplace_back(primitives::GetLTagHash(tag), 0);
+        hash = ::SerializeHash(islock);
+        LOCK(manager.cs);
+        manager.pendingNoTxInstantSendLocks.emplace(hash,
+            CInstantSendManager::PendingInstantSendLock{-1, islock, nullptr, nullptr, {}});
+        manager.pendingInstantSendLocksByTxid.emplace(islock.txid, hash);
+        syncConnection = GetMainSignals().SyncTransaction.connect(
+            [this](const CTransaction& syncedTx, const CBlockIndex* pindex, int position) {
+                manager.SyncTransaction(syncedTx, pindex, position);
+            });
+    }
+
+    ~CInstantSendManagerSparkTestAccess()
+    {
+        syncConnection.disconnect();
+        LOCK(manager.cs);
+        manager.ErasePendingInstantSendLock(hash);
+        manager.isNewInstantSendEnabled = wasEnabled;
+    }
+
+    void TrackConflict(const CTransaction& tx)
+    {
+        LOCK(manager.cs);
+        manager.AddNonLockedTx(MakeTransactionRef(tx));
+        for (const auto& tag : spark::GetSparkUsedTags(tx)) {
+            const COutPoint input(primitives::GetLTagHash(tag), 0);
+            manager.inputRequestIds.emplace(::SerializeHash(std::make_pair(std::string("inlock"), input)));
+        }
+    }
+
+    bool HasTrackedConflict(const CTransaction& tx)
+    {
+        LOCK(manager.cs);
+        if (manager.nonLockedTxs.count(tx.GetHash()))
+            return true;
+        for (const auto& entry : manager.nonLockedTxsByInputs) {
+            if (entry.second.second == tx.GetHash())
+                return true;
+        }
+        for (const auto& tag : spark::GetSparkUsedTags(tx)) {
+            const COutPoint input(primitives::GetLTagHash(tag), 0);
+            if (manager.inputRequestIds.count(::SerializeHash(std::make_pair(std::string("inlock"), input))))
+                return true;
+        }
+        return false;
+    }
+};
+}
 
 namespace spark {
 
@@ -2584,6 +2650,119 @@ BOOST_AUTO_TEST_CASE(spark_stem_admission_records_linking_tags)
             BOOST_CHECK(!mempool.sparkState.HasLTag(lTag));
     }
 
+    txpools.clear();
+}
+
+BOOST_AUTO_TEST_CASE(spark_pending_islock_replaces_linking_tag_conflict)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints = GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    txpools.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> selected;
+    for (const auto& mint : createdMints) {
+        if (mint.v == 5 * COIN)
+            selected.push_back(pwalletMain->sparkWallet->getMintMeta(mint.k));
+    }
+    BOOST_REQUIRE_EQUAL(selected.size(), 1U);
+    const CTransaction locked = GenerateCustomSparkSpend(selected, 4 * COIN);
+    const CTransaction conflicting = GenerateCustomSparkSpend(selected, 3 * COIN);
+    const auto lockedTags = ParseSparkSpend(locked).getUsedLTags();
+    BOOST_REQUIRE(lockedTags == ParseSparkSpend(conflicting).getUsedLTags());
+
+    LOCK(cs_main);
+    CValidationState conflictState;
+    BOOST_REQUIRE(AcceptToMemoryPool(mempool, conflictState, MakeTransactionRef(conflicting), false, nullptr));
+    CValidationState rejectedState;
+    BOOST_CHECK(!AcceptToMemoryPool(mempool, rejectedState, MakeTransactionRef(locked), false, nullptr));
+    BOOST_CHECK_EQUAL(rejectedState.GetRejectReason(), "txn-mempool-conflict");
+
+    // A pending lock must not let an invalid proof evict a valid mempool transaction.
+    CMutableTransaction invalid(locked);
+    invalid.vout[0].nValue -= 1;
+    {
+        llmq::CInstantSendManagerSparkTestAccess pending(*llmq::quorumInstantSendManager, CTransaction(invalid));
+        CValidationState invalidState;
+        BOOST_CHECK(!AcceptToMemoryPool(mempool, invalidState, MakeTransactionRef(invalid), false, nullptr));
+        BOOST_CHECK(mempool.exists(conflicting.GetHash()));
+    }
+
+    llmq::CInstantSendManagerSparkTestAccess pending(*llmq::quorumInstantSendManager, locked);
+    pending.TrackConflict(conflicting);
+    BOOST_REQUIRE(pending.HasTrackedConflict(conflicting));
+    CValidationState acceptedState;
+    BOOST_REQUIRE_MESSAGE(AcceptToMemoryPool(mempool, acceptedState, MakeTransactionRef(locked), false, nullptr),
+        acceptedState.GetRejectReason());
+    BOOST_CHECK(mempool.exists(locked.GetHash()));
+    BOOST_CHECK(!mempool.exists(conflicting.GetHash()));
+    BOOST_CHECK(!pending.HasTrackedConflict(conflicting));
+    for (const auto& tag : lockedTags)
+        BOOST_CHECK(mempool.sparkState.GetMempoolConflictingTxHash(tag) == locked.GetHash());
+    txpools.clear();
+}
+
+BOOST_AUTO_TEST_CASE(spark_pending_islock_replaces_name_conflicts)
+{
+    GenerateBlocks(1900);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    txpools.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 2U);
+
+    CCoinControl firstCoin;
+    CCoinControl secondCoin;
+    for (size_t i = 0; i < mintTransactions.size(); ++i) {
+        const auto& mintTx = mintTransactions[i];
+        const auto mintOutput = std::find_if(mintTx.vout.begin(), mintTx.vout.end(),
+            [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+        BOOST_REQUIRE(mintOutput != mintTx.vout.end());
+        (i == 0 ? firstCoin : secondCoin).Select(COutPoint(
+            mintTx.GetHash(), std::distance(mintTx.vout.begin(), mintOutput)));
+    }
+
+    LOCK(cs_main);
+    LOCK(pwalletMain->cs_wallet);
+    const std::string firstAddress = pwalletMain->sparkWallet->getDefaultAddress().encode(GetNetworkType());
+    const std::string secondAddress = pwalletMain->sparkWallet->generateNewAddress().encode(GetNetworkType());
+    const auto createNameTx = [&](const std::string& name, const std::string& address, const CCoinControl& coin) {
+        CSparkNameTxData data;
+        data.nVersion = 1;
+        data.name = name;
+        data.sparkAddress = address;
+        data.sparkNameValidityBlocks = 10;
+        CAmount fee;
+        return *pwalletMain->sparkWallet->CreateSparkNameTransaction(data,
+            consensus.nSparkNamesFee[name.size()] * COIN, fee, &coin).tx;
+    };
+
+    const CTransaction locked = createNameTx("pending-lock-name", firstAddress, firstCoin);
+    const CTransaction sameName = createNameTx("pending-lock-name", secondAddress, secondCoin);
+    const CTransaction sameAddress = createNameTx("pending-other-name", firstAddress, secondCoin);
+    BOOST_REQUIRE(ParseSparkSpend(locked).getUsedLTags() != ParseSparkSpend(sameName).getUsedLTags());
+
+    for (const CTransaction* conflicting : {&sameName, &sameAddress}) {
+        txpools.clear();
+        CValidationState conflictState;
+        BOOST_REQUIRE_MESSAGE(AcceptToMemoryPool(mempool, conflictState, MakeTransactionRef(*conflicting), false, nullptr),
+            conflictState.GetRejectReason());
+        CValidationState rejectedState;
+        BOOST_CHECK(!AcceptToMemoryPool(mempool, rejectedState, MakeTransactionRef(locked), false, nullptr));
+        BOOST_CHECK_EQUAL(rejectedState.GetRejectReason(), "txn-mempool-conflict");
+
+        llmq::CInstantSendManagerSparkTestAccess pending(*llmq::quorumInstantSendManager, locked);
+        CValidationState acceptedState;
+        BOOST_REQUIRE_MESSAGE(AcceptToMemoryPool(mempool, acceptedState, MakeTransactionRef(locked), false, nullptr),
+            acceptedState.GetRejectReason());
+        BOOST_CHECK(mempool.exists(locked.GetHash()));
+        BOOST_CHECK(!mempool.exists(conflicting->GetHash()));
+        BOOST_REQUIRE_EQUAL(mempool.sparkNames.size(), 1U);
+        BOOST_CHECK(mempool.sparkNames.begin()->second.second == locked.GetHash());
+    }
     txpools.clear();
 }
 

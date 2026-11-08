@@ -21,6 +21,7 @@
 #include "primitives/mint_spend.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
+#include <algorithm>
 #include <limits>
 
 namespace llmq
@@ -357,8 +358,7 @@ void CInstantSendManager::Start()
 
     {
         LOCK(cs_main);
-        if (chainActive.Tip())
-            isNewInstantSendEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, chainActive.Tip());
+        UpdateActiveState(chainActive.Tip());
     }
 
     workThread = std::thread(&TraceThread<std::function<void()> >, "instantsend", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
@@ -728,7 +728,7 @@ void CInstantSendManager::ProcessMessageInstantSendLock(CNode* pfrom, const llmq
     if (db.GetInstantSendLockByHash(hash) != nullptr) {
         return;
     }
-    if (pendingInstantSendLocks.count(hash)) {
+    if (pendingInstantSendLocks.count(hash) || pendingNoTxInstantSendLocks.count(hash)) {
         return;
     }
 
@@ -760,19 +760,36 @@ bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CI
 
 bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
+    if (!IsNewInstantSendEnabled()) {
+        return false;
+    }
+
+    std::vector<std::pair<uint256, PendingInstantSendLock>> ready;
+    std::vector<uint256> retryTxs;
     decltype(pendingInstantSendLocks) pend;
 
     {
         LOCK(cs);
+        for (const auto& p : pendingNoTxInstantSendLocks) {
+            if (p.second.tx) {
+                ready.emplace_back(p);
+            } else if (p.second.nextRequestTime <= GetTime()) {
+                retryTxs.emplace_back(p.second.islock.txid);
+            }
+        }
         pend = std::move(pendingInstantSendLocks);
     }
 
-    if (pend.empty()) {
-        return false;
+    for (const auto& p : ready) {
+        ProcessInstantSendLock(p.second.from, p.first, p.second.islock);
+    }
+    for (const auto& txid : retryTxs) {
+        AskNodesForLockedTx(txid);
     }
 
-    if (!IsNewInstantSendEnabled())
-        return false;
+    if (pend.empty()) {
+        return !ready.empty() || !retryTxs.empty();
+    }
 
     int tipHeight;
     {
@@ -912,65 +929,116 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
 
 void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock)
 {
-    {
-        LOCK(cs_main);
-        g_connman->RemoveAskFor(hash);
-    }
-
     CTransactionRef tx;
     uint256 hashBlock;
     const CBlockIndex* pindexMined = nullptr;
-    // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
-    if (GetTransaction(islock.txid, tx, Params().GetConsensus(), hashBlock)) {
-        if (!hashBlock.IsNull()) {
-            {
-                LOCK(cs_main);
-                pindexMined = mapBlockIndex.at(hashBlock);
+    bool newPendingLock = false;
+    {
+        // Register the pending lock before a concurrent mempool acceptance can notify SyncTransaction.
+        LOCK(cs_main);
+        g_connman->RemoveAskFor(hash);
+        {
+            LOCK(cs);
+            auto it = pendingNoTxInstantSendLocks.find(hash);
+            if (it != pendingNoTxInstantSendLocks.end()) {
+                tx = it->second.tx;
+                pindexMined = it->second.pindexMined;
+                if (pindexMined && !chainActive.Contains(pindexMined)) {
+                    pindexMined = nullptr;
+                }
             }
+        }
+        // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
+        if (!tx && GetTransaction(islock.txid, tx, Params().GetConsensus(), hashBlock, !fTxIndex) && !hashBlock.IsNull()) {
+            pindexMined = mapBlockIndex.at(hashBlock);
+        }
+        if (!tx) {
+            // Fully spent transactions need their tracked block when txindex is disabled.
+            const CBlockIndex* trackedBlock = nullptr;
+            {
+                LOCK(cs);
+                auto it = nonLockedTxs.find(islock.txid);
+                if (it != nonLockedTxs.end()) {
+                    trackedBlock = it->second.pindexMined;
+                }
+            }
+            if (trackedBlock && chainActive.Contains(trackedBlock)) {
+                CBlock block;
+                if (ReadBlockFromDisk(block, trackedBlock, Params().GetConsensus())) {
+                    for (const auto& candidate : block.vtx) {
+                        if (candidate->GetHash() == islock.txid) {
+                            tx = candidate;
+                            pindexMined = trackedBlock;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
-            // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
-            // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
+        if (pindexMined) {
+            // A ChainLock already implies locking of all transactions in its chain.
             if (llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
                 LogPrint("instantsend", "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a ChainLock in block %s, peer=%d\n", __func__,
-                         islock.txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
+                         islock.txid.ToString(), hash.ToString(), pindexMined->GetBlockHash().ToString(), from);
+                LOCK(cs);
+                ErasePendingInstantSendLock(hash);
                 return;
             }
         }
-    }
 
-    {
-        LOCK(cs);
+        {
+            LOCK(cs);
 
-        LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: processsing islock, peer=%d\n", __func__,
-                 islock.txid.ToString(), hash.ToString(), from);
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: processsing islock, peer=%d\n", __func__,
+                     islock.txid.ToString(), hash.ToString(), from);
 
-        creatingInstantSendLocks.erase(islock.GetRequestId());
-        txToCreatingInstantSendLocks.erase(islock.txid);
+            creatingInstantSendLocks.erase(islock.GetRequestId());
+            txToCreatingInstantSendLocks.erase(islock.txid);
 
-        CInstantSendLockPtr otherIsLock;
-        if (db.GetInstantSendLockByHash(hash)) {
-            return;
-        }
-        otherIsLock = db.GetInstantSendLockByTxid(islock.txid);
-        if (otherIsLock != nullptr) {
-            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: duplicate islock, other islock=%s, peer=%d\n", __func__,
-                     islock.txid.ToString(), hash.ToString(), ::SerializeHash(*otherIsLock).ToString(), from);
-        }
-        for (auto& in : islock.inputs) {
-            otherIsLock = db.GetInstantSendLockByInput(in);
-            if (otherIsLock != nullptr) {
-                LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting input in islock. input=%s, other islock=%s, peer=%d\n", __func__,
-                         islock.txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*otherIsLock).ToString(), from);
+            CInstantSendLockPtr otherIsLock;
+            if (db.HasArchivedInstantSendLock(hash)) {
+                ErasePendingInstantSendLock(hash);
+                return;
             }
-        }
+            if (db.GetInstantSendLockByHash(hash)) {
+                ErasePendingInstantSendLock(hash);
+                return;
+            }
+            otherIsLock = db.GetInstantSendLockByTxid(islock.txid);
+            if (otherIsLock != nullptr) {
+                LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: duplicate islock, other islock=%s, peer=%d\n", __func__,
+                         islock.txid.ToString(), hash.ToString(), ::SerializeHash(*otherIsLock).ToString(), from);
+            }
+            for (auto& in : islock.inputs) {
+                otherIsLock = db.GetInstantSendLockByInput(in);
+                if (otherIsLock != nullptr) {
+                    LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting input in islock. input=%s, other islock=%s, peer=%d\n", __func__,
+                             islock.txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*otherIsLock).ToString(), from);
+                }
+            }
 
-        db.WriteNewInstantSendLock(hash, islock);
-        if (pindexMined) {
-            db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
-        }
+            if (tx == nullptr) {
+                auto indexed = pendingInstantSendLocksByTxid.emplace(islock.txid, hash);
+                if (!indexed.second && indexed.first->second != hash) {
+                    return;
+                }
+                newPendingLock = pendingNoTxInstantSendLocks.emplace(hash, PendingInstantSendLock{from, islock, nullptr, nullptr, {}}).second;
+            } else {
+                db.WriteNewInstantSendLock(hash, islock);
+                ErasePendingInstantSendLock(hash);
+                if (pindexMined) {
+                    db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
+                }
+            }
 
-        // This will also add children TXs to pendingRetryTxs
-        RemoveNonLockedTx(islock.txid, true);
+            // This will also add children TXs to pendingRetryTxs
+            RemoveNonLockedTx(islock.txid, true);
+        }
+        if (newPendingLock) {
+            // Pending locks change which retained mempool transactions miners may include.
+            mempool.AddTransactionsUpdated(1);
+        }
     }
 
     CInv inv(MSG_ISLOCK, hash);
@@ -982,19 +1050,19 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         g_connman->RelayInvFiltered(inv, islock.txid, LLMQS_PROTO_VERSION);
     }
 
-    RemoveMempoolConflictsForLock(hash, islock);
     ResolveBlockConflicts(hash, islock);
-    UpdateWalletTransaction(islock.txid, tx);
+    if (tx != nullptr) {
+        RemoveMempoolConflictsForLock(hash, islock);
+        UpdateWalletTransaction(islock.txid, tx);
+    } else {
+        AskNodesForLockedTx(islock.txid);
+    }
 }
 
 void CInstantSendManager::UpdateWalletTransaction(const uint256& txid, const CTransactionRef& tx)
 {
 #ifdef ENABLE_WALLET
-    if (!pwalletMain) {
-        return;
-    }
-
-    if (pwalletMain->UpdatedTransaction(txid)) {
+    if (pwalletMain && pwalletMain->UpdatedTransaction(txid)) {
         // notify an external script once threshold is reached
         std::string strCmd = GetArg("-instantsendnotify", "");
         if (!strCmd.empty()) {
@@ -1006,7 +1074,7 @@ void CInstantSendManager::UpdateWalletTransaction(const uint256& txid, const CTr
 
     if (tx) {
         GetMainSignals().NotifyTransactionLock(*tx);
-        // bump mempool counter to make sure newly mined txes are picked up by getblocktemplate
+        // bump mempool counter to make sure newly locked txes are picked up by getblocktemplate
         mempool.AddTransactionsUpdated(1);
     }
 }
@@ -1030,7 +1098,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockI
     // Are we called from validation.cpp/MemPoolConflictRemovalTracker?
     // TODO refactor this when we backport the BlockConnected signal from Bitcoin, as it gives better info about
     // conflicted TXs
-    bool isConflictRemoved = isDisconnect && !inMempool;
+    bool isConflictRemoved = posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK && !inMempool;
 
     if (isConflictRemoved) {
         LOCK(cs);
@@ -1043,9 +1111,19 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockI
     bool allowReSigning = !inMempool && !isDisconnect;
 
     uint256 islockHash;
+    bool pendingIslock = false;
     {
         LOCK(cs);
         islockHash = db.GetInstantSendLockHashByTxid(tx.GetHash());
+        if (inMempool || (pindex && !isDisconnect)) {
+            auto it = pendingInstantSendLocksByTxid.find(tx.GetHash());
+            if (it != pendingInstantSendLocksByTxid.end()) {
+                auto& pending = pendingNoTxInstantSendLocks.at(it->second);
+                pending.tx = MakeTransactionRef(tx_);
+                pending.pindexMined = pindex;
+                pendingIslock = true;
+            }
+        }
 
         // update DB about when an IS lock was mined
         if (!islockHash.IsNull() && pindex) {
@@ -1063,7 +1141,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockI
     }
 
     bool chainlocked = pindex && chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
-    if (islockHash.IsNull() && !chainlocked) {
+    if (islockHash.IsNull() && !chainlocked && !pendingIslock) {
         ProcessTx(tx, allowReSigning, Params().GetConsensus());
     }
 
@@ -1154,7 +1232,7 @@ void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
     RemoveNonLockedTx(tx.GetHash(), false);
 
     for (const auto& in : tx.vin) {
-        auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
+        auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in.prevout));
         inputRequestIds.erase(inputRequestId);
     }
 }
@@ -1162,6 +1240,12 @@ void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
 void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 {
     HandleFullyConfirmedBlock(pindexChainLock);
+}
+
+void CInstantSendManager::UpdateActiveState(const CBlockIndex* pindex)
+{
+    AssertLockHeld(cs_main);
+    isNewInstantSendEnabled = pindex && CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, pindex);
 }
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
@@ -1261,7 +1345,6 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
                 RemoveConflictedTx(*p.second);
             }
         }
-        AskNodesForLockedTx(islock.txid);
     }
 }
 
@@ -1315,6 +1398,12 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
         return;
     }
 
+    bool isLockedTxKnown;
+    {
+        LOCK(cs);
+        isLockedTxKnown = pendingNoTxInstantSendLocks.count(islockHash) == 0;
+    }
+
     bool activateBestChain = false;
     for (const auto& p : conflicts) {
         auto pindex = p.first;
@@ -1332,12 +1421,20 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
         CValidationState state;
         // need non-const pointer
         auto pindex2 = mapBlockIndex.at(pindex->GetBlockHash());
+        if (!isLockedTxKnown) {
+            AddPendingBlockConflict(islockHash, pindex2);
+        }
         if (!InvalidateBlock(state, Params(), pindex2)) {
             LogPrintf("CInstantSendManager::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
             // This should not have happened and we are in a state were it's not safe to continue anymore
             assert(false);
         }
-        activateBestChain = true;
+        if (isLockedTxKnown) {
+            activateBestChain = true;
+        } else {
+            // Disconnect to make the inputs available, but do not permanently invalidate without the TX.
+            ResetBlockFailureFlags(pindex2);
+        }
     }
 
     if (activateBestChain) {
@@ -1361,10 +1458,40 @@ void CInstantSendManager::RemoveChainLockConflictingLock(const uint256& islockHa
     }
 
     LOCK(cs);
-    auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
-    for (auto& h : removedIslocks) {
+    std::vector<std::pair<uint256, uint256>> toRemove{{islockHash, islock.txid}};
+    std::unordered_set<uint256, StaticSaltedHasher> added{islockHash};
+    for (size_t i = 0; i < toRemove.size(); ++i) {
+        const auto parent = toRemove[i].second;
+        for (const auto& childHash : db.GetInstantSendLocksByParent(parent)) {
+            auto child = db.GetInstantSendLockByHash(childHash);
+            if (child && added.emplace(childHash).second) {
+                toRemove.emplace_back(childHash, child->txid);
+            }
+        }
+        for (const auto& p : pendingNoTxInstantSendLocks) {
+            for (const auto& in : p.second.islock.inputs) {
+                if (in.hash == parent && added.emplace(p.first).second) {
+                    toRemove.emplace_back(p.first, p.second.islock.txid);
+                }
+            }
+        }
+    }
+    for (const auto& p : toRemove) {
+        ErasePendingInstantSendLock(p.first);
+        pendingInstantSendLocks.erase(p.first);
+        db.RemoveChainedInstantSendLocks(p.first, p.second, tipHeight);
         LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCK %s\n", __func__,
-                  islock.txid.ToString(), islockHash.ToString(), h.ToString());
+                  islock.txid.ToString(), islockHash.ToString(), p.first.ToString());
+    }
+}
+
+void CInstantSendManager::ErasePendingInstantSendLock(const uint256& hash)
+{
+    AssertLockHeld(cs);
+    auto it = pendingNoTxInstantSendLocks.find(hash);
+    if (it != pendingNoTxInstantSendLocks.end()) {
+        pendingInstantSendLocksByTxid.erase(it->second.islock.txid);
+        pendingNoTxInstantSendLocks.erase(it);
     }
 }
 
@@ -1395,25 +1522,46 @@ bool CInstantSendManager::RemoveISLockByTxId(const uint256& txid)
 
 void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)
 {
-    std::vector<CNode*> nodesToAskFor;
+    std::vector<CNode*> availableNodes;
     g_connman->ForEachNode([&](CNode* pnode) {
         LOCK(pnode->cs_filter);
         if (pnode->filterInventoryKnown.contains(txid)) {
             pnode->AddRef();
-            nodesToAskFor.emplace_back(pnode);
+            availableNodes.emplace_back(pnode);
         }
     });
+    std::sort(availableNodes.begin(), availableNodes.end(), [](const CNode* a, const CNode* b) { return a->id < b->id; });
+    std::vector<CNode*> nodesToAskFor;
     {
+        LOCK(cs);
+        auto it = pendingInstantSendLocksByTxid.find(txid);
+        if (it != pendingInstantSendLocksByTxid.end()) {
+            auto& pending = pendingNoTxInstantSendLocks.at(it->second);
+            // Retry in bounded batches, rotating past peers that may no longer have the body.
+            pending.nextRequestTime = GetTime() + 30;
+            const auto start = std::upper_bound(availableNodes.begin(), availableNodes.end(), pending.lastRequestedPeer,
+                [](NodeId id, const CNode* node) { return id < node->id; }) - availableNodes.begin();
+            for (size_t i = 0; i < std::min<size_t>(4, availableNodes.size()); ++i) {
+                nodesToAskFor.emplace_back(availableNodes[(start + i) % availableNodes.size()]);
+            }
+            if (!nodesToAskFor.empty()) {
+                pending.lastRequestedPeer = nodesToAskFor.back()->id;
+            }
+        }
+    }
+    if (!nodesToAskFor.empty()) {
         LOCK(cs_main);
+        // A failed earlier download must not suppress or delay recovery of a locked TX.
+        g_connman->RemoveAskFor(txid);
         for (CNode* pnode : nodesToAskFor) {
             LogPrintf("CInstantSendManager::%s -- txid=%s: asking other peer %d for correct TX\n", __func__,
                       txid.ToString(), pnode->id);
 
             CInv inv(MSG_TX, txid);
-            pnode->AskFor(inv);
+            pnode->AskFor(inv, 0);
         }
     }
-    for (CNode* pnode : nodesToAskFor) {
+    for (CNode* pnode : availableNodes) {
         pnode->Release();
     }
 }
@@ -1492,7 +1640,8 @@ bool CInstantSendManager::AlreadyHave(const CInv& inv)
     }
 
     LOCK(cs);
-    return db.GetInstantSendLockByHash(inv.hash) != nullptr || pendingInstantSendLocks.count(inv.hash) != 0 || db.HasArchivedInstantSendLock(inv.hash);
+    return db.GetInstantSendLockByHash(inv.hash) != nullptr || pendingInstantSendLocks.count(inv.hash) != 0 ||
+           pendingNoTxInstantSendLocks.count(inv.hash) != 0 || db.HasArchivedInstantSendLock(inv.hash);
 }
 
 bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CInstantSendLock& ret)
@@ -1503,11 +1652,16 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CI
 
     LOCK(cs);
     auto islock = db.GetInstantSendLockByHash(hash);
-    if (!islock) {
-        return false;
+    if (islock) {
+        ret = *islock;
+        return true;
     }
-    ret = *islock;
-    return true;
+    auto it = pendingNoTxInstantSendLocks.find(hash);
+    if (it != pendingNoTxInstantSendLocks.end()) {
+        ret = it->second.islock;
+        return true;
+    }
+    return false;
 }
 
 bool CInstantSendManager::IsLocked(const uint256& txHash)
@@ -1520,12 +1674,22 @@ bool CInstantSendManager::IsLocked(const uint256& txHash)
     return db.GetInstantSendLockByTxid(txHash) != nullptr;
 }
 
+bool CInstantSendManager::IsWaitingForTx(const uint256& txHash)
+{
+    if (!IsNewInstantSendEnabled()) {
+        return false;
+    }
+
+    LOCK(cs);
+    return pendingInstantSendLocksByTxid.count(txHash) != 0;
+}
+
 bool CInstantSendManager::IsConflicted(const CTransaction& tx)
 {
     return GetConflictingLock(tx) != nullptr;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx_)
+CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx_, bool includePending)
 {
     if (!IsNewInstantSendEnabled()) {
         return nullptr;
@@ -1544,7 +1708,47 @@ CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& 
             return otherIsLock;
         }
     }
+    if (includePending) {
+        for (const auto& p : pendingNoTxInstantSendLocks) {
+            if (p.second.islock.txid == tx.GetHash()) {
+                continue;
+            }
+            for (const auto& in : tx.vin) {
+                if (std::find(p.second.islock.inputs.begin(), p.second.islock.inputs.end(), in.prevout) != p.second.islock.inputs.end()) {
+                    return std::make_shared<CInstantSendLock>(p.second.islock);
+                }
+            }
+        }
+    }
     return nullptr;
+}
+
+bool CInstantSendManager::AddPendingBlockConflict(const uint256& islockHash, const CBlockIndex* pindex)
+{
+    LOCK(cs);
+    auto it = pendingNoTxInstantSendLocks.find(islockHash);
+    if (it == pendingNoTxInstantSendLocks.end()) {
+        return false;
+    }
+    it->second.conflictingBlocks.emplace(pindex);
+    return true;
+}
+
+bool CInstantSendManager::IsBlockExcluded(const CBlockIndex* pindex)
+{
+    if (!IsNewInstantSendEnabled()) {
+        return false;
+    }
+    LOCK(cs);
+    for (const auto& p : pendingNoTxInstantSendLocks) {
+        for (const auto* conflict : p.second.conflictingBlocks) {
+            if (pindex->GetAncestor(conflict->nHeight) == conflict &&
+                !chainLocksHandler->HasChainLock(conflict->nHeight, conflict->GetBlockHash())) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 size_t CInstantSendManager::GetInstantSendLockCount()

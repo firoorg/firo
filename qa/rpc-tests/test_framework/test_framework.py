@@ -470,6 +470,9 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
 
         # send to same address to reserve some funds for fees
         self.nodes[0].sendtoaddress(address, 0.001)
+        # Without quorums, funding and registration transactions must age past the ten-minute safe-mining delay.
+        set_mocktime(get_mocktime() + 601)
+        set_node_times(self.nodes, get_mocktime())
 
         ownerAddr = self.nodes[0].getnewaddress()
         votingAddr = self.nodes[0].getnewaddress()
@@ -482,6 +485,8 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
         else:
             self.nodes[0].generate(1)
             proTxHash = self.nodes[0].protx('register', txid, collateral_vout, '127.0.0.1:%d' % port, ownerAddr, bls['public'], votingAddr, 0, rewardsAddr, address)
+        set_mocktime(get_mocktime() + 601)
+        set_node_times(self.nodes, get_mocktime())
         self.nodes[0].generate(1)
 
         self.mninfo.append(ZnodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout))

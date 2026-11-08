@@ -47,6 +47,7 @@ public:
 class CChainLocksHandler : public CRecoveredSigsListener
 {
     friend struct CChainLocksHandlerTestAccess;
+    friend struct CInstantSendManagerTestAccess;
 
     static const int64_t CLEANUP_INTERVAL = 1000 * 30;
     static const int64_t CLEANUP_SEEN_TIMEOUT = 24 * 60 * 60 * 1000;
