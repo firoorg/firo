@@ -1959,13 +1959,15 @@ bool PreflightSQLiteHeader(
 bool CheckAuxiliaryFiles(
     const fs::path& path,
     bool allow_regular_journal,
-    std::string& error)
+    std::string& error,
+    bool allow_empty_journal = false)
 {
 #ifdef WIN32
     auto inspect_auxiliary =
         [&](const fs::path& auxiliary_path,
             const char* description,
-            bool allow_existing) {
+            bool allow_existing,
+            bool allow_empty) {
             win32_wallet::File auxiliary;
             DatabaseFileIdentity identity;
             std::string detail;
@@ -1987,6 +1989,19 @@ bool CheckAuxiliaryFiles(
                 allow_existing) {
                 return true;
             }
+            if (result ==
+                    win32_wallet::OpenResult::OPENED &&
+                allow_empty) {
+                // See the POSIX branch for when this is safe.
+                win32_wallet::FileState state;
+                if (win32_wallet::GetFileState(
+                        auxiliary,
+                        state,
+                        detail) &&
+                    state.size == 0) {
+                    return true;
+                }
+            }
             error = strprintf(
                 "Refusing SQLite wallet '%s': its %s '%s' is not an allowed private, single-link, non-reparse regular file%s%s",
                 path.string(),
@@ -2000,13 +2015,15 @@ bool CheckAuxiliaryFiles(
     if (!inspect_auxiliary(
             fs::path(path).concat("-journal"),
             "rollback journal",
-            allow_regular_journal)) {
+            allow_regular_journal,
+            allow_empty_journal)) {
         return false;
     }
     for (const char* suffix : {"-wal", "-shm"}) {
         if (!inspect_auxiliary(
                 fs::path(path).concat(suffix),
                 suffix,
+                false,
                 false)) {
             return false;
         }
@@ -2019,7 +2036,7 @@ bool CheckAuxiliaryFiles(
         return false;
     }
     if (journal_status.type() != fs::file_not_found &&
-        (!allow_regular_journal || journal_status.type() != fs::regular_file)) {
+        journal_status.type() != fs::regular_file) {
         error = strprintf(
             "Refusing SQLite wallet '%s': its rollback journal is not an allowed regular file.",
             path.string());
@@ -2047,6 +2064,19 @@ bool CheckAuxiliaryFiles(
             return false;
         }
 #endif
+        // Exclusive locking with journal_size_limit=0 truncates the journal
+        // to zero bytes at each commit and deletes it only on a clean close,
+        // so an unclean exit leaves an empty journal behind. SQLite never
+        // replays an empty journal, but a live connection also holds one, so
+        // only callers that exclude a live owner (recovery of a wallet this
+        // process has claimed) may treat it as absent.
+        if (!allow_regular_journal &&
+            !(allow_empty_journal && journal_metadata.st_size == 0)) {
+            error = strprintf(
+                "Refusing SQLite wallet '%s': its rollback journal is not an allowed regular file.",
+                path.string());
+            return false;
+        }
     }
 #endif
 
@@ -7471,7 +7501,8 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                 !CheckAuxiliaryFiles(
                     path,
                     false,
-                    verification_error) ||
+                    verification_error,
+                    path == source_path) ||
                 !OpenSQLiteConnection(
                     path,
                     verification_database,
@@ -7535,7 +7566,8 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                    CheckAuxiliaryFiles(
                        path,
                        false,
-                       verification_error);
+                       verification_error,
+                       path == source_path);
         };
 
     try {
@@ -7662,7 +7694,8 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             !CheckAuxiliaryFiles(
                 source_path,
                 false,
-                error) ||
+                error,
+                true) ||
             !CheckAuxiliaryFiles(
                 replacement.path,
                 false,
@@ -7777,7 +7810,8 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             !CheckAuxiliaryFiles(
                 source_path,
                 false,
-                error) ||
+                error,
+                true) ||
             !CheckAuxiliaryFiles(
                 replacement.path,
                 false,

@@ -10767,6 +10767,83 @@ BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
     }
 }
 
+#if defined(USE_SQLITE) && \
+    (defined(WIN32) || (defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__))
+// Create an empty owner-private journal like the one SQLite leaves after an unclean exit.
+void CreateEmptyPrivateTestJournal(const fs::path& path)
+{
+#ifdef WIN32
+    {
+        win32_wallet::File file;
+        DatabaseFileIdentity identity;
+        std::string error;
+        BOOST_REQUIRE_MESSAGE(win32_wallet::CreatePrivateFile(path, false, file, identity, error) == win32_wallet::CreateResult::CREATED, error);
+    }
+#else
+    const int fd = open(path.string().c_str(), O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, S_IRUSR | S_IWUSR);
+    BOOST_REQUIRE(fd >= 0 && close(fd) == 0);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_empty_journal_allows_recovery_only)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+    constexpr int64_t RECOVERY_TIME = 1900000800;
+    SetMockTime(RECOVERY_TIME);
+    const std::string filename{"sqlite_empty_journal.dat"};
+    const std::string backupFilename = strprintf("wallet.%d.bak", RECOVERY_TIME);
+    const fs::path path = GetDataDir() / filename;
+    const fs::path journal(path.string() + "-journal");
+    const auto cleanup = [&] {
+        for (const std::string& name : {filename, backupFilename}) {
+            RemoveSQLiteTestFiles(name);
+            RemoveSQLiteTestCandidates(name);
+        }
+    };
+    cleanup();
+
+    // Recovery of a corrupted wallet ignores the empty journal left by a crash.
+    std::vector<RawRecord> records;
+    for (uint32_t i = 0; i < 64; ++i) {
+        records.emplace_back(SerializeToString(std::make_pair(std::string("row"), i)), SerializeToString(std::string(96, static_cast<char>('A' + (i % 26)))));
+    }
+    std::sort(records.begin(), records.end());
+    DatabaseStatus status = DatabaseStatus::FAILED_LOAD;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(CreateSQLiteTestDatabaseFromRawRecords(filename, records, status, error), error);
+    BOOST_REQUIRE(CorruptSQLitePrimaryKeyIndex(path));
+    CreateEmptyPrivateTestJournal(journal);
+    DatabaseOptions options;
+    options.require_existing = true;
+    options.require_format = DatabaseFormat::SQLITE;
+    options.recover = true;
+    std::unique_ptr<WalletDatabase> database = MakeSQLiteDatabase(filename, options, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_CHECK(status == DatabaseStatus::SUCCESS_RECOVERED);
+    std::unique_ptr<DatabaseBatch> batch = database->MakeBatch({DatabaseBatchMode::READ_ONLY});
+    BOOST_REQUIRE(batch);
+    std::vector<RawRecord> recovered = ReadRawRecords(*batch);
+    std::sort(recovered.begin(), recovered.end());
+    BOOST_CHECK(recovered == records);
+    batch.reset();
+    database.reset();
+    cleanup();
+
+    // Elsewhere an empty journal may belong to a live connection, so creating
+    // a wallet next to one is still refused.
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format = DatabaseFormat::SQLITE;
+    CreateEmptyPrivateTestJournal(journal);
+    BOOST_CHECK(!MakeSQLiteDatabase(filename, createOptions, status, error));
+    BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_PATH);
+    BOOST_CHECK(!fs::exists(path));
+    cleanup();
+}
+#endif
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_FIXTURE_TEST_CASE(
