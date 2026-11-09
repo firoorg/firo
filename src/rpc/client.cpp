@@ -184,6 +184,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "spendallzerocoin", 0, {} },
     { "remintzerocointosigma", 0, {} },
     { "getsparkmintmetadata", 0, {} },
+    { "getmempoolsparktxs", 0, {} },
     { "getmempooltxs", 0, {} },
 
     // Spark
@@ -202,6 +203,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "modifysparkassetmetadata", 0, {} },
     { "modifysparkassetdescription", 0, {} },
     { "sparkassettransfer", 0, {} },
+    { "setsparkmintstatus", 1, {} },
 
     // Spark names
     { "registersparkname", 2, {} },

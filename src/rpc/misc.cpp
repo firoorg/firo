@@ -501,9 +501,9 @@ UniValue verifymessagewithsparkaddress(const JSONRPCRequest& request)
             "\nResult:\n"
             "true|false   (boolean) Whether the signature is valid for the given address and message.\n"
             "\nExamples:\n"
-            + HelpExampleCli("verifymessagewithsparkaddress", "\"sm1...\" \"signature\" \"my message\"") +
+            + HelpExampleCli("verifymessagewithsparkaddress", "\"sr1...\" \"signature\" \"my message\"") +
             "\nAs json rpc\n"
-            + HelpExampleRpc("verifymessagewithsparkaddress", "\"sm1...\", \"signature\", \"my message\"")
+            + HelpExampleRpc("verifymessagewithsparkaddress", "\"sr1...\", \"signature\", \"my message\"")
         );
 
     std::string strAddress  = request.params[0].get_str();
@@ -1081,18 +1081,23 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
-                "getsparkanonymityset\n"
-                "\nReturns the anonymity set and latest block hash.\n"
+                "getsparkanonymityset \"coingroupid\" \"startblockhash\"\n"
+                "\nReturn Spark coins added to one anonymity set since startblockhash.\n"
+                "Pass an empty startblockhash to return the whole set. Requires -mobile.\n"
+                "Hashes in the result are base64.\n"
                 "\nArguments:\n"
-                "{\n"
-                "      \"coinGroupId\"  (int)\n"
-                "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
-                "}\n"
+                "1. \"coingroupid\"       (string, required) Coin group id, as a decimal string\n"
+                "2. \"startblockhash\"    (string, required) Block hash to start after. Empty returns the full set.\n"
                 "\nResult:\n"
                 "{\n"
-                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                "  \"setHash\"   (string) Anonymity set hash\n"
-                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
+                "  \"blockHash\": \"xxx\",  (string) Latest block hash, base64\n"
+                "  \"setHash\": \"xxx\",    (string) Anonymity set hash, base64\n"
+                "  \"coins\": [           (array)\n"
+                "    [                  (array) Serialized coin, transaction hash, and serial context, each base64\n"
+                "      \"coin\", \"txid\", \"serialcontext\"\n"
+                "    ],\n"
+                "    ...\n"
+                "  ]\n"
                 "}\n"
                 + HelpExampleCli("getsparkanonymityset", "\"1\" " "\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"")
                 + HelpExampleRpc("getsparkanonymityset", "\"1\" " "\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"")
@@ -1158,17 +1163,16 @@ UniValue getsparkanonymitysetmeta(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getsparkanonymitysetmeta\n"
-                "\nReturns the anonymity set and latest block hash.\n"
+                "getsparkanonymitysetmeta \"coingroupid\"\n"
+                "\nReturn the size and hashes of one Spark anonymity set. Requires -mobile.\n"
+                "Hashes in the result are base64.\n"
                 "\nArguments:\n"
-                "{\n"
-                "      \"coinGroupId\"  (int)\n"
-                "}\n"
+                "1. \"coingroupid\"       (string, required) Coin group id, as a decimal string\n"
                 "\nResult:\n"
                 "{\n"
-                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                "  \"setHash\"   (string) Anonymity set hash\n"
-                "  \"size\" (int) set size\n"
+                "  \"blockHash\": \"xxx\",  (string) Latest block hash, base64\n"
+                "  \"setHash\": \"xxx\",    (string) Anonymity set hash, base64\n"
+                "  \"size\": n            (numeric) Number of coins in the set\n"
                 "}\n"
                 + HelpExampleCli("getsparkanonymitysetmeta", "\"1\" ")
                 + HelpExampleRpc("getsparkanonymitysetmeta", "\"1\" ")
@@ -1213,18 +1217,22 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 4)
         throw std::runtime_error(
-                "getsparkanonymitysetsector\n"
-                "\nReturns the anonymity sector based on provided data.\n"
+                "getsparkanonymitysetsector \"coingroupid\" \"blockhash\" \"start\" \"end\"\n"
+                "\nReturn one index range of a Spark anonymity set. Requires -mobile.\n"
+                "blockhash is the base64 block hash from getsparkanonymityset or getsparkanonymitysetmeta.\n"
                 "\nArguments:\n"
-                "{\n"
-                "      \"coinGroupId\"  (int)\n"
-                "      \"latestBlock\"    (string) it should be encoded in base64 format\n"
-                "      \"startIndex\"  (int)\n"
-                "      \"endIndex\"    (int)\n"
-                "}\n"
+                "1. \"coingroupid\"       (string, required) Coin group id, as a decimal string\n"
+                "2. \"blockhash\"         (string, required) Base64 block hash the set was read at\n"
+                "3. \"start\"             (string, required) First coin index, as a decimal string\n"
+                "4. \"end\"               (string, required) Last coin index, as a decimal string\n"
                 "\nResult:\n"
                 "{\n"
-                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
+                "  \"coins\": [           (array)\n"
+                "    [                  (array) Serialized coin, transaction hash, and serial context, each base64\n"
+                "      \"coin\", \"txid\", \"serialcontext\"\n"
+                "    ],\n"
+                "    ...\n"
+                "  ]\n"
                 "}\n"
                 + HelpExampleCli("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
                 + HelpExampleRpc("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
@@ -1302,20 +1310,24 @@ UniValue getsparkmintmetadata(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getmintmetadata\n"
-                "\nReturns the anonymity set id and nHeight of mint.\n"
+                "getsparkmintmetadata {\"coinHashes\":[\"hex\",...]}\n"
+                "\nReturn the block height and anonymity-set id of Spark mint coin hashes.\n"
+                "Unknown hashes are omitted.\n"
                 "\nArguments:\n"
-                "  \"coinHashes\"\n"
-                "    [\n"
-                "      {\n"
-                "        \"coinHash\" (string) The hash of the spark mint\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
+                "1. request                 (object, required)\n"
+                "   {\n"
+                "     \"coinHashes\": [        (array of strings, required) Hex coin hashes\n"
+                "       \"hex\",\n"
+                "       ...\n"
+                "     ]\n"
+                "   }\n"
                 "\nResult:\n"
-                "{\n"
-                "  \"metadata\"   (Pair<string,int>) nHeight and id for each coin\n"
-                "}\n"
+                "[                          (array) One object per known coin\n"
+                "  {\n"
+                "    \"height\": id           (numeric) The field name is the mint height. The value is the coin id.\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
                 + HelpExampleCli("getsparkmintmetadata", "'{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
                 + HelpExampleRpc("getsparkmintmetadata", "{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
 
@@ -1353,15 +1365,17 @@ UniValue getusedcoinstags(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getusedcoinstags\n"
-                "\nReturns the set of used coin tags.\n"
+                "getusedcoinstags \"skip\"\n"
+                "\nReturn used Spark link tags, omitting the last skip tags.\n"
+                "Pass \"0\" to return every tag. Each tag is base64.\n"
                 "\nArguments:\n"
-                "{\n"
-                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
-                "}\n"
+                "1. \"skip\"                (string, required) How many tags at the end to omit, as a decimal string\n"
                 "\nResult:\n"
                 "{\n"
-                "  \"tags\" (std::string[]) array of Serialized GroupElements\n"
+                "  \"tags\": [              (array) Base64-encoded link tags\n"
+                "    \"tag\",\n"
+                "    ...\n"
+                "  ]\n"
                 "}\n"
         );
 
@@ -1399,15 +1413,19 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getusedcoinstagstxhashes\n"
-                "\nReturns the set of used coin tags paired with tx ids in which it was spent, this rpc required -mobile argument, \n"
+                "getusedcoinstagstxhashes \"skip\"\n"
+                "\nReturn used Spark link tags and the transaction that published each one.\n"
+                "The first skip tags are omitted. Pass \"0\" to return every tag. Requires -mobile.\n"
                 "\nArguments:\n"
-                "{\n"
-                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
-                "}\n"
+                "1. \"skip\"                (string, required) How many tags at the start to omit, as a decimal string\n"
                 "\nResult:\n"
                 "{\n"
-                "  \"tags\" (std::string[]) array of Serialized GroupElements paired with unit256 (tx ids) \n"
+                "  \"tagsandtxids\": [      (array)\n"
+                "    [                    (array) Base64 link tag, then base64 transaction id\n"
+                "      \"tag\", \"txid\"\n"
+                "    ],\n"
+                "    ...\n"
+                "  ]\n"
                 "}\n"
         );
 
@@ -1467,17 +1485,13 @@ UniValue getsparklatestcoinid(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "getlatestcoinid\n"
-                "\nReturns the last coin group ID for Spark.\n"
+                "getsparklatestcoinid\n"
+                "\nReturn the newest Spark coin group id.\n"
                 "\nResult:\n"
-                "{\n"
-                "  [\n"
-                "      {\n"
-                "        \"coinGroupId\" (int) The latest group id\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
-                "}\n"
+                "n                          (numeric) Latest coin group id\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getsparklatestcoinid", "")
+                + HelpExampleRpc("getsparklatestcoinid", "")
         );
 
     spark::CSparkState* sparkState =  spark::CSparkState::GetState();
@@ -1495,7 +1509,16 @@ UniValue getmempoolsparktxids(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "getmempoolsparktxids\n"
-                "\nReturns spark transaction ids existing in the mempool.\n"
+                "\nReturn the ids of Spark transactions currently in the mempool.\n"
+                "Each id is base64, not hex.\n"
+                "\nResult:\n"
+                "[                          (array)\n"
+                "  \"txid\",                  (string) Base64 transaction id\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getmempoolsparktxids", "")
+                + HelpExampleRpc("getmempoolsparktxids", "")
         );
 
     UniValue result(UniValue::VARR);
@@ -1513,21 +1536,32 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getmempoolsparktxs\n"
-                "\nReturns spark metadata for each transaction id, in case tx already was removed from mempool, nothing will be returned for specific id.\n"
+                "getmempoolsparktxs {\"txids\":[\"hex\",...]}\n"
+                "\nReturn mempool metadata for Spark transactions.\n"
+                "A transaction that is missing or is not a Spark transaction is omitted.\n"
+                "The result is keyed by the base64 transaction id. The link-tag field name includes a trailing space.\n"
                 "\nArguments:\n"
-                "  \"txids\"\n"
-                "    [\n"
-                "      {\n"
-                "        \"txid\" (string) The transaction hash\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
+                "1. request                 (object, required)\n"
+                "   {\n"
+                "     \"txids\": [             (array of strings, required) Hex transaction ids\n"
+                "       \"hex\",\n"
+                "       ...\n"
+                "     ]\n"
+                "   }\n"
                 "\nResult:\n"
-                "txid , {\n"
-                "  \"lTags\"   Array of GroupElements, or a string 'MintTX' in case it is mint tx\n"
-                "  \"serial_context\"   byte array which is used to identify the output spark coins, it is unique for each ix\n"
-                "  \"coins\" Array of serialized spar::Coin elements, the output coins of the tx\n"
+                "{\n"
+                "  \"txid\": {                (object) Key is the base64 transaction id\n"
+                "    \"lTags \": [            (array) Base64 link tags, or one string \"MintTX\" for a mint\n"
+                "      \"tag\"\n"
+                "    ],\n"
+                "    \"serial_context\": [    (array) One base64 serial context\n"
+                "      \"context\"\n"
+                "    ],\n"
+                "    \"coins\": [             (array) Base64 serialized output coins\n"
+                "      \"coin\"\n"
+                "    ],\n"
+                "    \"isLocked\": true|false (boolean) InstantSend lock\n"
+                "  }\n"
                 "}\n"
                 + HelpExampleCli("getmempoolsparktxs", "'{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
                 + HelpExampleRpc("getmempoolsparktxs", "{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")

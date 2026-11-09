@@ -1504,11 +1504,11 @@ UniValue signmessagewithsparkaddress(const JSONRPCRequest& request)
             "\nUnlock the wallet for 30 seconds\n"
             + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
             "\nCreate the signature\n"
-            + HelpExampleCli("signmessagewithsparkaddress", "\"sm1...\" \"my message\"") +
+            + HelpExampleCli("signmessagewithsparkaddress", "\"sr1...\" \"my message\"") +
             "\nVerify the signature\n"
-            + HelpExampleCli("verifymessagewithsparkaddress", "\"sm1...\" \"signature\" \"my message\"") +
+            + HelpExampleCli("verifymessagewithsparkaddress", "\"sr1...\" \"signature\" \"my message\"") +
             "\nAs json rpc\n"
-            + HelpExampleRpc("signmessagewithsparkaddress", "\"sm1...\", \"my message\"")
+            + HelpExampleRpc("signmessagewithsparkaddress", "\"sr1...\", \"my message\"")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -3975,10 +3975,26 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 0) {
         throw std::runtime_error(
-                "listunspentsparkmints \n"
-                "Returns array of unspent mint coins, only spark base assets\n"
-                "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, memo, scriptPubKey, amount, coin}");
+                "listunspentsparkmints\n"
+                "\nList this wallet's unspent private FIRO coins.\n"
+                "The wallet must be unlocked. Spark asset coins are not included;\n"
+                "use listunspentspatsmints for those.\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"hex\",          (string) Mint transaction id\n"
+                "    \"nHeight\": n,            (numeric) Block height of the confirmed coin\n"
+                "    \"memo\": \"text\",          (string)\n"
+                "    \"scriptPubKey\": \"hex\",   (string)\n"
+                "    \"amount\": n,             (numeric) FIRO amount\n"
+                "    \"coin\": \"hex\"            (string) Coin hash\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("listunspentsparkmints", "")
+                + HelpExampleRpc("listunspentsparkmints", "")
+        );
     }
 
     if (pwallet->IsLocked()) {
@@ -4001,13 +4017,36 @@ UniValue listunspentspatsmints(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 2) {
         throw std::runtime_error(
-                "listunspentspatsmints \n"
+                "listunspentspatsmints a iota\n"
+                "\nList this wallet's unspent private coins of one registered Spark asset.\n"
+                "The wallet must be unlocked. Mint those coins with mintspats.\n"
+                "Spend them with spendspark, passing the same a and iota. There is no separate SPATS spend call.\n"
+                "a is assetType and iota is identifier from listsparkassets.\n"
+                "iota is 0 for a fungible asset and the NFT identifier otherwise.\n"
+                "amount is the raw coin value shown with 8 decimal places, not the\n"
+                "asset's display precision. listsparkassets shows the display balance.\n"
                 "\nArguments:\n"
-                "1. a       (numeric) .\n"
-                "2. iota    (numeric) .\n"
-                "Returns array of unspent mint coins, of the asset indicated by the given asset type and identifier\n"
-                "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, memo, scriptPubKey, amount, coin}");
+                "1. a                   (numeric, required) Asset type\n"
+                "2. iota                (numeric, required) Asset identifier\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"hex\",          (string) Mint transaction id\n"
+                "    \"nHeight\": n,            (numeric) Block height of the confirmed coin\n"
+                "    \"memo\": \"text\",          (string)\n"
+                "    \"scriptPubKey\": \"hex\",   (string)\n"
+                "    \"amount\": n,             (numeric) Raw value with 8 decimal places\n"
+                "    \"coin\": \"hex\"            (string) Coin hash\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                "\nList unspent coins of asset type 1, fungible identifier 0:\n"
+                + HelpExampleCli("listunspentspatsmints", "1 0")
+                + HelpExampleRpc("listunspentspatsmints", "1, 0")
+                + "\nSpend 0.50 display units of that same asset with spendspark:\n"
+                + HelpExampleCli("spendspark", "'{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":\"0.50\",\"a\":1,\"iota\":0}}'")
+        );
     }
 
     if (pwallet->IsLocked()) {
@@ -4035,10 +4074,31 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
-                "listsparkmints \n"
-                "Returns array of mint coins\n"
-                "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, nId, isUsed, lTagHash, memo, scriptPubKey, amount}");
+                "listsparkmints\n"
+                "\nList every private coin in this wallet, including spent coins and Spark assets.\n"
+                "The wallet must be unlocked. a and iota are hex scalars; both zero means FIRO.\n"
+                "amount is shown with 8 decimal places. For a Spark asset that is the raw\n"
+                "value, not the asset's display precision.\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"hex\",          (string)\n"
+                "    \"nHeight\": n,            (numeric) Block height, -1 if unconfirmed\n"
+                "    \"nId\": n,                (numeric) Coin id in its anonymity set\n"
+                "    \"isUsed\": true|false,    (boolean)\n"
+                "    \"lTagHash\": \"hex\",       (string) Key for setsparkmintstatus\n"
+                "    \"memo\": \"text\",          (string)\n"
+                "    \"a\": \"hex\",              (string) Asset type scalar\n"
+                "    \"iota\": \"hex\",           (string) Asset identifier scalar\n"
+                "    \"scriptPubKey\": \"hex\",   (string)\n"
+                "    \"amount\": n              (numeric) Value with 8 decimal places\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("listsparkmints", "")
+                + HelpExampleRpc("listsparkmints", "")
+        );
     }
 
     if (pwallet->IsLocked()) {
@@ -4098,9 +4158,16 @@ UniValue getsparkdefaultaddress(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
-                "getsparkdefaultaddress \n"
-                "Returns first spark address in encoded form\n"
-                "Result is a string object.");
+                "getsparkdefaultaddress\n"
+                "\nReturn this wallet's default Spark address.\n"
+                "\nResult:\n"
+                "[                   (array) One element\n"
+                "  \"address\"         (string) Encoded Spark address\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getsparkdefaultaddress", "")
+                + HelpExampleRpc("getsparkdefaultaddress", "")
+        );
     }
 
     EnsureSparkWalletIsAvailable();
@@ -4122,9 +4189,16 @@ UniValue getnewsparkaddress(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
-                "getnewsparkaddress \n"
-                "Returns new spark address in encoded form\n"
-                "Result is a string object.");
+                "getnewsparkaddress\n"
+                "\nGenerate a new Spark address and store it as a receive address.\n"
+                "\nResult:\n"
+                "[                   (array) One element\n"
+                "  \"address\"         (string) Encoded Spark address\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getnewsparkaddress", "")
+                + HelpExampleRpc("getnewsparkaddress", "")
+        );
     }
 
     EnsureSparkWalletIsAvailable();
@@ -4149,10 +4223,17 @@ UniValue getallsparkaddresses(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
-                "getallsparkaddresses \n"
-                "Returns array  spark address in encoded form\n"
-                "Results are an array of Objects, each of which has:\n"
-                "{diversifier and address}");
+                "getallsparkaddresses\n"
+                "\nReturn every Spark address in this wallet.\n"
+                "\nResult:\n"
+                "{                         (object) Diversifier index mapped to its address\n"
+                "  \"index\": \"address\",    (string) Encoded Spark address\n"
+                "  ...\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getallsparkaddresses", "")
+                + HelpExampleRpc("getallsparkaddresses", "")
+        );
     }
 
     EnsureSparkWalletIsAvailable();
@@ -4178,10 +4259,22 @@ UniValue listsparkspends(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
-                "listsparkspends \n"
-                "Returns array  spark spends\n"
-                "Results are an array of Objects, each of which has:\n"
-                "{txid, lTagHash, lTag and amount}");
+                "listsparkspends\n"
+                "\nList Spark spend records stored by this wallet.\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"hex\",       (string) Spend transaction id\n"
+                "    \"lTagHash\": \"hex\",   (string)\n"
+                "    \"lTag\": \"hex\",       (string) Link tag\n"
+                "    \"amount\": n          (numeric) Raw coin value. FIRO is in the smallest unit; a Spark asset is the raw amount, not the display amount\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("listsparkspends", "")
+                + HelpExampleRpc("listsparkspends", "")
+        );
     }
 
     EnsureSparkWalletIsAvailable();
@@ -4209,10 +4302,20 @@ UniValue getsparkbalance(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
-                "getsparkbalance \n"
-                "Returns spark balance\n"
-                "Results are an array three Objects:\n"
-                "{availableBalance, unconfirmedBalance, and fullBalance}");
+                "getsparkbalance\n"
+                "\nReturn this wallet's private FIRO balance.\n"
+                "Amounts are integers in the smallest FIRO unit. Spark assets are not included;\n"
+                "use listsparkassets for those balances.\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"availableBalance\": n,     (numeric) Confirmed balance that can be spent\n"
+                "  \"unconfirmedBalance\": n,   (numeric) Balance from unconfirmed coins\n"
+                "  \"fullBalance\": n           (numeric) availableBalance plus unconfirmedBalance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getsparkbalance", "")
+                + HelpExampleRpc("getsparkbalance", "")
+        );
     }
 
     EnsureSparkWalletIsAvailable();
@@ -4234,10 +4337,21 @@ UniValue getsparkaddressbalance(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
-                "getsparkaddressbalance \n"
-                "Returns spark address balance\n"
-                "Results are an array three Objects:\n"
-                "{availableBalance, unconfirmedBalance, and fullBalance}");
+                "getsparkaddressbalance \"address\"\n"
+                "\nReturn the private FIRO balance of one Spark address in this wallet.\n"
+                "Amounts are integers in the smallest FIRO unit.\n"
+                "\nArguments:\n"
+                "1. \"address\"                 (string, required) Spark address\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"availableBalance: \": n,   (numeric) Confirmed balance that can be spent\n"
+                "  \"unconfirmedBalance: \": n, (numeric) Balance from unconfirmed coins\n"
+                "  \"fullBalance: \": n         (numeric) availableBalance plus unconfirmedBalance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getsparkaddressbalance", "\"sr1...\"")
+                + HelpExampleRpc("getsparkaddressbalance", "\"sr1...\"")
+        );
     }
 
     EnsureSparkWalletIsAvailable();
@@ -4274,9 +4388,16 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "resetsparkmints"
-                + HelpRequiringPassphrase(pwallet) + "\nResets all your Spark mints' status to unsued and unconfirmed. To make it valid again, you have to rescan or reindex.\n"
-                                                     "WARNING: Run this only for testing and if you fully understand what it does.\n");
+                "resetsparkmints\n"
+                "\nMark every Spark mint in this wallet unused and unconfirmed.\n"
+                "Rescan or reindex afterward so the wallet reads their real status again.\n"
+                "Run this only for testing, and only if you understand what it does.\n"
+                "\nResult:\n"
+                "null\n"
+                "\nExamples:\n"
+                + HelpExampleCli("resetsparkmints", "")
+                + HelpExampleRpc("resetsparkmints", "")
+        );
 
     EnsureSparkWalletIsAvailable();
 
@@ -4301,8 +4422,19 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
-                "setsparkmintstatus \"lTagHash\" <isused>(true/false)\n"
-                "Set mintIsUsed status to True or False");
+                "setsparkmintstatus \"lTagHash\" isused\n"
+                + HelpRequiringPassphrase(pwallet) + "\n"
+                "\nMark one Spark mint used or unused.\n"
+                "lTagHash comes from listsparkmints. Unknown hashes are ignored.\n"
+                "\nArguments:\n"
+                "1. \"lTagHash\"        (string, required) Mint link-tag hash\n"
+                "2. isused            (boolean, required) true marks the mint used\n"
+                "\nResult:\n"
+                "null\n"
+                "\nExamples:\n"
+                + HelpExampleCli("setsparkmintstatus", "\"hash\" true")
+                + HelpExampleRpc("setsparkmintstatus", "\"hash\", true")
+        );
 
     EnsureSparkWalletIsAvailable();
 
@@ -4467,7 +4599,10 @@ UniValue mintspats(const JSONRPCRequest& request)
         throw std::runtime_error(
             "mintspats \"address\" {\"amount\":amount, \"a\":n, \"iota\":n, \"memo\":\"memo\"}\n"
             + HelpRequiringPassphrase(pwallet) +
-            "\nCreate one Spark asset mint. This wallet must control the asset's registered admin.\n"
+            "\nCreate one private coin of a registered Spark asset. This wallet must control the asset's admin.\n"
+            "Spend it with spendspark, using the same a and iota. There is no separate SPATS spend call.\n"
+            "amount uses the asset precision from listsparkassets. listunspentspatsmints shows\n"
+            "that same coin as a raw value with 8 decimal places.\n"
             "A Spark admin authorizes the mint with a Spark spend. A transparent admin authorizes\n"
             "it by spending one transparent output of that admin address.\n"
             "\nArguments:\n"
@@ -4558,7 +4693,8 @@ UniValue createsparkasset(const JSONRPCRequest& request) {
         throw std::runtime_error(
             "createsparkasset"
             + HelpRequiringPassphrase(pwallet) + "\n"
-            "\nRegister a Spark asset.\n"
+            "\nRegister a Spark asset. This does not mint coins.\n"
+            "Mint with mintspats. Spend with spendspark, using assetType and identifier from listsparkassets.\n"
             "\nArguments:\n"
             "1. asset                 (object, required)\n"
             "   {\n"
@@ -4575,8 +4711,12 @@ UniValue createsparkasset(const JSONRPCRequest& request) {
             "\nResult:\n"
             "\"txid\"                      (string) transaction id\n"
             "\nExamples:\n"
-            + HelpExampleCli("createsparkasset", "'{\"symbol\":\"FIROX\",\"name\":\"Example\",\"maxSupply\":1000000}'")
-            + HelpExampleRpc("createsparkasset", "{\"symbol\":\"FIROX\",\"name\":\"Example\",\"maxSupply\":1000000}")
+            "\nRegister a fungible asset. maxSupply is raw units: precision 2 makes 1000000 equal 10000.00.\n"
+            + HelpExampleCli("createsparkasset", "'{\"symbol\":\"FIROX\",\"name\":\"Example\",\"maxSupply\":1000000,\"adminAddress\":\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\",\"description\":\"Example asset\",\"metadata\":\"{}\",\"precision\":2}'")
+            + HelpExampleRpc("createsparkasset", "{\"symbol\":\"FIROX\",\"name\":\"Example\",\"maxSupply\":1000000,\"adminAddress\":\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\",\"description\":\"Example asset\",\"metadata\":\"{}\",\"precision\":2}")
+            + "\nRegister an NFT. identifier must be greater than 0.\n"
+            + HelpExampleCli("createsparkasset", "'{\"symbol\":\"ART\",\"name\":\"Example item\",\"maxSupply\":1,\"adminAddress\":\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\",\"description\":\"One item\",\"metadata\":\"{}\",\"precision\":0,\"isNFT\":true,\"identifier\":7}'")
+            + HelpExampleRpc("createsparkasset", "{\"symbol\":\"ART\",\"name\":\"Example item\",\"maxSupply\":1,\"adminAddress\":\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\",\"description\":\"One item\",\"metadata\":\"{}\",\"precision\":0,\"isNFT\":true,\"identifier\":7}")
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
@@ -5234,6 +5374,7 @@ UniValue listsparkassets(const JSONRPCRequest& request)
             "\nList every registered Spark asset.\n"
             "Amounts use the asset precision. maxSupply \"0\" means there is no cap.\n"
             "assetType and identifier are the numbers for mintspats, spendspark, and listunspentspatsmints.\n"
+            "listunspentspatsmints shows those coins as raw values instead.\n"
             "balance is this wallet's spendable amount. isAdmin is true when this wallet controls the admin address.\n"
             "\nResult:\n"
             "[\n"
@@ -5324,7 +5465,17 @@ UniValue automintspark(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "automintspark\n"
-                "This function automatically mints all unspent transparent funds to Spark.\n"
+                + HelpRequiringPassphrase(pwallet) + "\n"
+                "\nMint the spendable transparent balance to this wallet's default Spark address.\n"
+                "The fee is taken from that amount. A large balance can produce more than one transaction.\n"
+                "\nResult:\n"
+                "[                   (array) One transaction id for each mint transaction\n"
+                "  \"txid\",           (string)\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("automintspark", "")
+                + HelpExampleRpc("automintspark", "")
         );
 
     EnsureWalletIsUnlocked(pwallet);
@@ -5360,25 +5511,39 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "spendspark {\"address\":{...},...}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
-                                                     "\nArguments:\n"
-                                                     "1. recipients              (string, required) A json object with addresses and amounts\n"
-                                                     "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool, required for FIRO outputs), a (numeric), iota (numeric) The Spark address is the key. An asset amount uses that asset's precision. a and iota come from listsparkassets. subtractFee is not used for an asset output.\n"
-                                                     "  \"burn\": [amount, a, iota]  (array, optional) Burn a fungible asset. amount uses the asset precision. iota is 0.\n"
-                                                     "  ,...\n"
-                                                     " }\n"
-                                                     "\nResult:\n"
-                                                     "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                                                     "                                    the number of addresses.\n"
-                                                     "\nExamples:\n"
-                                                     "\nSend an amount to transparent address:\n"
-                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nSend an amount to a transparent address and two different private addresses:\n"
-                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}, \\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
-                 + HelpExampleRpc("spendspark", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false},\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\":{\"amount\":0.01, \"subtractFee\": true}, \"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"\", \"subtractFee\": false},\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
+                "\nSpend private coins in one transaction.\n"
+                "Each key is a transparent address, a Spark address, or @sparkname.\n"
+                "Omit a and iota to spend FIRO. Mint a Spark asset with mintspats, then spend it here\n"
+                "by setting a and iota from listsparkassets.\n"
+                "An asset amount uses that asset's precision. subtractFee is required on a FIRO output\n"
+                "and is rejected on an asset output, because the fee is paid in FIRO.\n"
+                "\nArguments:\n"
+                "1. recipients                  (object, required)\n"
+                "   {\n"
+                "     \"address\": {\n"
+                "       \"amount\": n,          (numeric or string, required)\n"
+                "       \"subtractFee\": bool,  (boolean, required for FIRO)\n"
+                "       \"memo\": \"text\",       (string, optional) Spark outputs only\n"
+                "       \"a\": n,               (numeric, optional) Asset type. Omit for FIRO.\n"
+                "       \"iota\": n             (numeric, optional) 0 for a fungible asset, otherwise the NFT identifier\n"
+                "     },\n"
+                "     \"burn\": [amount, a, iota] (array, optional) Burn a fungible asset. iota is 0.\n"
+                "   }\n"
+                "\nResult:\n"
+                "\"txid\"                       (string) One transaction is created\n"
+                "\nExamples:\n"
+                "\nSend FIRO to a transparent address:\n"
+                + HelpExampleCli("spendspark", "'{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01,\"subtractFee\":false}}'") +
+                "\nSend FIRO to a transparent address and two Spark addresses:\n"
+                + HelpExampleCli("spendspark", "'{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01,\"subtractFee\":false},\"sr1...\":{\"amount\":0.01,\"memo\":\"test_memo\",\"subtractFee\":false}}'") +
+                "\nSend 0.50 units of asset type 1:\n"
+                + HelpExampleCli("spendspark", "'{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":\"0.50\",\"a\":1,\"iota\":0,\"memo\":\"pay\"}}'") +
+                "\nBurn 0.25 units of asset type 1:\n"
+                + HelpExampleCli("spendspark", "'{\"burn\":[\"0.25\",1,0]}'") +
+                "\nAs a JSON-RPC call:\n"
+                + HelpExampleRpc("spendspark", "{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01,\"subtractFee\":false}}")
         );
 
     EnsureWalletIsUnlocked(pwallet);
@@ -5561,26 +5726,29 @@ UniValue spendsparksplit(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendsparksplit {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "spendsparksplit {\"address\":{...},...}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
-                                                     "Temporary helper that splits a Spark payment across multiple single-input\n"
-                                                     "transactions when no single Spark coin can fund the payment alone.\n"
-                                                     "\nArguments:\n"
-                                                     "1. recipients              (string, required) A json object with addresses and amounts\n"
-                                                     "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
-                                                     "  ,...\n"
-                                                     " }\n"
-                                                     "\nResult:\n"
-                                                     "[                           (json array) Transaction ids for the send. Always an array,\n"
-                                                     "  \"txid\",                  even when only one transaction is created.\n"
-                                                     "  ...\n"
-                                                     "]\n"
-                                                     "\nExamples:\n"
-                                                     "\nSend an amount to transparent address:\n"
-                 + HelpExampleCli("spendsparksplit", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nAs a json rpc call\n"
-                 + HelpExampleRpc("spendsparksplit", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false}}\"")
+                "\nSpend private FIRO, splitting the payment across single-input transactions\n"
+                "when no one Spark coin can fund it. This does not spend Spark assets.\n"
+                "Each key is a transparent address, a Spark address, or @sparkname.\n"
+                "subtractFee is required on every output.\n"
+                "\nArguments:\n"
+                "1. recipients                  (object, required)\n"
+                "   {\n"
+                "     \"address\": {\n"
+                "       \"amount\": n,          (numeric or string, required) Amount in " + CURRENCY_UNIT + "\n"
+                "       \"subtractFee\": bool,  (boolean, required)\n"
+                "       \"memo\": \"text\"        (string, optional) Spark outputs only\n"
+                "     }\n"
+                "   }\n"
+                "\nResult:\n"
+                "[                              (array) Always an array, including when one transaction is created\n"
+                "  \"txid\",                      (string)\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("spendsparksplit", "'{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01,\"subtractFee\":false}}'")
+                + HelpExampleRpc("spendsparksplit", "{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01,\"subtractFee\":false}}")
         );
 
     EnsureWalletIsUnlocked(pwallet);
@@ -5729,24 +5897,29 @@ UniValue sendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "sendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "sendspark {\"address\":{...},...}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
-                                                     "\nArguments:\n"
-                                                     "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool, required for FIRO outputs), a (numeric), iota (numeric) The Spark address is the key. An asset amount uses that asset's precision. a and iota come from listsparkassets. subtractFee is not used for an asset output.\n"
-                                                     "  \"burn\": [amount, a, iota]  (array, optional) Burn a fungible asset. amount uses the asset precision. iota is 0.\n"
-                                                     "  ,...\n"
-                                                     " }\n"
-                                                     "\nResult:\n"
-                                                     "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                                                     "                                    the number of addresses.\n"
-                                                     "\nExamples:\n"
-                                                     "\nSend an amount to transparent address:\n"
-                 + HelpExampleCli("sendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nSend an amount to a transparent address and two different private addresses:\n"
-                 + HelpExampleCli("sendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}, \\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
-                 + HelpExampleRpc("sendspark", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false},\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\":{\"amount\":0.01, \"subtractFee\": true}, \"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"\", \"subtractFee\": false},\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
+                "\nSame arguments and result as spendspark.\n"
+                "Each key is a transparent address, a Spark address, or @sparkname.\n"
+                "Omit a and iota to spend FIRO. Set both from listsparkassets to spend a Spark asset.\n"
+                "subtractFee is required on a FIRO output and is rejected on an asset output.\n"
+                "\nArguments:\n"
+                "1. recipients                  (object, required)\n"
+                "   {\n"
+                "     \"address\": {\n"
+                "       \"amount\": n,          (numeric or string, required)\n"
+                "       \"subtractFee\": bool,  (boolean, required for FIRO)\n"
+                "       \"memo\": \"text\",       (string, optional) Spark outputs only\n"
+                "       \"a\": n,               (numeric, optional) Asset type. Omit for FIRO.\n"
+                "       \"iota\": n             (numeric, optional) 0 for a fungible asset, otherwise the NFT identifier\n"
+                "     },\n"
+                "     \"burn\": [amount, a, iota] (array, optional) Burn a fungible asset. iota is 0.\n"
+                "   }\n"
+                "\nResult:\n"
+                "\"txid\"                       (string) One transaction is created\n"
+                "\nExamples:\n"
+                + HelpExampleCli("sendspark", "'{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01,\"subtractFee\":false}}'")
+                + HelpExampleRpc("sendspark", "{\"sr1...\":{\"amount\":\"0.50\",\"a\":1,\"iota\":0}}")
         );
 
     // Create a new request and call spendspark
@@ -5770,23 +5943,21 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
         throw std::runtime_error(
             "sendsparkmany \"fromaccount\" {\"address\":amount,...} ( \"comment\" [\"address\",...] )\n"
-            "\nSend multiple times from Spark balance to various address types. Amounts are double-precision floating point numbers."
+            "\nSpend private FIRO to several addresses. This does not spend Spark assets."
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
-            "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
-            "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
+            "1. \"fromaccount\"         (string, required) Ignored. Pass \"\".\n"
+            "2. amounts               (object, required) Address mapped to a FIRO amount\n"
             "    {\n"
-            "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      \"address\": amount  (numeric or string) Transparent address, Spark address, or @sparkname\n"
             "      ,...\n"
             "    }\n"
-            "3. \"comment\"             (string, optional) A comment\n"
-            "4. subtractfeefrom         (array, optional) A json array with addresses.\n"
-            "                           The fee will be equally deducted from the amount of each selected address.\n"
-            "                           Those recipients will receive less firo than you enter in their corresponding amount field.\n"
-            "                           If no addresses are specified here, the sender pays the fee.\n"
+            "3. \"comment\"             (string, optional) Stored as the memo on Spark outputs\n"
+            "4. subtractfeefrom       (array, optional) Addresses whose amount pays the fee.\n"
+            "                         Recipients listed here receive less FIRO. Otherwise the sender pays the fee.\n"
             "    [\n"
-            "      \"address\"          (string) Subtract fee from this address\n"
-            "      ,...\n"
+            "      \"address\",         (string)\n"
+            "      ...\n"
             "    ]\n"
             "\nResult:\n"
             "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
@@ -5876,14 +6047,15 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
         
         // Add global comment as memo for Spark addresses (similar to sendtoaddress behavior)
         if (!comment.empty()) {
-            // Check if this is a Spark address (starts with 'st' or '@')
-            bool isSparkAddress = false;
-            if (name_.length() >= 2 && name_.substr(0, 2) == "st") {
-                isSparkAddress = true;
-            } else if (!name_.empty() && name_[0] == '@') {
-                isSparkAddress = true; // Spark name
+            bool isSparkAddress = !name_.empty() && name_[0] == '@';
+            if (!isSparkAddress) {
+                try {
+                    spark::Address sparkAddress(spark::Params::get_default());
+                    isSparkAddress = sparkAddress.decode(name_) == spark::GetNetworkType();
+                } catch (const std::exception&) {
+                }
             }
-            
+
             if (isSparkAddress) {
                 addressParams.push_back(Pair("memo", comment));
                 LogPrintf("sendsparkmany: Added comment as memo for Spark address %s: %s\n", name_, comment);
@@ -5914,10 +6086,27 @@ UniValue registersparkname(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() < 3 || request.params.size() > 6) {
         throw std::runtime_error(
-                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n"
-                "  Or if you want to transfer a spark name:\n"
-                "registersparkname \"name\" \"sparkaddress\" years \"oldsparkaddress\" \"transferproof\" [\"additionalData\"]\n"
-                "  \"transferproof\" can be acquired via \"transfersparkname\" call\n");
+                "registersparkname \"name\" \"sparkaddress\" years ( \"additionaldata\" )\n"
+                "registersparkname \"name\" \"sparkaddress\" years \"oldsparkaddress\" \"transferproof\" ( \"additionaldata\" )\n"
+                + HelpRequiringPassphrase(pwallet) + "\n"
+                "\nRegister a Spark name, or transfer one to a new Spark address.\n"
+                "The name is 1 to 20 characters. years is 1 to 15.\n"
+                "To transfer, the current owner first signs the hash from requestsparknametransfer\n"
+                "with transfersparkname. Pass that hex proof here. The name, addresses, years,\n"
+                "and additional data must be the values that were signed.\n"
+                "\nArguments:\n"
+                "1. \"name\"              (string, required) Spark name\n"
+                "2. \"sparkaddress\"      (string, required) Spark address the name resolves to\n"
+                "3. years               (numeric, required) Registration length, from 1 to 15\n"
+                "4. \"additionaldata\"    (string, optional) Extra text on a registration.\n"
+                "                         On a transfer, argument 4 is \"oldsparkaddress\" and argument 5 is \"transferproof\".\n"
+                "                         \"additionaldata\" is then argument 6.\n"
+                "\nResult:\n"
+                "\"txid\"                 (string)\n"
+                "\nExamples:\n"
+                + HelpExampleCli("registersparkname", "\"alice\" \"sr1...\" 1")
+                + HelpExampleRpc("registersparkname", "\"alice\", \"sr1...\", 1")
+        );
     }
 
     EnsureWalletIsUnlocked(pwallet);
@@ -6010,7 +6199,21 @@ UniValue registersparkname(const JSONRPCRequest& request) {
 UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() < 4 || request.params.size() > 5) {
         throw std::runtime_error(
-            "requestsparknametransfer \"name\" \"newsparkaddress\" years \"oldsparkaddress\" [\"additionalData\"]\n"
+            "requestsparknametransfer \"name\" \"newsparkaddress\" years \"oldsparkaddress\" ( \"additionaldata\" )\n"
+            "\nBuild the hash the current Spark name owner signs with transfersparkname.\n"
+            "This does not create a transaction. years is 1 to 15, and the name is 1 to 20 characters.\n"
+            "Pass the same values later to registersparkname.\n"
+            "\nArguments:\n"
+            "1. \"name\"              (string, required) Spark name\n"
+            "2. \"newsparkaddress\"   (string, required) Spark address that will own the name\n"
+            "3. years               (numeric, required) Registration length, from 1 to 15\n"
+            "4. \"oldsparkaddress\"   (string, required) Current owner's Spark address\n"
+            "5. \"additionaldata\"    (string, optional) Extra text stored with the name\n"
+            "\nResult:\n"
+            "\"hash\"                 (string) Hex hash for transfersparkname\n"
+            "\nExamples:\n"
+            + HelpExampleCli("requestsparknametransfer", "\"alice\" \"sr1...\" 1 \"sr1...\"")
+            + HelpExampleRpc("requestsparknametransfer", "\"alice\", \"sr1...\", 1, \"sr1...\"")
         );
     }
 
@@ -6090,7 +6293,19 @@ UniValue transfersparkname(const JSONRPCRequest &request) {
 
     if (request.fHelp || request.params.size() != 2) {
         throw std::runtime_error(
-            "transfersparkname \"oldSparkAddress\" \"requestHash\"\n"
+            "transfersparkname \"oldsparkaddress\" \"requesthash\"\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nSign a Spark name transfer request. This wallet must own oldsparkaddress.\n"
+            "requesthash comes from requestsparknametransfer. Give the result to the caller\n"
+            "of registersparkname as transferproof.\n"
+            "\nArguments:\n"
+            "1. \"oldsparkaddress\"   (string, required) Spark address that currently owns the name\n"
+            "2. \"requesthash\"       (string, required) Hex hash from requestsparknametransfer\n"
+            "\nResult:\n"
+            "\"proof\"                (string) Hex ownership proof\n"
+            "\nExamples:\n"
+            + HelpExampleCli("transfersparkname", "\"sr1...\" \"hash\"")
+            + HelpExampleRpc("transfersparkname", "\"sr1...\", \"hash\"")
         );
     }
 
@@ -6146,8 +6361,24 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "identifysparkcoins \"txHash\"\n"
-                "Identifies coins in transaction, and adds into wallet if yours");
+                "identifysparkcoins \"txid\"\n"
+                "\nScan one transaction for private coins that belong to this wallet and record them.\n"
+                "Balances are private FIRO amounts in the smallest unit, before and after the scan.\n"
+                "\nArguments:\n"
+                "1. \"txid\"                    (string, required) Transaction id\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"Old availableBalance\": n,   (numeric)\n"
+                "  \"Old unconfirmedBalance\": n, (numeric)\n"
+                "  \"Old fullBalance\": n,        (numeric)\n"
+                "  \"availableBalance\": n,       (numeric)\n"
+                "  \"unconfirmedBalance\": n,     (numeric)\n"
+                "  \"fullBalance\": n             (numeric)\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("identifysparkcoins", "\"txid\"")
+                + HelpExampleRpc("identifysparkcoins", "\"txid\"")
+        );
 
     EnsureSparkWalletIsAvailable();
 
@@ -6188,8 +6419,24 @@ UniValue getsparkcoinaddr(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getsparkcoinaddr \"txHash\"\n"
-                "Returns all spark outputs to you, address memo and amount for each");
+                "getsparkcoinaddr \"txid\"\n"
+                "\nReturn private coins from this wallet that were created by txid.\n"
+                "amount is shown with 8 decimal places. For a Spark asset that is the raw value.\n"
+                "\nArguments:\n"
+                "1. \"txid\"            (string, required) Transaction id\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"address\": \"xxx\",  (string) Spark address that received the coin\n"
+                "    \"memo\": \"text\",    (string)\n"
+                "    \"amount\": n        (numeric) Value with 8 decimal places\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getsparkcoinaddr", "\"txid\"")
+                + HelpExampleRpc("getsparkcoinaddr", "\"txid\"")
+        );
 
     EnsureSparkWalletIsAvailable();
 

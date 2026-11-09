@@ -186,19 +186,19 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
-            "getsparknamedata ( sparkname )\n"
-            "\nReturns info about spark name.\n"
+            "getsparknamedata \"name\"\n"
+            "\nReturn the current record for one Spark name.\n"
             "\nArguments:\n"
-            "Spark name (string)\n"
+            "1. \"name\"              (string, required) Spark name\n"
             "\nResult:\n"
             "{\n"
-            "  \"address\": spark address (string)\n"
-            "  \"validUntil\": block height until this spark name is valid (int)\n"
-            "  \"additionalInfo\": additional info (string)\n"
+            "  \"address\": \"xxx\",      (string) Spark address the name resolves to\n"
+            "  \"validUntil\": n,       (numeric) Block height until the current registration expires\n"
+            "  \"additionalInfo\": \"xxx\" (string) Extra text stored with the name\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("getsparknamedata", "sparkname")
-            + HelpExampleRpc("getsparknamedata", "sparkname")
+            + HelpExampleCli("getsparknamedata", "\"alice\"")
+            + HelpExampleRpc("getsparknamedata", "\"alice\"")
         );
     }
 
@@ -232,19 +232,24 @@ UniValue getsparknames(const JSONRPCRequest &request)
 {
     if (request.fHelp || request.params.size() > 1) {
         throw std::runtime_error(
-            "getsparknames [fOnlyOwn] \n"
-            "\nReturns a list of all Spark names and additional info.\n"
+            "getsparknames ( onlyown )\n"
+            "\nList Spark names.\n"
             "\nArguments:\n"
-            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
+            "1. onlyown                 (boolean, optional, default=false) Return only names that resolve to this wallet\n"
             "\nResult:\n"
             "[\n"
-            "  \"Name (string)\n"
-            "  \"Address (string)\"\n"
+            "  {\n"
+            "    \"name\": \"xxx\",           (string)\n"
+            "    \"address\": \"xxx\",        (string) Spark address\n"
+            "    \"validUntil\": n,         (numeric) Block height until the registration expires\n"
+            "    \"additionalInfo\": \"xxx\"  (string, optional) Present when the name has extra text\n"
+            "  },\n"
             "  ...\n"
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("getsparknames", "")
-            + HelpExampleRpc("getsparknames", "")
+            + HelpExampleCli("getsparknames", "true")
+            + HelpExampleRpc("getsparknames", "true")
         );
     }
 
