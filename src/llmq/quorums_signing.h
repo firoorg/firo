@@ -123,6 +123,7 @@ class CSigningManager
     // when selecting a quorum for signing and verification, we use CQuorumManager::SelectQuorum with this offset as
     // starting height for scanning. This is because otherwise the resulting signatures would not be verifiable by nodes
     // which are not 100% at the chain tip.
+public:
     static const int SIGN_HEIGHT_OFFSET = 8;
 
 private:
