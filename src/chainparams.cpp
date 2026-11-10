@@ -303,6 +303,7 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 24;
         consensus.nInstantSendBlockFilteringStartHeight = 421150;   // Approx Nov 2 2021 06:00:00 GMT+0000
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // not scheduled yet
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -641,6 +642,7 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 48136;
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // not scheduled yet
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
@@ -924,6 +926,7 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 1000;
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // not scheduled yet
 
         consensus.nMTPSwitchTime = 0;
         consensus.nMTPStartBlock = 1;
@@ -1171,6 +1174,7 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 500;
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // off by default, see -isdlockheight
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
@@ -1329,6 +1333,11 @@ public:
     {
         consensus.nSparkChaumV2StartBlock = height;
     }
+
+    void UpdateInstantSendDeterministicHeight(int height)
+    {
+        consensus.nInstantSendDeterministicStartHeight = height;
+    }
 };
 static CRegTestParams regTestParams;
 
@@ -1372,6 +1381,11 @@ void ValidateSparkActivationHeights(const Consensus::Params& consensus)
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
 {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
+}
+
+void UpdateRegtestInstantSendDeterministicHeight(int height)
+{
+    regTestParams.UpdateInstantSendDeterministicHeight(height);
 }
 
 void UpdateRegtestSparkSingleInputHeight(int height)

@@ -222,6 +222,8 @@ struct Params {
     int nInstantSendConfirmationsRequired; // in blocks
     int nInstantSendKeepLock; // in blocks
     int nInstantSendBlockFilteringStartHeight;
+    /** Height from which InstantSend locks are deterministic (DIP22 "isdlock" carrying a cycleHash) */
+    int nInstantSendDeterministicStartHeight;
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;

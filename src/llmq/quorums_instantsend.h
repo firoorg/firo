@@ -17,24 +17,57 @@
 namespace llmq
 {
 
+/**
+ * An InstantSend lock. Legacy locks ("islock") carry no version and do not say which quorum signed them, so they can
+ * only be verified while that quorum is still selected for signing. Deterministic locks ("isdlock", DIP22) add a
+ * version and a cycleHash. Firo's InstantSend quorums do not rotate, so the cycleHash is the hash of the first block
+ * of the DKG cycle that created the signing quorum, which is that quorum's quorumHash. This is what Dash does for
+ * quorums without rotation. It differs from the text of DIP22, where the cycleHash selects a set of quorums and the
+ * request id selects the quorum within that set. The quorum signature covers the quorumHash, so exactly one cycleHash
+ * is valid for a given signature.
+ *
+ * To verify a deterministic lock:
+ *   1. The cycleHash must be a block of the active chain at a height that is a multiple of the dkgInterval, and a
+ *      quorum of the InstantSend type must have been mined for it.
+ *   2. sig must be a valid signature of that quorum for SignHash(llmqType, cycleHash, requestId, txid).
+ *   3. The quorum must be allowed to sign the request, see CInstantSendManager::IsQuorumResponsible().
+ */
 class CInstantSendLock
 {
 public:
+    static constexpr uint8_t LEGACY_VERSION = 0;
+    static constexpr uint8_t DETERMINISTIC_VERSION = 1;
+
+    uint8_t nVersion{LEGACY_VERSION}; // only serialized for deterministic locks
     std::vector<COutPoint> inputs;
     uint256 txid;
+    uint256 cycleHash; // only serialized for deterministic locks
     CBLSLazySignature sig;
 
 public:
+    CInstantSendLock() = default;
+    explicit CInstantSendLock(uint8_t nVersionIn) : nVersion(nVersionIn) {}
+
     ADD_SERIALIZE_METHODS
 
     template<typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        // The format is chosen by the caller, not by the stream: a reader must construct the lock with the version of
+        // the format it expects and check nVersion afterwards.
+        const bool fDeterministic = IsDeterministic();
+        if (fDeterministic) {
+            READWRITE(nVersion);
+        }
         READWRITE(inputs);
         READWRITE(txid);
+        if (fDeterministic) {
+            READWRITE(cycleHash);
+        }
         READWRITE(sig);
     }
 
+    bool IsDeterministic() const { return nVersion != LEGACY_VERSION; }
     uint256 GetRequestId() const;
 };
 
@@ -153,6 +186,8 @@ private:
     void ProcessMessageInstantSendLock(CNode* pfrom, const CInstantSendLock& islock, CConnman& connman);
     bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
     bool ProcessPendingInstantSendLocks();
+    void ProcessPendingDeterministicInstantSendLocks(const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend);
+    bool IsQuorumResponsible(Consensus::LLMQType llmqType, const CQuorumCPtr& quorum, const uint256& id);
     std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock);
     void UpdateWalletTransaction(const uint256& txid, const CTransactionRef& tx);
