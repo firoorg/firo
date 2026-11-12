@@ -124,6 +124,9 @@ class DIP3Test(BitcoinTestFramework):
         for mn in mns:
             self.test_protx_update_service(mn)
 
+        self.log.info("testing ProTx fee inputs")
+        self.test_protx_fee_inputs(mns[0])
+
         self.log.info("testing P2SH/multisig for payee addresses")
         multisig = self.nodes[0].createmultisig(1, [self.nodes[0].getnewaddress(), self.nodes[0].getnewaddress()])['address']
         self.update_mn_payee(mns[0], multisig)
@@ -206,6 +209,10 @@ class DIP3Test(BitcoinTestFramework):
         # self.log.info("testing instant send with replaced MNs")
         # self.test_instantsend(10, 3, timeout=20)
 
+        # Last: its registrations stay in the mempool, and mining them would change the MN list.
+        self.log.info("testing register_fund with change equal to the collateral")
+        self.test_protx_register_fund_change()
+
     def spend_mn_collateral(self, mn, with_dummy_input_output=False):
         return self.spend_input(mn.collateral_txid, mn.collateral_vout, 1000, with_dummy_input_output)
 
@@ -231,6 +238,53 @@ class DIP3Test(BitcoinTestFramework):
         # undo
         self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
         self.nodes[0].generate(1)
+
+    def test_protx_register_fund_change(self):
+        # The change goes to a random position. When it comes to exactly the collateral
+        # amount and lands first, the payload must still name the requested collateral.
+        node = self.nodes[0]
+
+        def register(attempt, amount):
+            mn = prepare_mn(node, 0, 'fund-change-%d' % attempt)
+            collateral_address = node.getnewaddress()
+            node.sendtoaddress(mn.fundsAddr, amount)
+            txid = node.protx('register_fund', collateral_address, '127.0.1.%d:%d' % (attempt, mn.p2p_port), mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, node.getnewaddress(), mn.fundsAddr)
+            return txid, mn.fundsAddr, collateral_address
+
+        # These registrations are all the same size, so the first one gives the fee of the others.
+        fee = node.getmempoolentry(register(1, 1001)[0])['fee']
+
+        for attempt in range(2, 22):
+            txid, funds_address, collateral_address = register(attempt, 2000 + fee)
+            rawtx = node.getrawtransaction(txid, 1)
+            assert_equal([txout['value'] for txout in rawtx['vout']], [Decimal(1000), Decimal(1000)])
+            collateral_vout = rawtx['vout'][rawtx['proReg']['collateralIndex']]
+            assert_equal(collateral_vout['scriptPubKey']['addresses'], [collateral_address])
+            if rawtx['vout'][0]['scriptPubKey']['addresses'] == [funds_address]:
+                return
+        raise AssertionError("the change never came first")
+
+    def test_protx_fee_inputs(self, mn):
+        # Every output at the fee source address is offered to the wallet, but the transaction
+        # must spend only as many as the fee needs, leaving the rest for the next ProTx
+        for i in range(3):
+            self.nodes[0].sendtoaddress(mn.fundsAddr, 0.001)
+        self.nodes[0].generate(1)
+        self.sync_all()
+        unspent_before = self.nodes[0].listunspent(0, 9999999, [mn.fundsAddr])
+        assert(len(unspent_before) >= 3)
+
+        txid = self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.2:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
+        assert_equal(len(self.nodes[0].getrawtransaction(txid, 1)['vin']), 1)
+        # one output spent, its change back at the same address
+        assert_equal(len(self.nodes[0].listunspent(0, 9999999, [mn.fundsAddr])), len(unspent_before))
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        # undo
+        self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey, "", mn.fundsAddr)
+        self.nodes[0].generate(1)
+        self.sync_all()
 
     def force_finish_mnsync(self, node):
         tm = 0
