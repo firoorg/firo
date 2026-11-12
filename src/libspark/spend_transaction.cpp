@@ -669,45 +669,60 @@ Scalar SpendTransaction::hash_bind_claim(
     return transcript.challenge("mu");
 }
 
+// The binding hash and V2 proof context that proveClaim and verifyClaim must derive identically
+Scalar SpendTransaction::GetBindingHash(const SpendTransaction& transaction) {
+    return hash_bind(
+        hash_bind_inner(
+            transaction.cover_set_representations,
+            transaction.S1,
+            transaction.C1,
+            transaction.T,
+            transaction.grootle_proofs,
+            transaction.balance_proof,
+            transaction.range_proof
+        ),
+        transaction.out_coins,
+        transaction.f + transaction.vout
+    );
+}
+
+ChaumV2Context SpendTransaction::GetChaumV2Context(const SpendTransaction& transaction) {
+    return GetChaumV2Context(
+        transaction.out_coins,
+        transaction.f,
+        transaction.vout,
+        transaction.extension_commitment,
+        transaction.cover_set_ids,
+        transaction.set_id_blockHash);
+}
+
 // Generate a claim on a given spend transaction.
 //
 // A claim uses the componentwise V2 proof, bound to a transaction identifier and a message.
 // It supports either transaction version, with at most MAX_CHAUM_V2_INPUTS inputs.
 //
-// To generate the claim, you must provide the same full view and spend keys that were used to generate the spend transaction, as well as the same input coin data.
+// To generate the claim, you must provide the same full view and spend keys that were used to generate the spend transaction, as well as the serial number of each input coin, in the transaction's input order.
 // You must also provide an identifier that the verifier can use to uniquely identify the spend transaction when it verifies the claim.
 // You can also provide an arbitrary message to sign, which can be useful to avoid replays or otherwise bind the claim to some particular context.
 void SpendTransaction::proveClaim(
 	const FullViewKey& full_view_key,
 	const SpendKey& spend_key,
 	const SpendTransaction& transaction,
-	const std::vector<InputCoinData>& inputs,
+	const std::vector<Scalar>& serials,
 	const std::vector<unsigned char>& identifier,
 	const std::vector<unsigned char>& message,
 	ChaumProofV2& claim
 ) {
+	// A failed attempt must not leave an earlier proof in the output
+	claim = ChaumProofV2();
+
 	// Build the prover witness; the prover throws if it does not open the transaction's statement
 	std::vector<Scalar> claim_x, claim_y, claim_z;
-	for (const auto& input : inputs) {
-		claim_x.emplace_back(input.s);
+	for (const Scalar& serial : serials) {
+		claim_x.emplace_back(serial);
 		claim_y.emplace_back(spend_key.get_r());
-		claim_z.emplace_back(SparkUtils::hash_ser1(input.s, full_view_key.get_D()).negate());
+		claim_z.emplace_back(SparkUtils::hash_ser1(serial, full_view_key.get_D()).negate());
 	}
-
-	// Compute the binding hash
-	Scalar mu = hash_bind(
-		hash_bind_inner(
-			transaction.cover_set_representations,
-			transaction.S1,
-			transaction.C1,
-			transaction.T,
-			transaction.grootle_proofs,
-			transaction.balance_proof,
-			transaction.range_proof
-		),
-		transaction.out_coins,
-		transaction.f + transaction.vout
-	);
 
 	// Produce the claim, binding in the identifier and message
 	Chaum chaum(
@@ -717,14 +732,8 @@ void SpendTransaction::proveClaim(
 		transaction.params->get_U()
 	);
 	chaum.prove_v2(
-		hash_bind_claim(mu, identifier, message),
-		GetChaumV2Context(
-			transaction.out_coins,
-			transaction.f,
-			transaction.vout,
-			transaction.extension_commitment,
-			transaction.cover_set_ids,
-			transaction.set_id_blockHash),
+		hash_bind_claim(GetBindingHash(transaction), identifier, message),
+		GetChaumV2Context(transaction),
 		claim_x,
 		claim_y,
 		claim_z,
@@ -748,20 +757,17 @@ bool SpendTransaction::verifyClaim(
 	const std::vector<unsigned char>& message,
 	const ChaumProofV2& claim
 ) {
-	// Compute the binding hash
-	Scalar mu = hash_bind(
-		hash_bind_inner(
-			transaction.cover_set_representations,
-			transaction.S1,
-			transaction.C1,
-			transaction.T,
-			transaction.grootle_proofs,
-			transaction.balance_proof,
-			transaction.range_proof
-		),
-		transaction.out_coins,
-		transaction.f + transaction.vout
-	);
+	// Fail closed on an unrestored verification context: the binding hash would otherwise omit the
+	// cover-set representations (which carry the transaction metadata) or the output coins
+	for (const uint64_t id : transaction.cover_set_ids) {
+		if (transaction.cover_set_representations.count(id) == 0) {
+			return false;
+		}
+	}
+	if (transaction.version == SpendTransactionVersion::V2 &&
+		transaction.out_coins.size() != transaction.expected_output_count) {
+		return false;
+	}
 
 	// Verify the claim, binding in the identifier and message
 	Chaum chaum(
@@ -771,14 +777,8 @@ bool SpendTransaction::verifyClaim(
 		transaction.params->get_U()
 	);
 	return chaum.verify_v2(
-		hash_bind_claim(mu, identifier, message),
-		GetChaumV2Context(
-			transaction.out_coins,
-			transaction.f,
-			transaction.vout,
-			transaction.extension_commitment,
-			transaction.cover_set_ids,
-			transaction.set_id_blockHash),
+		hash_bind_claim(GetBindingHash(transaction), identifier, message),
+		GetChaumV2Context(transaction),
 		transaction.S1,
 		transaction.T,
 		claim

@@ -109,9 +109,11 @@ public:
     // Claims use ChaumProofV2 for either transaction version, with at most
     // MAX_CHAUM_V2_INPUTS inputs. The transaction must have its full verification
     // context restored and be independently verified against the ledger.
-    static void proveClaim(const FullViewKey& full_view_key, const SpendKey& spend_key, const SpendTransaction& transaction, const std::vector<InputCoinData>& inputs, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, ChaumProofV2& claim);
-    // Returns false for invalid proof shapes or claims; deserialization errors
-    // remain the caller's responsibility.
+    // `serials` holds the serial number of each input coin, in input order.
+    static void proveClaim(const FullViewKey& full_view_key, const SpendKey& spend_key, const SpendTransaction& transaction, const std::vector<Scalar>& serials, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, ChaumProofV2& claim);
+    // Returns false for invalid proof shapes or claims, and for a transaction
+    // whose cover-set data or V2 output coins were not restored;
+    // deserialization errors remain the caller's responsibility.
     static bool verifyClaim(const SpendTransaction& transaction, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, const ChaumProofV2& claim);
     
 	static std::vector<unsigned char> hash_bind_inner(
@@ -339,6 +341,10 @@ private:
         const uint256& extension_commitment,
         const std::vector<uint64_t>& cover_set_ids,
         const std::map<uint64_t, uint256>& block_hashes);
+
+    // The binding hash and V2 proof context of a transaction, shared by proveClaim and verifyClaim
+    static Scalar GetBindingHash(const SpendTransaction& transaction);
+    static ChaumV2Context GetChaumV2Context(const SpendTransaction& transaction);
 
 	const Params* params;
     SpendTransactionVersion version;

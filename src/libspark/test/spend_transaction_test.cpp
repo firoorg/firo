@@ -142,11 +142,15 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
     // New claims use componentwise proofs even for historical V1 spends.
     const std::vector<unsigned char> claim_identifier = {1, 2, 3};
     const std::vector<unsigned char> claim_message = {4, 5, 6};
+    std::vector<Scalar> claim_serials;
+    for (const auto& input : spend_coin_data) {
+        claim_serials.emplace_back(input.s);
+    }
     ChaumProofV2 claim_proof;
     SpendTransaction::proveClaim(
-        full_view_key, spend_key, transaction, spend_coin_data,
+        full_view_key, spend_key, transaction, claim_serials,
         claim_identifier, claim_message, claim_proof);
-    BOOST_REQUIRE(SpendTransaction::verifyClaim(
+    BOOST_CHECK(SpendTransaction::verifyClaim(
         transaction, claim_identifier, claim_message, claim_proof));
     BOOST_CHECK(!SpendTransaction::verifyClaim(
         transaction, {7, 2, 3}, claim_message, claim_proof));
@@ -163,7 +167,7 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
         cover_sets, single_fee, 0, out_coin_data);
     BOOST_REQUIRE(SpendTransaction::verify(single_transaction, cover_sets));
     SpendTransaction::proveClaim(
-        full_view_key, spend_key, single_transaction, single_input,
+        full_view_key, spend_key, single_transaction, {claim_serials.front()},
         claim_identifier, claim_message, claim_proof);
     BOOST_CHECK(SpendTransaction::verifyClaim(
         single_transaction, claim_identifier, claim_message, claim_proof));
@@ -193,24 +197,31 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
 
     // Reusing the output also replaces response vectors across input counts.
     SpendTransaction::proveClaim(
-        full_view_key, spend_key, transactionV2, spend_coin_data,
+        full_view_key, spend_key, transactionV2, claim_serials,
         claim_identifier, claim_message, claim_proof);
-    BOOST_REQUIRE(SpendTransaction::verifyClaim(
+    BOOST_CHECK(SpendTransaction::verifyClaim(
         transactionV2, claim_identifier, claim_message, claim_proof));
 
     const SpendKey wrong_spend_key(params);
     BOOST_CHECK_THROW(
         SpendTransaction::proveClaim(
-            full_view_key, wrong_spend_key, transactionV2, spend_coin_data,
+            full_view_key, wrong_spend_key, transactionV2, claim_serials,
             claim_identifier, claim_message, claim_proof),
         std::invalid_argument);
-    auto wrong_inputs = spend_coin_data;
-    wrong_inputs.front().s += Scalar(uint64_t(1));
+    auto wrong_serials = claim_serials;
+    wrong_serials.front() += Scalar(uint64_t(1));
     BOOST_CHECK_THROW(
         SpendTransaction::proveClaim(
-            full_view_key, spend_key, transactionV2, wrong_inputs,
+            full_view_key, spend_key, transactionV2, wrong_serials,
             claim_identifier, claim_message, claim_proof),
         std::invalid_argument);
+
+    // A failed attempt must not leave the earlier proof in the output.
+    BOOST_CHECK(!SpendTransaction::verifyClaim(
+        transactionV2, claim_identifier, claim_message, claim_proof));
+    SpendTransaction::proveClaim(
+        full_view_key, spend_key, transactionV2, claim_serials,
+        claim_identifier, claim_message, claim_proof);
 
     CDataStream encoded_claim(SER_NETWORK, PROTOCOL_VERSION);
     encoded_claim << claim_proof;
@@ -274,9 +285,23 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
         [](char left, unsigned char right) {
             return static_cast<unsigned char>(left) == right;
         }));
+    // A claim made and checked on a payload whose verification context was
+    // never restored must fail closed: first on the missing cover-set
+    // representations, then on the missing output coins.
+    ChaumProofV2 unrestored_claim;
+    SpendTransaction::proveClaim(
+        full_view_key, spend_key, decodedV2, claim_serials,
+        claim_identifier, claim_message, unrestored_claim);
+    BOOST_CHECK(!SpendTransaction::verifyClaim(
+        decodedV2, claim_identifier, claim_message, unrestored_claim));
+    decodedV2.setCoverSets(cover_set_data);
+    SpendTransaction::proveClaim(
+        full_view_key, spend_key, decodedV2, claim_serials,
+        claim_identifier, claim_message, unrestored_claim);
+    BOOST_CHECK(!SpendTransaction::verifyClaim(
+        decodedV2, claim_identifier, claim_message, unrestored_claim));
     decodedV2.setOutCoins(transactionV2.getOutCoins());
     decodedV2.setVout(0);
-    decodedV2.setCoverSets(cover_set_data);
     BOOST_CHECK(SpendTransaction::verify(decodedV2, cover_sets));
     BOOST_CHECK(SpendTransaction::verifyClaim(
         decodedV2, claim_identifier, claim_message, decoded_claim));
