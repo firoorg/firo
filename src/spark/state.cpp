@@ -2326,4 +2326,146 @@ void CSparkMempoolState::Reset() {
     mempoolMints.clear();
 }
 
+// Off-chain spend proofs: a version byte, the transaction id and a SpendTransaction claim, hex-encoded
+static const unsigned char SPEND_PROOF_VERSION = 1;
+
+const char* SpendProofResultMessage(SpendProofResult result)
+{
+    switch (result) {
+    case SpendProofResult::Ok: return "Spend proof is valid";
+    case SpendProofResult::Mismatch: return "Spend proof does not match the transaction and message";
+    case SpendProofResult::Malformed: return "Malformed spend proof";
+    case SpendProofResult::TxNotFound: return "Transaction not found";
+    case SpendProofResult::TxNotConfirmed: return "Transaction is not confirmed in the active chain";
+    case SpendProofResult::NotSparkSpend: return "Transaction is not a Spark spend";
+    }
+    return "Unknown spend proof result";
+}
+
+SpendProofResult GetConfirmedSparkSpend(const uint256& txid, spark::SpendTransaction& spend)
+{
+    AssertLockHeld(cs_main);
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    if (!GetTransaction(txid, tx, ::Params().GetConsensus(), hashBlock, true))
+        return SpendProofResult::TxNotFound;
+    const auto blockIt = mapBlockIndex.find(hashBlock);
+    if (blockIt == mapBlockIndex.end() || !chainActive.Contains(blockIt->second))
+        return SpendProofResult::TxNotConfirmed;
+    if (!tx->IsSparkSpend())
+        return SpendProofResult::NotSparkSpend;
+
+    // Everything below mirrors what CheckSparkSpendTransaction restores before
+    // it verifies a spend at this height, so a proof binds the same data that
+    // consensus authorized. spark_tests/spend_proof pins the two together.
+    spend = ParseSparkSpend(*tx);
+
+    CMutableTransaction txTemp = *tx;
+    txTemp.vExtraPayload.clear();
+    txTemp.vout.erase(
+        std::remove_if(
+            txTemp.vout.begin(),
+            txTemp.vout.end(),
+            [](const CTxOut& output) {
+                return output.scriptPubKey.IsSparkSMint();
+            }),
+        txTemp.vout.end());
+    const uint256 txHashForMetadata = txTemp.GetHash();
+
+    uint64_t vout = 0;
+    std::vector<Coin> out_coins;
+    for (const CTxOut& txout : tx->vout) {
+        if (txout.scriptPubKey.IsSparkSMint()) {
+            spark::Coin coin(Params::get_default());
+            ParseSparkMintCoin(txout.scriptPubKey, coin);
+            out_coins.emplace_back(coin);
+        } else {
+            vout += static_cast<uint64_t>(txout.nValue);
+        }
+    }
+    spend.setOutCoins(out_coins);
+
+    const bool useBoundCoverSetHash =
+        blockIt->second->nHeight >= ::Params().GetConsensus().nSparkChaumV2StartBlock;
+    std::unordered_map<uint64_t, CoverSetData> cover_set_data;
+    for (const auto& idAndHash : spend.getBlockHashes()) {
+        // The deployed 32-bit interpretation of the wire id, as in validation.
+        const int groupId = static_cast<int32_t>(idAndHash.first);
+        const int previousGroupId = static_cast<int32_t>(idAndHash.first - 1);
+        CSparkState::SparkCoinGroupInfo coinGroup;
+        if (!sparkState.GetCoinGroupInfo(groupId, coinGroup))
+            throw std::runtime_error("Spark cover set not found");
+
+        // Find the referenced block, or the group's first block if unknown
+        CBlockIndex* index = coinGroup.lastBlock;
+        while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
+            index = index->pprev;
+
+        CoverSetData setData;
+        setData.cover_set_representation =
+            GetAnonymitySetHash(index, groupId, false, useBoundCoverSetHash);
+        setData.cover_set_representation.insert(
+            setData.cover_set_representation.end(),
+            txHashForMetadata.begin(), txHashForMetadata.end());
+        setData.cover_set_size = 0;
+        while (true) {
+            const size_t inGroup = CountCoinInBlock(index, groupId);
+            setData.cover_set_size += inGroup ? inGroup : CountCoinInBlock(index, previousGroupId);
+            if (index == coinGroup.firstBlock)
+                break;
+            index = index->pprev;
+        }
+        cover_set_data[idAndHash.first] = setData;
+    }
+    spend.setCoverSets(cover_set_data);
+    spend.setVout(vout);
+    return SpendProofResult::Ok;
+}
+
+std::string EncodeSpendProof(const uint256& txid, const spark::ChaumProofV2& claim)
+{
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << SPEND_PROOF_VERSION << txid << claim;
+    return HexStr(stream.begin(), stream.end());
+}
+
+SpendProofResult VerifySpendProof(const std::string& hexProof, const std::string& message, uint256& txid)
+{
+    txid.SetNull();
+    spark::ChaumProofV2 claim;
+    try {
+        if (!IsHex(hexProof))
+            return SpendProofResult::Malformed;
+        CDataStream stream(ParseHex(hexProof), SER_NETWORK, PROTOCOL_VERSION);
+        unsigned char version;
+        stream >> version;
+        if (version != SPEND_PROOF_VERSION)
+            return SpendProofResult::Malformed;
+        stream >> txid >> claim;
+        if (!stream.empty())
+            throw std::runtime_error("trailing data");
+    } catch (const std::exception&) {
+        txid.SetNull();
+        return SpendProofResult::Malformed;
+    }
+
+    try {
+        LOCK(cs_main);
+        spark::SpendTransaction spend(Params::get_default());
+        const SpendProofResult found = GetConfirmedSparkSpend(txid, spend);
+        if (found != SpendProofResult::Ok)
+            return found;
+        return SpendTransaction::verifyClaim(
+                spend,
+                std::vector<unsigned char>(txid.begin(), txid.end()),
+                std::vector<unsigned char>(message.begin(), message.end()),
+                claim)
+            ? SpendProofResult::Ok
+            : SpendProofResult::Mismatch;
+    } catch (const std::exception&) {
+        return SpendProofResult::Mismatch;
+    }
+}
+
 } // namespace spark
