@@ -28,6 +28,15 @@ namespace llmq
 
 static const std::string INPUTLOCK_REQUESTID_PREFIX = "inlock";
 static const std::string ISLOCK_REQUESTID_PREFIX = "islock";
+static const std::string ISDLOCK_MSGHASH_PREFIX = "isdlock";
+
+// DB keys of lock bodies, by version. Legacy bodies keep their original key and format.
+static const std::string DB_ISLOCK_BY_HASH = "is_i";
+static const std::string DB_ISDLOCK_BY_HASH = "is_di";
+// hash -> height the lock's lifetime is counted from
+static const std::string DB_LOCK_HEIGHT_BY_HASH = "is_lh";
+// (inversed lock height, hash) -> true, to find expired locks
+static const std::string DB_HASH_BY_LOCK_HEIGHT = "is_h";
 
 CInstantSendManager* quorumInstantSendManager;
 
@@ -39,6 +48,34 @@ uint256 CInstantSendLock::GetRequestId() const
     return hw.GetHash();
 }
 
+uint256 CInstantSendLock::GetSignMsgHash() const
+{
+    if (!IsDeterministic()) {
+        return txid;
+    }
+    CHashWriter hw(SER_GETHASH, 0);
+    hw << ISDLOCK_MSGHASH_PREFIX;
+    hw << nVersion;
+    hw << txid;
+    hw << cycleHash;
+    return hw.GetHash();
+}
+
+static std::string LockBodyKey(const CInstantSendLock& islock)
+{
+    return islock.IsDeterministic() ? DB_ISDLOCK_BY_HASH : DB_ISLOCK_BY_HASH;
+}
+
+static CInv MakeInstantSendLockInv(const uint256& hash, const CInstantSendLock& islock)
+{
+    return CInv(islock.IsDeterministic() ? MSG_ISDLOCK : MSG_ISLOCK, hash);
+}
+
+static int InstantSendLockMinProtoVersion(const CInstantSendLock& islock)
+{
+    return islock.IsDeterministic() ? ISDLOCK_PROTO_VERSION : LLMQS_PROTO_VERSION;
+}
+
 namespace isutils
 {
 static int16_t const INSTANTSEND_ADAPTED_TX = std::numeric_limits<int16_t>::min();
@@ -48,14 +85,31 @@ CTransaction AdaptPrivateTx(CTransaction const & tx);
 
 ////////////////
 
-void CInstantSendDb::WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock)
+static std::tuple<std::string, uint32_t, uint256> BuildInversedISLockKey(const std::string& k, int nHeight, const uint256& islockHash)
+{
+    return std::make_tuple(k, htobe32(std::numeric_limits<uint32_t>::max() - nHeight), islockHash);
+}
+
+void CInstantSendDb::WriteInstantSendLockHeight(CDBBatch& batch, const uint256& hash, int nLockHeight)
+{
+    batch.Write(std::make_tuple(DB_LOCK_HEIGHT_BY_HASH, hash), nLockHeight);
+    batch.Write(BuildInversedISLockKey(DB_HASH_BY_LOCK_HEIGHT, nLockHeight, hash), true);
+}
+
+bool CInstantSendDb::GetInstantSendLockHeight(const uint256& hash, int& nLockHeightRet)
+{
+    return db.Read(std::make_tuple(DB_LOCK_HEIGHT_BY_HASH, hash), nLockHeightRet);
+}
+
+void CInstantSendDb::WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock, int nLockHeight)
 {
     CDBBatch batch(db);
-    batch.Write(std::make_tuple(std::string("is_i"), hash), islock);
+    batch.Write(std::make_tuple(LockBodyKey(islock), hash), islock);
     batch.Write(std::make_tuple(std::string("is_tx"), islock.txid), hash);
     for (auto& in : islock.inputs) {
         batch.Write(std::make_tuple(std::string("is_in"), in), hash);
     }
+    WriteInstantSendLockHeight(batch, hash, nLockHeight);
     db.WriteBatch(batch);
 
     auto p = std::make_shared<CInstantSendLock>(islock);
@@ -75,22 +129,99 @@ void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash,
         }
     }
 
-    batch.Erase(std::make_tuple(std::string("is_i"), hash));
-    batch.Erase(std::make_tuple(std::string("is_tx"), islock->txid));
+    batch.Erase(std::make_tuple(LockBodyKey(*islock), hash));
+    // Leave the txid and input entries alone if they already point to another lock for the same TX
+    if (GetInstantSendLockHashByTxid(islock->txid) == hash) {
+        batch.Erase(std::make_tuple(std::string("is_tx"), islock->txid));
+        txidCache.erase(islock->txid);
+    }
     for (auto& in : islock->inputs) {
-        batch.Erase(std::make_tuple(std::string("is_in"), in));
+        uint256 inputLockHash;
+        if (!outpointCache.get(in, inputLockHash) && !db.Read(std::make_tuple(std::string("is_in"), in), inputLockHash)) {
+            continue;
+        }
+        if (inputLockHash == hash) {
+            batch.Erase(std::make_tuple(std::string("is_in"), in));
+            outpointCache.erase(in);
+        }
+    }
+
+    int nLockHeight;
+    if (GetInstantSendLockHeight(hash, nLockHeight)) {
+        batch.Erase(std::make_tuple(DB_LOCK_HEIGHT_BY_HASH, hash));
+        batch.Erase(BuildInversedISLockKey(DB_HASH_BY_LOCK_HEIGHT, nLockHeight, hash));
     }
 
     islockCache.erase(hash);
-    txidCache.erase(islock->txid);
-    for (auto& in : islock->inputs) {
-        outpointCache.erase(in);
+}
+
+void CInstantSendDb::WriteMissingLockHeights(int nLockHeight)
+{
+    auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+    auto firstKey = std::make_tuple(DB_ISLOCK_BY_HASH, uint256());
+    it->Seek(firstKey);
+
+    CDBBatch batch(db);
+    size_t cnt = 0;
+    while (it->Valid()) {
+        decltype(firstKey) curKey;
+        if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_ISLOCK_BY_HASH) {
+            break;
+        }
+        auto& islockHash = std::get<1>(curKey);
+        if (!db.Exists(std::make_tuple(DB_LOCK_HEIGHT_BY_HASH, islockHash))) {
+            WriteInstantSendLockHeight(batch, islockHash, nLockHeight);
+            cnt++;
+        }
+        it->Next();
+    }
+
+    if (cnt != 0) {
+        db.WriteBatch(batch);
+        LogPrintf("CInstantSendDb::%s -- recorded lock height %d for %d legacy islocks\n", __func__, nLockHeight, cnt);
     }
 }
 
-static std::tuple<std::string, uint32_t, uint256> BuildInversedISLockKey(const std::string& k, int nHeight, const uint256& islockHash)
+std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveExpiredInstantSendLocks(int nUntilLockHeight, int nArchiveHeight)
 {
-    return std::make_tuple(k, htobe32(std::numeric_limits<uint32_t>::max() - nHeight), islockHash);
+    if (nUntilLockHeight < 0) {
+        return {};
+    }
+
+    auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+    auto firstKey = BuildInversedISLockKey(DB_HASH_BY_LOCK_HEIGHT, nUntilLockHeight, uint256());
+    it->Seek(firstKey);
+
+    CDBBatch batch(db);
+    std::unordered_map<uint256, CInstantSendLockPtr> ret;
+    while (it->Valid()) {
+        decltype(firstKey) curKey;
+        if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_HASH_BY_LOCK_HEIGHT) {
+            break;
+        }
+        uint32_t nLockHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
+        if (cmp::greater(nLockHeight, nUntilLockHeight)) {
+            break;
+        }
+
+        auto& islockHash = std::get<2>(curKey);
+        auto islock = GetInstantSendLockByHash(islockHash);
+        if (islock) {
+            RemoveInstantSendLock(batch, islockHash, islock);
+            // archive the islock hash, so that we don't request it again
+            WriteInstantSendLockArchived(batch, islockHash, nArchiveHeight);
+            ret.emplace(islockHash, islock);
+        }
+
+        batch.Erase(curKey);
+        batch.Erase(std::make_tuple(DB_LOCK_HEIGHT_BY_HASH, islockHash));
+
+        it->Next();
+    }
+
+    db.WriteBatch(batch);
+
+    return ret;
 }
 
 void CInstantSendDb::WriteInstantSendLockMined(const uint256& hash, int nHeight)
@@ -185,21 +316,23 @@ bool CInstantSendDb::HasArchivedInstantSendLock(const uint256& islockHash)
 
 size_t CInstantSendDb::GetInstantSendLockCount()
 {
-    auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
-    auto firstKey = std::make_tuple(std::string("is_i"), uint256());
-
-    it->Seek(firstKey);
-
     size_t cnt = 0;
-    while (it->Valid()) {
-        decltype(firstKey) curKey;
-        if (!it->GetKey(curKey) || std::get<0>(curKey) != "is_i") {
-            break;
+    for (const auto& prefix : {DB_ISLOCK_BY_HASH, DB_ISDLOCK_BY_HASH}) {
+        auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+        auto firstKey = std::make_tuple(prefix, uint256());
+
+        it->Seek(firstKey);
+
+        while (it->Valid()) {
+            decltype(firstKey) curKey;
+            if (!it->GetKey(curKey) || std::get<0>(curKey) != prefix) {
+                break;
+            }
+
+            cnt++;
+
+            it->Next();
         }
-
-        cnt++;
-
-        it->Next();
     }
 
     return cnt;
@@ -213,7 +346,12 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash
     }
 
     ret = std::make_shared<CInstantSendLock>();
-    bool exists = db.Read(std::make_tuple(std::string("is_i"), hash), *ret);
+    ret->nVersion = CInstantSendLock::ISDLOCK_VERSION;
+    bool exists = db.Read(std::make_tuple(DB_ISDLOCK_BY_HASH, hash), *ret);
+    if (!exists) {
+        *ret = CInstantSendLock();
+        exists = db.Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
+    }
     if (!exists) {
         ret = nullptr;
     }
@@ -342,6 +480,10 @@ CInstantSendManager::CInstantSendManager(CDBWrapper& _llmqDb) :
     db(_llmqDb)
 {
     workInterrupt.reset();
+
+    // Locks stored before expiry was introduced carry no height. Treat them as created when expiry activates.
+    LOCK(cs);
+    db.WriteMissingLockHeights(Params().GetConsensus().nInstantSendExpiryStartBlock);
 }
 
 CInstantSendManager::~CInstantSendManager()
@@ -407,13 +549,17 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
     // In case the islock was received before the TX, filtered announcement might have missed this islock because
     // we were unable to check for filter matches deep inside the TX. Now we have the TX, so we should retry.
     uint256 islockHash;
+    CInstantSendLockPtr existingLock;
     {
         LOCK(cs);
         islockHash = db.GetInstantSendLockHashByTxid(tx.GetHash());
+        if (!islockHash.IsNull()) {
+            existingLock = db.GetInstantSendLockByHash(islockHash);
+        }
     }
-    if (!islockHash.IsNull()) {
-        CInv inv(MSG_ISLOCK, islockHash);
-        g_connman->RelayInvFiltered(inv, tx, LLMQS_PROTO_VERSION);
+    if (existingLock) {
+        CInv inv = MakeInstantSendLockInv(islockHash, *existingLock);
+        g_connman->RelayInvFiltered(inv, tx, InstantSendLockMinProtoVersion(*existingLock));
     }
 
     auto conflictingLock = GetConflictingLock(tx);
@@ -654,7 +800,22 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
         islock.inputs.emplace_back(in.prevout);
     }
 
+    {
+        const auto& consensus = Params().GetConsensus();
+        LOCK(cs_main);
+        const int nTipHeight = chainActive.Height();
+        if (nTipHeight >= consensus.nInstantSendExpiryStartBlock) {
+            // All members must sign the same cycle block, so use the first block of the current DKG cycle rather than
+            // the tip. Members whose tips are in different cycles will fail to agree; this is as rare as a block
+            // arriving at the cycle boundary while the lock is being signed.
+            const int dkgInterval = consensus.llmqs.at(llmqType).dkgInterval;
+            islock.nVersion = CInstantSendLock::ISDLOCK_VERSION;
+            islock.cycleHash = chainActive[nTipHeight - nTipHeight % dkgInterval]->GetBlockHash();
+        }
+    }
+
     auto id = islock.GetRequestId();
+    auto msgHash = islock.GetSignMsgHash();
 
     if (quorumSigningManager->HasRecoveredSigForId(llmqType, id)) {
         return;
@@ -669,7 +830,7 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
         txToCreatingInstantSendLocks.emplace(tx.GetHash(), &e.first->second);
     }
 
-    quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash());
+    quorumSigningManager->AsyncSignIfMember(llmqType, id, msgHash);
 }
 
 void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
@@ -688,8 +849,8 @@ void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CReco
         txToCreatingInstantSendLocks.erase(islock.txid);
     }
 
-    if (islock.txid != recoveredSig.msgHash) {
-        LogPrintf("CInstantSendManager::%s -- txid=%s: islock conflicts with %s, dropping own version", __func__,
+    if (islock.GetSignMsgHash() != recoveredSig.msgHash) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s: islock conflicts with %s, dropping own version\n", __func__,
                 islock.txid.ToString(), recoveredSig.msgHash.ToString());
         return;
     }
@@ -704,8 +865,11 @@ void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCom
         return;
     }
 
-    if (strCommand == NetMsgType::ISLOCK) {
+    if (strCommand == NetMsgType::ISLOCK || strCommand == NetMsgType::ISDLOCK) {
         CInstantSendLock islock;
+        if (strCommand == NetMsgType::ISDLOCK) {
+            islock.nVersion = CInstantSendLock::ISDLOCK_VERSION;
+        }
         vRecv >> islock;
         ProcessMessageInstantSendLock(pfrom, islock, connman);
     }
@@ -755,6 +919,54 @@ bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CI
         }
     }
 
+    if (islock.IsDeterministic()) {
+        if (islock.nVersion != CInstantSendLock::ISDLOCK_VERSION) {
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: unknown islock version %d, peer=%d\n", __func__,
+                     islock.txid.ToString(), islock.nVersion, nodeId);
+            return false;
+        }
+        if (islock.cycleHash.IsNull()) {
+            retBan = true;
+            return false;
+        }
+    }
+
+    int nLockHeight;
+    return GetLockHeight(islock, nLockHeight, retBan);
+}
+
+bool CInstantSendManager::GetLockHeight(const CInstantSendLock& islock, int& nLockHeightRet, bool& retBan)
+{
+    const auto& consensus = Params().GetConsensus();
+    retBan = false;
+
+    LOCK(cs_main);
+    const int nTipHeight = chainActive.Height();
+
+    if (!islock.IsDeterministic()) {
+        nLockHeightRet = consensus.nInstantSendExpiryStartBlock;
+    } else {
+        auto it = mapBlockIndex.find(islock.cycleHash);
+        if (it == mapBlockIndex.end()) {
+            // We might not have the block yet
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: unknown cycle block %s\n", __func__,
+                     islock.txid.ToString(), islock.cycleHash.ToString());
+            return false;
+        }
+        const int dkgInterval = consensus.llmqs.at(consensus.llmqForInstantSend).dkgInterval;
+        if (it->second->nHeight % dkgInterval != 0) {
+            // A quorum never signs this, so whoever relayed it did not verify it
+            retBan = true;
+            return false;
+        }
+        nLockHeightRet = it->second->nHeight;
+    }
+
+    if (consensus.IsInstantSendLockExpired(nLockHeightRet, nTipHeight + 1)) {
+        LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: islock with lock height %d is expired\n", __func__,
+                 islock.txid.ToString(), nLockHeightRet);
+        return false;
+    }
     return true;
 }
 
@@ -837,8 +1049,10 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
 
         auto id = islock.GetRequestId();
 
+        auto msgHash = islock.GetSignMsgHash();
+
         // no need to verify an ISLOCK if we already have verified the recovered sig that belongs to it
-        if (quorumSigningManager->HasRecoveredSig(llmqType, id, islock.txid)) {
+        if (quorumSigningManager->HasRecoveredSig(llmqType, id, msgHash)) {
             continue;
         }
 
@@ -847,7 +1061,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
         }
-        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, islock.txid);
+        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, msgHash);
         batchVerifier.PushMessage(nodeId, hash, signHash, islock.sig.Get(), quorum->qc.quorumPublicKey);
 
         // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
@@ -858,7 +1072,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
             recSig.llmqType = llmqType;
             recSig.quorumHash = quorum->qc.quorumHash;
             recSig.id = id;
-            recSig.msgHash = islock.txid;
+            recSig.msgHash = msgHash;
             recSig.sig = islock.sig;
             recSigs.emplace(std::piecewise_construct,
                     std::forward_as_tuple(hash),
@@ -917,6 +1131,14 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         g_connman->RemoveAskFor(hash);
     }
 
+    int nLockHeight;
+    bool fBan;
+    if (!GetLockHeight(islock, nLockHeight, fBan)) {
+        LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: can't determine a valid lock height, dropping islock, peer=%d\n", __func__,
+                 islock.txid.ToString(), hash.ToString(), from);
+        return;
+    }
+
     CTransactionRef tx;
     uint256 hashBlock;
     const CBlockIndex* pindexMined = nullptr;
@@ -964,7 +1186,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
             }
         }
 
-        db.WriteNewInstantSendLock(hash, islock);
+        db.WriteNewInstantSendLock(hash, islock, nLockHeight);
         if (pindexMined) {
             db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
         }
@@ -973,13 +1195,13 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         RemoveNonLockedTx(islock.txid, true);
     }
 
-    CInv inv(MSG_ISLOCK, hash);
+    CInv inv = MakeInstantSendLockInv(hash, islock);
     if (tx != nullptr) {
-        g_connman->RelayInvFiltered(inv, *tx, LLMQS_PROTO_VERSION);
+        g_connman->RelayInvFiltered(inv, *tx, InstantSendLockMinProtoVersion(islock));
     } else {
         // we don't have the TX yet, so we only filter based on txid. Later when that TX arrives, we will re-announce
         // with the TX taken into account.
-        g_connman->RelayInvFiltered(inv, islock.txid, LLMQS_PROTO_VERSION);
+        g_connman->RelayInvFiltered(inv, islock.txid, InstantSendLockMinProtoVersion(islock));
     }
 
     RemoveMempoolConflictsForLock(hash, islock);
@@ -1169,6 +1391,8 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
+    HandleExpiredLocks(pindexNew);
+
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (fDIP0008Active && IsChainlocksEnabled()) {
@@ -1184,10 +1408,51 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
     }
 }
 
+void CInstantSendManager::ForgetRemovedLock(const CInstantSendLock& islock)
+{
+    AssertLockHeld(cs);
+    auto llmqType = Params().GetConsensus().llmqForInstantSend;
+
+    for (auto& in : islock.inputs) {
+        auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
+        inputRequestIds.erase(inputRequestId);
+        quorumSigningManager->RemoveRecoveredSig(llmqType, inputRequestId);
+    }
+    quorumSigningManager->RemoveRecoveredSig(llmqType, islock.GetRequestId());
+}
+
+void CInstantSendManager::HandleExpiredLocks(const CBlockIndex* pindexNew)
+{
+    const auto& consensus = Params().GetConsensus();
+
+    // Drop the locks that are expired for the next block. Votes for the locked inputs are kept, so the quorum won't
+    // lock a conflicting TX until they are cleaned up, but such a TX may be mined.
+    const int nUntilLockHeight = pindexNew->nHeight + 1 - consensus.nInstantSendLockLifetime;
+
+    std::vector<uint256> expiredTxids;
+    {
+        LOCK(cs);
+        auto removedISLocks = db.RemoveExpiredInstantSendLocks(nUntilLockHeight, pindexNew->nHeight);
+        for (auto& p : removedISLocks) {
+            auto& islock = p.second;
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: removed expired islock\n", __func__,
+                     islock->txid.ToString(), p.first.ToString());
+            ForgetRemovedLock(*islock);
+            expiredTxids.emplace_back(islock->txid);
+        }
+    }
+
+#ifdef ENABLE_WALLET
+    if (pwalletMain) {
+        for (const auto& txid : expiredTxids) {
+            pwalletMain->UpdatedTransaction(txid);
+        }
+    }
+#endif
+}
+
 void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 {
-    auto& consensusParams = Params().GetConsensus();
-
     std::unordered_map<uint256, CInstantSendLockPtr> removeISLocks;
     {
         LOCK(cs);
@@ -1202,17 +1467,9 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
             LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
                      islock->txid.ToString(), islockHash.ToString());
 
-            for (auto& in : islock->inputs) {
-                auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
-                inputRequestIds.erase(inputRequestId);
-
-                // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
-                // from now on. All inputs are spent now and can't be spend in any other TX.
-                quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, inputRequestId);
-            }
-
-            // same as in the loop
-            quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, islock->GetRequestId());
+            // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
+            // from now on. All inputs are spent now and can't be spend in any other TX.
+            ForgetRemovedLock(*islock);
         }
 
         // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
@@ -1528,7 +1785,7 @@ bool CInstantSendManager::IsConflicted(const CTransaction& tx)
     return GetConflictingLock(tx) != nullptr;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx_)
+CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx_, int nHeight)
 {
     if (!IsNewInstantSendEnabled()) {
         return nullptr;
@@ -1543,9 +1800,17 @@ CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& 
             continue;
         }
 
-        if (otherIsLock->txid != tx.GetHash()) {
-            return otherIsLock;
+        if (otherIsLock->txid == tx.GetHash()) {
+            continue;
         }
+
+        int nLockHeight;
+        if (nHeight >= 0 && db.GetInstantSendLockHeight(::SerializeHash(*otherIsLock), nLockHeight) &&
+            Params().GetConsensus().IsInstantSendLockExpired(nLockHeight, nHeight)) {
+            // not removed yet, but it no longer applies at nHeight
+            continue;
+        }
+        return otherIsLock;
     }
     return nullptr;
 }

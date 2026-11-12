@@ -34,6 +34,22 @@ but severe issues with the libc++ version on 10.7.x keep it from running reliabl
 Notable changes
 ===============
 
+InstantSend lock expiry (hard fork)
+-----------------------------------
+
+- From the activation height, masternode quorums sign InstantSend locks
+  together with the first block of the current DKG cycle. These locks are
+  relayed with the new `isdlock` P2P message (inventory type 31, protocol
+  version 90032), whose layout follows DIP-0022: version, inputs, txid, cycle
+  block hash and signature.
+- A lock expires a fixed number of blocks after its cycle block: about two
+  months on mainnet (17280 blocks), one week on testnet, one day on devnet and
+  200 blocks on regtest. An expired lock no longer blocks conflicting spends of
+  its inputs, neither in the mempool nor in blocks, and is dropped from the
+  lock database.
+- Locks created before activation (`islock`) are treated as if they were
+  created at the activation height and expire together a lifetime later.
+
 Wallet GUI
 ----------
 

@@ -222,6 +222,13 @@ struct Params {
     int nInstantSendConfirmationsRequired; // in blocks
     int nInstantSendKeepLock; // in blocks
     int nInstantSendBlockFilteringStartHeight;
+    /** From this height IS locks are signed together with a cycle block (isdlock) and expire. Locks created before
+     *  are treated as if they were created at this height */
+    int nInstantSendExpiryStartBlock;
+    int nInstantSendLockLifetime; // in blocks, counted from the lock's cycle block
+
+    /** Whether a lock created (signed or recorded) at nLockHeight no longer applies to a block at nHeight */
+    bool IsInstantSendLockExpired(int nLockHeight, int nHeight) const { return nHeight - nLockHeight >= nInstantSendLockLifetime; }
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;

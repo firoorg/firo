@@ -42,7 +42,8 @@ from .util import (
     set_mocktime,
     get_mocktime,
     set_node_times,
-    enable_mocktime
+    enable_mocktime,
+    hex_str_to_bytes
 )
 from .authproxy import JSONRPCException
 
@@ -430,6 +431,12 @@ class ZnodeInfo:
         self.collateral_txid = collateral_txid
         self.collateral_vout = collateral_vout
 
+# Regtest InstantSend parameters, see chainparams.cpp
+REGTEST_LLMQ_TYPE_INSTANTSEND = 100  # llmq_5_60
+REGTEST_LLMQ_INSTANTSEND_DKG_INTERVAL = 24
+REGTEST_INSTANTSEND_EXPIRY_START_BLOCK = 600
+REGTEST_INSTANTSEND_LOCK_LIFETIME = 200
+
 class EvoZnodeTestFramework(BitcoinTestFramework):
     def __init__(self, num_nodes, masterodes_count, extra_args=None):
         super().__init__()
@@ -657,6 +664,52 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
         else:
             value = 4070908800
         node.spork('SPORK_16_INSTANTSEND_AUTOLOCKS', value)
+
+    def create_islock(self, hextx, cycle_height=None):
+        """Have the masternodes sign an InstantSend lock for hextx, without relaying it.
+
+        Past the expiry activation height this is an isdlock signed together with the first block of the DKG cycle
+        at cycle_height (the current cycle by default), a legacy islock otherwise."""
+        from .mininode import (CTransaction, FromHex, hash256, msg_isdlock, msg_islock, ser_compact_size, ser_string,
+                               ser_uint256, uint256_from_str)
+
+        tx = FromHex(CTransaction(), hextx)
+        tx.rehash()
+
+        request_id_buf = ser_string(b"islock") + ser_compact_size(len(tx.vin))
+        inputs = []
+        for txin in tx.vin:
+            request_id_buf += txin.prevout.serialize()
+            inputs.append(txin.prevout)
+        request_id = "%064x" % uint256_from_str(hash256(request_id_buf))
+
+        tip_height = self.nodes[0].getblockcount()
+        deterministic = tip_height >= REGTEST_INSTANTSEND_EXPIRY_START_BLOCK
+        if deterministic:
+            if cycle_height is None:
+                cycle_height = tip_height - tip_height % REGTEST_LLMQ_INSTANTSEND_DKG_INTERVAL
+            cycle_hash = int(self.nodes[0].getblockhash(cycle_height), 16)
+            message_hash_buf = ser_string(b"isdlock") + bytes([1]) + ser_uint256(tx.sha256) + ser_uint256(cycle_hash)
+            message_hash = "%064x" % uint256_from_str(hash256(message_hash_buf))
+        else:
+            message_hash = "%064x" % tx.sha256
+
+        for mn in self.mninfo:
+            mn.node.quorum('sign', REGTEST_LLMQ_TYPE_INSTANTSEND, request_id, message_hash)
+
+        recSig = None
+        t = time()
+        while time() - t < 10:
+            try:
+                recSig = self.nodes[0].quorum('getrecsig', REGTEST_LLMQ_TYPE_INSTANTSEND, request_id, message_hash)
+                break
+            except:
+                sleep(0.1)
+        assert(recSig is not None)
+
+        if deterministic:
+            return msg_isdlock(1, inputs, tx.sha256, cycle_hash, hex_str_to_bytes(recSig['sig']))
+        return msg_islock(inputs, tx.sha256, hex_str_to_bytes(recSig['sig']))
 
     def create_raw_tx(self, node_from, node_to, amount, min_inputs, max_inputs):
         assert (min_inputs <= max_inputs)

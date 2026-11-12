@@ -20,8 +20,17 @@ namespace llmq
 class CInstantSendLock
 {
 public:
+    /** Legacy lock, relayed as "islock". Signs only the txid and carries no height. */
+    static constexpr uint8_t ISLOCK_VERSION = 0;
+    /** Lock relayed as "isdlock" (see DIP-0022). The quorum signs the txid together with cycleHash, the first block of
+     *  the DKG cycle the lock was created in. Its height is the lock height from which the lock expires. */
+    static constexpr uint8_t ISDLOCK_VERSION = 1;
+
+    /** Not serialized for ISLOCK_VERSION. Set it before deserializing to pick the format. */
+    uint8_t nVersion{ISLOCK_VERSION};
     std::vector<COutPoint> inputs;
     uint256 txid;
+    uint256 cycleHash; //!< only serialized for ISDLOCK_VERSION
     CBLSLazySignature sig;
 
 public:
@@ -30,12 +39,23 @@ public:
     template<typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        const bool fDeterministic = IsDeterministic();
+        if (fDeterministic) {
+            READWRITE(nVersion);
+        }
         READWRITE(inputs);
         READWRITE(txid);
+        if (fDeterministic) {
+            READWRITE(cycleHash);
+        }
         READWRITE(sig);
     }
 
+    bool IsDeterministic() const { return nVersion != ISLOCK_VERSION; }
+
     uint256 GetRequestId() const;
+    /** The message hash the quorum signs: the txid for legacy locks, the txid bound to cycleHash otherwise. */
+    uint256 GetSignMsgHash() const;
 };
 
 typedef std::shared_ptr<CInstantSendLock> CInstantSendLockPtr;
@@ -49,11 +69,20 @@ private:
     unordered_lru_cache<uint256, uint256, StaticSaltedHasher, 10000> txidCache;
     unordered_lru_cache<COutPoint, uint256, SaltedOutpointHasher, 10000> outpointCache;
 
+    void WriteInstantSendLockHeight(CDBBatch& batch, const uint256& hash, int nLockHeight);
+
 public:
     CInstantSendDb(CDBWrapper& _db) : db(_db) {}
 
-    void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock);
+    /** Store islock, recording nLockHeight as the height its lifetime is counted from. */
+    void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock, int nLockHeight);
     void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock);
+
+    /** Record nLockHeight for stored locks that have no lock height yet (written by older versions). */
+    void WriteMissingLockHeights(int nLockHeight);
+    bool GetInstantSendLockHeight(const uint256& hash, int& nLockHeightRet);
+    /** Remove (and archive at nArchiveHeight) all locks whose lock height is at most nUntilLockHeight. */
+    std::unordered_map<uint256, CInstantSendLockPtr> RemoveExpiredInstantSendLocks(int nUntilLockHeight, int nArchiveHeight);
 
     void WriteInstantSendLockMined(const uint256& hash, int nHeight);
     void RemoveInstantSendLockMined(const uint256& hash, int nHeight);
@@ -135,7 +164,11 @@ public:
     bool IsLocked(const uint256& txHash);
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret);
 
-    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx);
+    /**
+     * Returns a lock on any input of tx that is held by a different TX.
+     * @param[in] nHeight  if not negative, locks that are expired for a block at this height are ignored
+     */
+    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx, int nHeight = -1);
     void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
     bool RemoveISLockByTxId(const uint256& txid);
 
@@ -162,6 +195,12 @@ private:
 
     void ProcessMessageInstantSendLock(CNode* pfrom, const CInstantSendLock& islock, CConnman& connman);
     bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
+    /**
+     * Determine the height the lock's lifetime is counted from: the height of cycleHash for isdlocks, the expiry
+     * activation height for legacy locks. Fails if the lock's version is not accepted at the current tip, if the
+     * cycle block is unknown or if the lock is already expired.
+     */
+    bool GetLockHeight(const CInstantSendLock& islock, int& nLockHeightRet, bool& retBan);
     bool ProcessPendingInstantSendLocks();
     std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock);
@@ -172,6 +211,8 @@ private:
     void RemoveConflictedTx(const CTransaction& tx);
 
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex);
+    void HandleExpiredLocks(const CBlockIndex* pindexNew);
+    void ForgetRemovedLock(const CInstantSendLock& islock);
 
     void RemoveMempoolConflictsForLock(const uint256& hash, const CInstantSendLock& islock);
     void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock);

@@ -980,6 +980,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
     case MSG_ISLOCK:
+    case MSG_ISDLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
     }
     // Don't know what it is, just say we already got one
@@ -1301,10 +1302,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (!pushed && (inv.type == MSG_ISLOCK)) {
+                if (!pushed && (inv.type == MSG_ISLOCK || inv.type == MSG_ISDLOCK)) {
                     llmq::CInstantSendLock o;
                     if (llmq::quorumInstantSendManager->GetInstantSendLockByHash(inv.hash, o)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ISLOCK, o));
+                        connman.PushMessage(pfrom, msgMaker.Make(o.IsDeterministic() ? NetMsgType::ISDLOCK : NetMsgType::ISLOCK, o));
                         pushed = true;
                     }
                 }
@@ -1979,6 +1980,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             doubleRequestDelay = 5 * 1000000;
                             break;
                         case MSG_ISLOCK:
+                        case MSG_ISDLOCK:
                             doubleRequestDelay = 10 * 1000000;
                             break;
                     }

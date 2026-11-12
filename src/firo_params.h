@@ -176,6 +176,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 #define SPARK_NAME_V21_MAINNET_START_BLOCK          1329000     // Approx June 22 2026
 
+// Hard fork block numbers for InstantSend lock expiry (isdlock). TODO: schedule, INT_MAX keeps the feature off
+#define INSTANTSEND_EXPIRY_MAINNET_START_BLOCK      INT_MAX
+#define INSTANTSEND_EXPIRY_TESTNET_START_BLOCK      INT_MAX
+#define INSTANTSEND_EXPIRY_DEVNET_START_BLOCK       INT_MAX
+
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30
 #define ZEROCOIN_TX_VERSION_3_1             31

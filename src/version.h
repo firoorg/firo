@@ -9,7 +9,7 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 90031;
+static const int PROTOCOL_VERSION = 90032;
 
 //! legacy znode protocol version
 static const int LEGACY_ZNODES_PROTOCOL_VERSION = 90026;
@@ -62,5 +62,8 @@ static const int LLMQS_PROTO_VERSION = 90030;
 
 //! introducing blocks with stripped MTP data
 static const int MTPDATA_STRIPPED_VERSION = 90031;
+
+//! introduction of isdlock (InstantSend locks with a quorum-signed cycle block)
+static const int ISDLOCK_PROTO_VERSION = 90032;
 
 #endif // BITCOIN_VERSION_H

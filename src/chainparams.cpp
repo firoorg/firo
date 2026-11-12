@@ -303,6 +303,8 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 24;
         consensus.nInstantSendBlockFilteringStartHeight = 421150;   // Approx Nov 2 2021 06:00:00 GMT+0000
+        consensus.nInstantSendExpiryStartBlock = INSTANTSEND_EXPIRY_MAINNET_START_BLOCK;
+        consensus.nInstantSendLockLifetime = 60 * 24 * 12; // ~2 months of 5 minute blocks
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -641,6 +643,8 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 48136;
+        consensus.nInstantSendExpiryStartBlock = INSTANTSEND_EXPIRY_TESTNET_START_BLOCK;
+        consensus.nInstantSendLockLifetime = 7 * 24 * 12; // ~1 week
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
@@ -924,6 +928,8 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 1000;
+        consensus.nInstantSendExpiryStartBlock = INSTANTSEND_EXPIRY_DEVNET_START_BLOCK;
+        consensus.nInstantSendLockLifetime = 24 * 12; // ~1 day
 
         consensus.nMTPSwitchTime = 0;
         consensus.nMTPStartBlock = 1;
@@ -1171,6 +1177,8 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 500;
+        consensus.nInstantSendExpiryStartBlock = 600;
+        consensus.nInstantSendLockLifetime = 200;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
