@@ -352,13 +352,11 @@ void GroupElement::randomize() {
 }
 
 GroupElement& GroupElement::generate(unsigned char* seed){
-    unsigned char gen[33];
     static const unsigned char prefix1[16] = "1st generationn";
     static const unsigned char prefix2[16] = "2nd generationn";
     secp256k1_fe t = SECP256K1_FE_CONST(0, 0, 0, 0, 0, 0, 0, 4);
     secp256k1_ge add;
     secp256k1_gej accum;
-    FIRO_UNUSED int overflow;
     secp256k1_sha256_t sha256;
     unsigned char b32[32];
     secp256k1_sha256_initialize(&sha256);
@@ -376,18 +374,11 @@ GroupElement& GroupElement::generate(unsigned char* seed){
     indifferent_hash(&add, &t);
     secp256k1_gej_add_ge(&accum, &accum, &add);
     secp256k1_ge_set_gej(&add, &accum);
+    // Store the summed point. set_xquad would force a quadratic-residue y, and the
+    // old sign bit only existed to undo that.
     secp256k1_fe_normalize(&add.x);
-    secp256k1_fe_get_b32(gen + 1, &add.x);
-    gen[0] = 11 ^ secp256k1_fe_is_quad_var(&add.y);
-    //load group element from gen;
-    secp256k1_fe fe;
-    secp256k1_fe_set_b32(&fe, gen + 1);
-    secp256k1_ge ge;
-    secp256k1_ge_set_xquad(&ge, &fe);
-    if (gen[0] & 1) {
-        secp256k1_ge_neg(&ge, &ge);
-    }
-    secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &ge);
+    secp256k1_fe_normalize(&add.y);
+    secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &add);
     return *this;
 }
 
