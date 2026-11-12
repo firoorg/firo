@@ -226,12 +226,11 @@ bool CDBEnv::Salvage(const std::string& strFile, bool fAggressive, std::vector<C
 }
 
 
-void CDBEnv::CheckpointLSN(const std::string& strFile)
+bool CDBEnv::CheckpointLSN(const std::string& strFile)
 {
-    dbenv->txn_checkpoint(0, 0, 0);
-    if (fMockDb)
-        return;
-    dbenv->lsn_reset(strFile.c_str(), 0);
+    if (dbenv->txn_checkpoint(0, 0, 0) != 0)
+        return false;
+    return fMockDb || dbenv->lsn_reset(strFile.c_str(), 0) == 0;
 }
 
 
@@ -325,18 +324,20 @@ void CDB::Close()
     }
 }
 
-void CDBEnv::CloseDb(const std::string& strFile)
+bool CDBEnv::CloseDb(const std::string& strFile)
 {
     {
         LOCK(cs_db);
         if (mapDb[strFile] != NULL) {
             // Close the database handle
             Db* pdb = mapDb[strFile];
-            pdb->close(0);
+            const int ret = pdb->close(0);
             delete pdb;
             mapDb[strFile] = NULL;
+            return ret == 0;
         }
     }
+    return true;
 }
 
 bool CDBEnv::RemoveDb(const std::string& strFile)
@@ -355,8 +356,8 @@ bool CDB::Rewrite(const std::string& strFile, const char* pszSkip)
             LOCK(bitdb.cs_db);
             if (!bitdb.mapFileUseCount.count(strFile) || bitdb.mapFileUseCount[strFile] == 0) {
                 // Flush log data to the dat file
-                bitdb.CloseDb(strFile);
-                bitdb.CheckpointLSN(strFile);
+                if (!bitdb.CloseDb(strFile) || !bitdb.CheckpointLSN(strFile))
+                    return error("CDB::Rewrite: Can't flush database file %s", strFile);
                 bitdb.mapFileUseCount.erase(strFile);
 
                 bool fSuccess = true;
@@ -364,30 +365,34 @@ bool CDB::Rewrite(const std::string& strFile, const char* pszSkip)
                 std::string strFileRes = strFile + ".rewrite";
                 { // surround usage of db with extra {}
                     CDB db(strFile.c_str(), "r");
-                    Db* pdbCopy = new Db(bitdb.dbenv, 0);
+                    // A previous attempt may have left stale records in the copy.
+                    int ret = bitdb.dbenv->dbremove(NULL, strFileRes.c_str(), NULL, DB_AUTO_COMMIT);
+                    if (ret != 0 && ret != ENOENT)
+                        return error("CDB::Rewrite: Can't remove old rewrite file %s: %s", strFileRes, DbEnv::strerror(ret));
+                    Db dbCopy(bitdb.dbenv, 0);
 
-                    int ret = pdbCopy->open(NULL,               // Txn pointer
+                    ret = dbCopy.open(NULL,                    // Txn pointer
                                             strFileRes.c_str(), // Filename
                                             "main",             // Logical db name
                                             DB_BTREE,           // Database type
-                                            DB_CREATE,          // Flags
+                                            DB_CREATE | DB_EXCL, // Flags
                                             0);
-                    if (ret > 0) {
+                    if (ret != 0) {
                         LogPrintf("CDB::Rewrite: Can't create database file %s\n", strFileRes);
                         fSuccess = false;
                     }
 
-                    Dbc* pcursor = db.GetCursor();
-                    if (pcursor)
+                    Dbc* pcursor = fSuccess ? db.GetCursor() : NULL;
+                    if (!pcursor)
+                        fSuccess = false;
+                    else {
                         while (fSuccess) {
                             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
                             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
                             int ret1 = db.ReadAtCursor(pcursor, ssKey, ssValue);
                             if (ret1 == DB_NOTFOUND) {
-                                pcursor->close();
                                 break;
                             } else if (ret1 != 0) {
-                                pcursor->close();
                                 fSuccess = false;
                                 break;
                             }
@@ -401,25 +406,32 @@ bool CDB::Rewrite(const std::string& strFile, const char* pszSkip)
                             }
                             Dbt datKey(ssKey.data(), ssKey.size());
                             Dbt datValue(ssValue.data(), ssValue.size());
-                            int ret2 = pdbCopy->put(NULL, &datKey, &datValue, DB_NOOVERWRITE);
-                            if (ret2 > 0)
+                            int ret2 = dbCopy.put(NULL, &datKey, &datValue, DB_NOOVERWRITE);
+                            if (ret2 != 0)
                                 fSuccess = false;
                         }
-                    if (fSuccess) {
-                        db.Close();
-                        bitdb.CloseDb(strFile);
-                        if (pdbCopy->close(0))
+                        if (pcursor->close() != 0)
                             fSuccess = false;
-                        delete pdbCopy;
                     }
+                    db.Close();
+                    if (!bitdb.CloseDb(strFile))
+                        fSuccess = false;
+                    if (dbCopy.close(0) != 0)
+                        fSuccess = false;
                 }
                 if (fSuccess) {
-                    Db dbA(bitdb.dbenv, 0);
-                    if (dbA.remove(strFile.c_str(), NULL, 0))
+                    // Replace both names in one transaction so a failed rename
+                    // cannot leave the wallet available only as .rewrite.
+                    DbTxn* txn = bitdb.TxnBegin(0);
+                    if (!txn) {
                         fSuccess = false;
-                    Db dbB(bitdb.dbenv, 0);
-                    if (dbB.rename(strFileRes.c_str(), NULL, strFile.c_str(), 0))
+                    } else if (bitdb.dbenv->dbremove(txn, strFile.c_str(), NULL, 0) != 0 ||
+                               bitdb.dbenv->dbrename(txn, strFileRes.c_str(), NULL, strFile.c_str(), 0) != 0) {
+                        txn->abort();
                         fSuccess = false;
+                    } else {
+                        fSuccess = txn->commit(DB_TXN_SYNC) == 0;
+                    }
                 }
                 if (!fSuccess)
                     LogPrintf("CDB::Rewrite: Failed to rewrite database file %s\n", strFileRes);

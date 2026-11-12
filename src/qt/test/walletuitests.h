@@ -36,6 +36,7 @@ private Q_SLOTS:
     void recoveryRetryUsesFinalInput();
     void confirmationRefresh();
     void manualConsolidation();
+    void sparkAddressEditFailure();
     void consolidationResult();
     void themeTintColors();
     void peerDetailsTheme();

@@ -12,6 +12,7 @@ target_sources(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/spark_batch_planner_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark_wallet_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/wallet_test_fixture.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/wallet_persistence_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/wallet_tests.cpp
 )
 target_link_libraries(test_firo firo_wallet)
