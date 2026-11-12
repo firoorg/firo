@@ -930,7 +930,9 @@ void TransactionView::contextualMenu(const QPoint &point)
         copyLabelAction->setText(tr(CopyLabelText));
     abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
     resendAction->setEnabled(model->transactionCanBeRebroadcast(hash));
-    spendProofAction->setEnabled(model->transactionCanProveSpend(hash));
+    // These two types are this wallet's own Spark spends. The dialog reports one that is not confirmed yet.
+    const int type = index.data(TransactionTableModel::TypeRole).toInt();
+    spendProofAction->setEnabled(type == TransactionRecord::SpendSparkTo || type == TransactionRecord::SpendSparkToSelf);
 
     if(index.isValid())
     {
@@ -940,14 +942,14 @@ void TransactionView::contextualMenu(const QPoint &point)
 
 void TransactionView::spendProof()
 {
-    if(!transactionView || !transactionView->selectionModel())
-        return;
-    QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
-    if (selection.isEmpty())
+    // The row that was right-clicked. With several rows selected it need not be the first
+    // selected one, and a proof must not be made for a transaction the user did not pick.
+    const QModelIndex index = transactionView ? transactionView->currentIndex() : QModelIndex();
+    if (!index.isValid())
         return;
 
     SpendProofDialog *dialog = new SpendProofDialog(
-        model, selection.at(0).data(TransactionTableModel::TxHashRole).toString(), this);
+        model, index.data(TransactionTableModel::TxHashRole).toString(), this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
 }

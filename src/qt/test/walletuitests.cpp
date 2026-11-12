@@ -66,6 +66,8 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QLocale>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPointer>
@@ -1227,6 +1229,11 @@ void WalletUiTests::synchronizationProgress()
     node.setNumBlocks(101, now, 1.0, false);
     QVERIFY(node.progressBarLabel->isHidden());
     QVERIFY(node.progressBar->isHidden());
+
+    // Verifying a spend proof needs only the chain, so the walletless window offers it too.
+    QVERIFY(node.appMenuBar->actions().constFirst()->menu()->actions().contains(node.verifySpendProofAction));
+    node.verifySpendProofAction->trigger();
+    QVERIFY(node.findChild<SpendProofDialog*>());
 }
 
 void WalletUiTests::synchronizationEstimates()

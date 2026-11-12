@@ -1092,19 +1092,6 @@ bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t 
         return wallet->AddDestData(sAddress, key, sRequest);
 }
 
-bool WalletModel::transactionCanProveSpend(uint256 hash) const
-{
-    LOCK2(cs_main, wallet->cs_wallet);
-    const CWalletTx *wtx = wallet->GetWalletTx(hash);
-    if (!wtx || !wallet->sparkWallet || !wtx->tx->IsSparkSpend() || wtx->GetDepthInMainChain() <= 0)
-        return false;
-    try {
-        return wallet->sparkWallet->isMine(spark::GetSparkUsedTags(*wtx->tx));
-    } catch (const std::exception&) {
-        return false;
-    }
-}
-
 QString WalletModel::createSpendProof(uint256 hash, const QString &message, QString &error)
 {
     // Unlike message signing, this reads the transaction and its cover sets from chain state.

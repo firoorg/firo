@@ -502,6 +502,12 @@ void BitcoinGUI::createActions()
     connect(quitAction, &QAction::triggered, rpcConsole, &QWidget::hide);
 
 #ifdef ENABLE_WALLET
+    // Verifying needs only this node's chain, so it is offered with -disablewallet too.
+    connect(verifySpendProofAction, &QAction::triggered, this, [this]{
+        SpendProofDialog *dialog = new SpendProofDialog(this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+    });
     if(walletFrame)
     {
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
@@ -510,12 +516,6 @@ void BitcoinGUI::createActions()
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(verifyMessageAction, &QAction::triggered, [this]{ gotoVerifyMessageTab(); });
-        // Verifying needs only this node's chain, so it stays available without a loaded wallet.
-        connect(verifySpendProofAction, &QAction::triggered, this, [this]{
-            SpendProofDialog *dialog = new SpendProofDialog(this);
-            dialog->setAttribute(Qt::WA_DeleteOnClose);
-            dialog->show();
-        });
         connect(usedSendingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedSendingAddresses);
         connect(usedReceivingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedReceivingAddresses);
         connect(consolidateOutputsAction, &QAction::triggered, walletFrame, &WalletFrame::consolidateCoins);
@@ -553,6 +553,13 @@ void BitcoinGUI::createMenuBar()
         file->addAction(consolidateOutputsAction);
         file->addSeparator();
     }
+#ifdef ENABLE_WALLET
+    else
+    {
+        file->addAction(verifySpendProofAction);
+        file->addSeparator();
+    }
+#endif
     file->addAction(quitAction);
 
     QMenu *settings = appMenuBar->addMenu(tr("&Settings"));
