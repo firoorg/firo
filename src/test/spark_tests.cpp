@@ -4409,6 +4409,70 @@ BOOST_AUTO_TEST_CASE(wallet_cache_verification)
     BOOST_CHECK(wallet->validateLookupIndexes());
 }
 
+BOOST_AUTO_TEST_CASE(spend_proof)
+{
+    RestoreSparkActivationHeights restoreHeights;
+    BatchProofContainer::get_instance()->init();
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const std::string message = "support ticket 4821";
+    const auto createProof = [](const uint256& txid, const std::string& text) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        return pwalletMain->sparkWallet->CreateSpendProof(txid, text);
+    };
+
+    // Only confirmed Spark spends can be proven; a mint is neither.
+    BOOST_CHECK_THROW(createProof(mintTransactions[0].GetHash(), message), std::runtime_error);
+
+    for (const bool chaumV2 : {false, true}) {
+        if (chaumV2) {
+            const int activationHeight = chainActive.Height() + 1;
+            UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
+        }
+        const int coverSetHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
+        const CTransaction spendTx = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+        BOOST_REQUIRE_EQUAL(spendTx.IsSparkSpendV2(), chaumV2);
+        const uint256 txid = spendTx.GetHash();
+        BOOST_CHECK_THROW(createProof(txid, message), std::runtime_error); // not confirmed yet
+
+        mempool.clear();
+        BOOST_REQUIRE(GenerateBlock({CMutableTransaction(spendTx)}));
+
+        // The restored context is the one consensus verified: the spend's
+        // own proofs verify under it, against the cover set it was made for.
+        SpendTransaction restored(params);
+        std::unordered_map<uint64_t, std::vector<Coin>> coverSets;
+        {
+            LOCK(cs_main);
+            BOOST_REQUIRE(GetConfirmedSparkSpend(txid, restored) == SpendProofResult::Ok);
+            for (const uint64_t id : restored.getCoinGroupIds()) {
+                uint256 blockHash;
+                std::vector<unsigned char> setHash;
+                sparkState->GetCoinSetForSpend(
+                    &chainActive, coverSetHeight, id, blockHash, coverSets[id], setHash);
+            }
+        }
+        BOOST_CHECK(SpendTransaction::verify(restored, coverSets));
+
+        const std::string proof = createProof(txid, message);
+        uint256 named;
+        BOOST_CHECK(VerifySpendProof(proof, message, named) == SpendProofResult::Ok);
+        BOOST_CHECK(named == txid);
+        BOOST_CHECK(VerifySpendProof(proof, message + "!", named) == SpendProofResult::Mismatch);
+        BOOST_CHECK(VerifySpendProof(proof + "00", message, named) == SpendProofResult::Malformed);
+        BOOST_CHECK(VerifySpendProof("not hex", message, named) == SpendProofResult::Malformed);
+    }
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 } // end of namespace spark
 
 BOOST_AUTO_TEST_SUITE_END()

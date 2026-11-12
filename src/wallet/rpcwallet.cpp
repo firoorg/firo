@@ -1452,6 +1452,52 @@ UniValue signmessage(const JSONRPCRequest& request)
 }
 
 
+UniValue createsparkspendproof(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "createsparkspendproof \"txid\" \"message\"\n"
+            "\nProve that this wallet knows the spending keys behind every input of one of its confirmed\n"
+            "Spark spends, without revealing the keys or which coins were spent. The proof is bound to\n"
+            "the message, so use a fresh challenge supplied by whoever will verify it. Anyone holding the\n"
+            "proof can link this wallet to the transaction."
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nArguments:\n"
+            "1. \"txid\"      (string, required) The id of a confirmed Spark spend made by this wallet.\n"
+            "2. \"message\"   (string, required) The message to bind the proof to.\n"
+            "\nResult:\n"
+            "\"proof\"        (string) The spend proof as a hex string\n"
+            "\nExamples:\n"
+            "\nUnlock the wallet for 30 seconds\n"
+            + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
+            "\nCreate the proof\n"
+            + HelpExampleCli("createsparkspendproof", "\"txid\" \"my message\"") +
+            "\nVerify the proof\n"
+            + HelpExampleCli("verifysparkspendproof", "\"proof\" \"my message\"") +
+            "\nAs json rpc\n"
+            + HelpExampleRpc("createsparkspendproof", "\"txid\", \"my message\"")
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    const uint256 txid = ParseHashV(request.params[0], "txid");
+    try {
+        return pwallet->sparkWallet->CreateSpendProof(txid, request.params[1].get_str());
+    } catch (const WalletLocked&) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+}
+
 UniValue signmessagewithsparkaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5893,6 +5939,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },
     { "wallet",             "signmessagewithsparkaddress", &signmessagewithsparkaddress, true, {"sparkaddress","message"} },
+    { "wallet",             "createsparkspendproof",    &createsparkspendproof,    true,   {"txid","message"} },
     { "wallet",             "walletlock",               &walletlock,               true,   {} },
     { "wallet",             "walletpassphrasechange",   &walletpassphrasechange,   true,   {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true,   {"passphrase","timeout"} },

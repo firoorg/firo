@@ -105,6 +105,7 @@ testScripts = [
     'spark_mintspend.py',
     'spark_batching.py',
     'spark_spend_gettransaction.py',
+    'spark_spendproof.py',
     'spark_setmintstatus_validation.py',
     'mempool_doublesend_oneblock.py',
     'mempool_reorg.py',
