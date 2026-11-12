@@ -680,7 +680,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
             CProRegTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                assert(false); // this should have been handled already
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
             }
 
             auto dmn = std::make_shared<CDeterministicMN>();
@@ -749,7 +749,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
             CProUpServTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                assert(false); // this should have been handled already
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
             }
 
             if (newList.HasUniqueProperty(proTx.addr) && newList.GetUniquePropertyMN(proTx.addr)->proTxHash != proTx.proTxHash) {
@@ -786,7 +786,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
             CProUpRegTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                assert(false); // this should have been handled already
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
             }
 
             CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
@@ -817,7 +817,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
             CProUpRevTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                assert(false); // this should have been handled already
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
             }
 
             CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
@@ -838,7 +838,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
             llmq::CFinalCommitmentTxPayload qc;
             if (!GetTxPayload(tx, qc)) {
-                assert(false); // this should have been handled already
+                return _state.DoS(100, false, REJECT_INVALID, "bad-qc-payload");
             }
             if (!qc.commitment.IsNull()) {
                 const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qc.commitment.llmqType);
