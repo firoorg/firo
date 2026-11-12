@@ -414,7 +414,8 @@ std::string CSparkWallet::SignMessage(const spark::Address& address, const std::
     return HexStr(proofStream.begin(), proofStream.end());
 }
 
-std::string CSparkWallet::CreateSpendProof(const uint256& txid, const std::string& message) {
+std::string CSparkWallet::CreateSpendProof(const uint256& txid, const std::string& message)
+{
     const spark::Params* params = spark::Params::get_default();
 
     spark::SpendTransaction spend(params);

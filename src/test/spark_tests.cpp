@@ -4436,8 +4436,11 @@ BOOST_AUTO_TEST_CASE(spend_proof)
             UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
         }
         const int coverSetHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
-        const CTransaction spendTx = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+        // V1 spends are single-input. The V2 spend takes more than the untouched 5-coin mint
+        // holds, so it also needs the V1 spend's change and covers the multi-input path.
+        const CTransaction spendTx = GenerateSparkSpend({chaumV2 ? 11 * COIN / 2 : 4 * COIN}, {}, nullptr);
         BOOST_REQUIRE_EQUAL(spendTx.IsSparkSpendV2(), chaumV2);
+        BOOST_REQUIRE_EQUAL(GetSpendInputs(spendTx), size_t(chaumV2 ? 2 : 1));
         const uint256 txid = spendTx.GetHash();
         BOOST_CHECK_THROW(createProof(txid, message), std::runtime_error); // not confirmed yet
 

@@ -2451,11 +2451,14 @@ SpendProofResult VerifySpendProof(const std::string& hexProof, const std::string
     }
 
     try {
-        LOCK(cs_main);
         spark::SpendTransaction spend(Params::get_default());
-        const SpendProofResult found = GetConfirmedSparkSpend(txid, spend);
-        if (found != SpendProofResult::Ok)
-            return found;
+        {
+            // Only loading the spend reads chain state; the proof check below works on the copy.
+            LOCK(cs_main);
+            const SpendProofResult found = GetConfirmedSparkSpend(txid, spend);
+            if (found != SpendProofResult::Ok)
+                return found;
+        }
         return SpendTransaction::verifyClaim(
                 spend,
                 std::vector<unsigned char>(txid.begin(), txid.end()),
