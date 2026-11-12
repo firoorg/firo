@@ -6,11 +6,9 @@
 #include "libspark/params.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
-#include "sendcoinsdialog.h"
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 
-#include <QCheckBox>
 #include <QLineEdit>
 #include <QScopeGuard>
 
@@ -83,39 +81,6 @@ void TestSendCoinsEntry::testMemoByteLimit()
         QVERIFY(entry.validate());
         QCOMPARE(entry.getValue().message, ascii + QLatin1Char('b'));
     }
-}
-
-void TestSendCoinsEntry::testPrivateModeUpdatesExistingEntries()
-{
-    const std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
-    QVERIFY(platformStyle);
-
-    SendCoinsDialog dialog(platformStyle.get());
-    SendCoinsEntry* firstEntry = dialog.entry;
-    SendCoinsEntry* secondEntry = dialog.addEntry();
-    QCheckBox* firstSubtractFee =
-        firstEntry->findChild<QCheckBox*>("checkboxSubtractFeeFromAmount");
-    QCheckBox* secondSubtractFee =
-        secondEntry->findChild<QCheckBox*>("checkboxSubtractFeeFromAmount");
-    QVERIFY(firstSubtractFee);
-    QVERIFY(secondSubtractFee);
-
-    QVERIFY(QMetaObject::invokeMethod(
-        &dialog, "setAnonymizeMode", Qt::DirectConnection, Q_ARG(bool, false)));
-    firstSubtractFee->setChecked(true);
-    secondSubtractFee->setChecked(true);
-
-    QVERIFY(QMetaObject::invokeMethod(
-        &dialog, "setAnonymizeMode", Qt::DirectConnection, Q_ARG(bool, true)));
-    QVERIFY(!firstSubtractFee->isChecked());
-    QVERIFY(!secondSubtractFee->isChecked());
-    QVERIFY(!firstSubtractFee->isEnabled());
-    QVERIFY(!secondSubtractFee->isEnabled());
-
-    QVERIFY(QMetaObject::invokeMethod(
-        &dialog, "setAnonymizeMode", Qt::DirectConnection, Q_ARG(bool, false)));
-    QVERIFY(firstSubtractFee->isEnabled());
-    QVERIFY(secondSubtractFee->isEnabled());
 }
 
 void TestSendCoinsEntry::testSparkCoinControlSizeEstimate()

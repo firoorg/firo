@@ -16,7 +16,6 @@
 #include "walletmodel.h"
 
 #include "wallet/coincontrol.h"
-#include "wallet/sparkbatchplanner.h"
 #include "init.h"
 #include "policy/policy.h"
 #include "validation.h" // For mempool
@@ -64,25 +63,18 @@ unsigned int CoinControlDialog::estimateSparkTxBytes(
             : left * right;
     };
 
-    uint64_t estimatedSize;
-    if (selectedInputs == 1) {
-        estimatedSize = spark::EstimateSingleInputSparkSize(
-            privateOutputs,
-            transparentOutputs);
-    } else {
-        estimatedSize = 924;
-        estimatedSize = saturatingAdd(
-            estimatedSize,
-            saturatingMultiply(1803, selectedInputs));
-        estimatedSize = saturatingAdd(
-            estimatedSize,
-            saturatingMultiply(
-                322,
-                saturatingAdd(privateOutputs, 1)));
-        estimatedSize = saturatingAdd(
-            estimatedSize,
-            saturatingMultiply(34, transparentOutputs));
-    }
+    uint64_t estimatedSize = 924;
+    estimatedSize = saturatingAdd(
+        estimatedSize,
+        saturatingMultiply(1803, selectedInputs));
+    estimatedSize = saturatingAdd(
+        estimatedSize,
+        saturatingMultiply(
+            322,
+            saturatingAdd(privateOutputs, 1)));
+    estimatedSize = saturatingAdd(
+        estimatedSize,
+        saturatingMultiply(34, transparentOutputs));
     if (versionedSpend) {
         estimatedSize = saturatingAdd(estimatedSize, 32);
         if (selectedInputs > 1) {
