@@ -19,6 +19,7 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/../primitives/mint_spend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/crypter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bip39.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/database.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mnemoniccontainer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/db.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcdump.cpp
@@ -42,5 +43,15 @@ target_link_libraries(firo_wallet
     warn_interface
 )
 
-# Firo only supports BDB for wallet storage.
 target_link_libraries(firo_wallet PUBLIC BerkeleyDB::BerkeleyDB)
+if(ENABLE_SQLITE_WALLET)
+  target_sources(firo_wallet PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/sqlite.cpp
+  )
+  if(WIN32)
+    target_sources(firo_wallet PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/win32_file_lifecycle.cpp
+    )
+  endif()
+  target_link_libraries(firo_wallet PRIVATE SQLite3::SQLite3)
+endif()

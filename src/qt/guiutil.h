@@ -97,7 +97,7 @@ namespace GUIUtil
      */
     QString getSaveFileName(QWidget *parent, const QString &caption, const QString &dir,
         const QString &filter,
-        QString *selectedSuffixOut);
+        QString *selectedSuffixOut, bool confirmOverwrite = true);
 
     /** Get open filename, convenience wrapper for QFileDialog::getOpenFileName.
 

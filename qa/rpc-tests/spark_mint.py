@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_message, JSONRPCException
+from test_framework.mininode import wait_until
+from test_framework.util import assert_equal, assert_raises_message, JSONRPCException, start_node
 
 class SparkMintTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -33,6 +34,16 @@ class SparkMintTest(BitcoinTestFramework):
         self.verify_listunspentsparkmints(amounts)
         assert_equal([False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
 
+        # -zapwalletmints also enables -zapwallettxes=1 and -reindex. Confirm
+        # the temporary zap owners complete before the final wallet load and
+        # the chain-derived Spark mint records are restored.
+        expected_height = self.nodes[0].getblockcount()
+        self.stop_node(0)
+        self.nodes[0] = start_node(0, self.options.tmpdir, ["-zapwalletmints"])
+        assert wait_until(lambda: self.nodes[0].getblockcount() == expected_height, timeout=60)
+        self.verify_listsparkmints(amounts)
+        self.verify_listunspentsparkmints(amounts)
+
         # state modification test
         # mark two coins as used
         self.nodes[0].setsparkmintstatus(mints[2]["lTagHash"], True)
@@ -56,6 +67,15 @@ class SparkMintTest(BitcoinTestFramework):
         mints = self.verify_listsparkmints(amounts)
         self.verify_listunspentsparkmints(amounts)
         assert_equal([False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
+
+        # Explicit zeroes override the implied recovery options, proving both
+        # zap passes actually delete their records before the final load.
+        self.stop_node(0)
+        self.nodes[0] = start_node(
+            0, self.options.tmpdir,
+            ["-zapwalletmints=1", "-reindex=0", "-rescan=0"])
+        assert_equal([], self.nodes[0].listsparkmints())
+        assert_equal([], self.nodes[0].listtransactions("*", 99999))
 
     def verify_listsparkmints(self, expected_amounts):
         mints = self.nodes[0].listsparkmints()
