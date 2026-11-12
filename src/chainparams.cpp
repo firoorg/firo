@@ -285,10 +285,6 @@ public:
         consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
         // consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value // not used for now, probably later
         // consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value // not used for now, probably later
-        // consensus.nSuperblockStartBlock = 614820;
-        // consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
-        // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
-        // consensus.nBudgetPaymentsWindowBlocks = 100;
 
         // evo znodes
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
@@ -423,10 +419,6 @@ public:
         consensus.nSparkChaumV2StartBlock = 1371000; // Approximately September 4 2026, 10:00 UTC
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
-        consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
-        consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
-        consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
-        consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
@@ -628,10 +620,6 @@ public:
         consensus.nZnodePaymentsStartBlock = 2200;
         //consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
         //consensus.nZnodePaymentsIncreasePeriod = 650; // not used for now, probably later
-        //consensus.nSuperblockStartBlock = 61000;
-        //consensus.nBudgetPaymentsStartBlock = 60000;
-        //consensus.nBudgetPaymentsCycleBlocks = 50;
-        //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
         // evo znodes
@@ -751,10 +739,6 @@ public:
         consensus.nSparkChaumV2StartBlock = 210800;     // H2: 100 blocks after H1
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
-        consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
-        consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
-        consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
-        consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
@@ -1278,10 +1262,6 @@ public:
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
-        consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
-        consensus.nZerocoinV2MintGracefulPeriod = 1;
-        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
-        consensus.nZerocoinV2SpendGracefulPeriod = 1;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
@@ -1319,7 +1299,7 @@ public:
         consensus.nMnemonicBlock = 0;
 
         // ProgPow
-        // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
+        // this can be overridden with -ppswitchtime
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;

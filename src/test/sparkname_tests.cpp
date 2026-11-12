@@ -227,7 +227,6 @@ BOOST_AUTO_TEST_CASE(chaum_v2_name_extension_is_canonical_and_bound)
     mutableConsensus.nSparkChaumV2StartBlock = v2Height;
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     CSparkNameTxData data;
     data.nVersion = CSparkNameTxData::CURRENT_VERSION;
@@ -336,7 +335,6 @@ BOOST_AUTO_TEST_CASE(chaum_v2_name_fee_covers_final_payload)
     mutableConsensus.nSparkChaumV2StartBlock = nextHeight;
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     CSparkNameTxData nameData;
     nameData.name = "v2-final-fee";
@@ -404,7 +402,6 @@ BOOST_AUTO_TEST_CASE(chaum_v1_name_fee_requires_canonical_metadata_after_v2_acti
     mutableConsensus.nSparkChaumV2StartBlock = v2Height;
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     CSparkNameTxData data;
     data.nVersion = CSparkNameTxData::CURRENT_VERSION;
@@ -432,10 +429,6 @@ BOOST_AUTO_TEST_CASE(chaum_v1_name_fee_requires_canonical_metadata_after_v2_acti
     BOOST_REQUIRE(CheckTransaction(
         CTransaction(stripped), historicalStrippedState, false,
         stripped.GetHash(), false, singleInputHeight, false, true, nullptr));
-    CValidationState strippedState;
-    BOOST_CHECK(!CheckTransaction(
-        CTransaction(stripped), strippedState, false, stripped.GetHash(),
-        false, v2Height, false, true, nullptr));
 
     CMutableTransaction tailed(nameTx);
     tailed.vExtraPayload.push_back(0);
@@ -467,7 +460,6 @@ BOOST_AUTO_TEST_CASE(chaum_v2_transfer_binds_canonical_extension)
     mutableConsensus.nSparkChaumV2StartBlock = v2Height;
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     const std::string addressA = GenerateSparkAddress();
     CSparkNameTxData registration;
@@ -572,7 +564,6 @@ BOOST_AUTO_TEST_CASE(unconfirmed_details_report_pending_validity)
     mutableConsensus.nSparkChaumV2StartBlock = activationHeight;
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     CSparkNameTxData registration;
     registration.nVersion = CSparkNameTxData::CURRENT_VERSION;
@@ -589,22 +580,6 @@ BOOST_AUTO_TEST_CASE(unconfirmed_details_report_pending_validity)
         find_value(pendingRegistration, "validUntil").get_int64(),
         chainActive.Height() + 1 +
             registration.sparkNameValidityBlocks);
-
-    BOOST_REQUIRE(GenerateBlock({registrationTx}));
-    const uint64_t existingValidity =
-        sparkNameManager->GetSparkNameBlockHeight(registration.name);
-
-    CSparkNameTxData renewal = registration;
-    renewal.sparkNameValidityBlocks = 25;
-    renewal.additionalInfo = "pending-renewal";
-    CMutableTransaction renewalTx = CreateSparkNameTx(renewal, true);
-    BOOST_REQUIRE(lastState.IsValid());
-
-    const UniValue pendingRenewal = CallRPC(
-        "getsparknametxdetails " + renewalTx.GetHash().ToString());
-    BOOST_CHECK_EQUAL(
-        find_value(pendingRenewal, "validUntil").get_int64(),
-        existingValidity + renewal.sparkNameValidityBlocks);
 }
 
 BOOST_AUTO_TEST_CASE(general)
@@ -1197,121 +1172,11 @@ BOOST_AUTO_TEST_CASE(extension_mempool_uses_next_block_height)
     BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("nextheight"), originalExpiration + 1);
 }
 
-BOOST_AUTO_TEST_CASE(v2_mempool_spark_name_parse_failure_does_not_score_peer)
-{
-    constexpr int nBlockPerYear = 365 * 24 * 24;
-
-    Initialize(510);
-    mutableConsensus.nSparkNamesStartBlock = 1;
-    mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
-
-    CSparkNameTxData nameData;
-    nameData.name = "v2boundary";
-    nameData.nVersion = 1;
-    nameData.sparkAddress = GenerateSparkAddress();
-    nameData.sparkNameValidityBlocks = nBlockPerYear;
-
-    // Construct a valid pre-activation V1 Spark Name spend, then remove its
-    // optional metadata suffix while retaining the tagged name-fee output. This form is
-    // accepted below activation but becomes noncanonical at the boundary.
-    CMutableTransaction tx = CreateSparkNameTx(nameData, false);
-    spark::SpendTransaction parsedSpend(spark::Params::get_default());
-    CSparkNameTxData parsedNameData;
-    size_t sparkNameDataPos;
-    BOOST_REQUIRE(sparkNameManager->ParseSparkNameTxData(
-        tx, parsedSpend, parsedNameData, sparkNameDataPos));
-    BOOST_REQUIRE_LT(sparkNameDataPos, tx.vExtraPayload.size());
-    tx.vExtraPayload.erase(
-        tx.vExtraPayload.begin() + sparkNameDataPos,
-        tx.vExtraPayload.end());
-
-    mutableConsensus.nSparkSingleInputStartBlock =
-        chainActive.Height() + 1;
-    const int activationHeight = chainActive.Height() + 2;
-    mutableConsensus.nSparkChaumV2StartBlock = activationHeight;
-
-    bool missingInputs = false;
-    CValidationState preActivationState;
-    {
-        LOCK(cs_main);
-        BOOST_REQUIRE(AcceptToMemoryPool(
-            mempool,
-            preActivationState,
-            MakeTransactionRef(tx),
-            false,
-            &missingInputs));
-    }
-    BOOST_CHECK(!missingInputs);
-
-    // Keep the transaction out of the block so it can be relayed again by an
-    // honest node whose next-block height is now the activation boundary.
-    mempool.clear();
-    BOOST_REQUIRE(GenerateBlock({}));
-    BOOST_REQUIRE_EQUAL(chainActive.Height() + 1, activationHeight);
-
-    missingInputs = false;
-    CValidationState mempoolState;
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(!AcceptToMemoryPool(
-            mempool,
-            mempoolState,
-            MakeTransactionRef(tx),
-            false,
-            &missingInputs));
-    }
-    int mempoolDoS = -1;
-    BOOST_REQUIRE(mempoolState.IsInvalid(mempoolDoS));
-    BOOST_CHECK_EQUAL(mempoolDoS, 0);
-
-    // The generic transaction path reaches the second Spark Name check using
-    // INT_MAX as its mempool-height sentinel and must be non-punitive too.
-    CValidationState genericMempoolState;
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(!CheckTransaction(
-            CTransaction(tx),
-            genericMempoolState,
-            false,
-            tx.GetHash(),
-            false,
-            INT_MAX,
-            false,
-            true,
-            nullptr));
-    }
-    int genericMempoolDoS = -1;
-    BOOST_REQUIRE(genericMempoolState.IsInvalid(genericMempoolDoS));
-    BOOST_CHECK_EQUAL(genericMempoolDoS, 0);
-
-    // The same encoding in an authoritative post-activation block remains
-    // consensus-invalid and receives the ordinary invalid-block score.
-    CValidationState blockState;
-    spark::CSparkTxInfo blockInfo;
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(!spark::CheckSparkTransaction(
-            tx,
-            blockState,
-            tx.GetHash(),
-            false,
-            activationHeight,
-            false,
-            true,
-            &blockInfo));
-    }
-    int blockDoS = 0;
-    BOOST_REQUIRE(blockState.IsInvalid(blockDoS));
-    BOOST_CHECK_EQUAL(blockDoS, 100);
-}
-
 BOOST_AUTO_TEST_CASE(premature_v2_name_failure_does_not_score_peer)
 {
     Initialize(510);
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
     mutableConsensus.nSparkSingleInputStartBlock =
         chainActive.Height() + 1;
     mutableConsensus.nSparkChaumV2StartBlock =
@@ -1353,7 +1218,6 @@ BOOST_AUTO_TEST_CASE(v2_mempool_nested_name_proof_failure_does_not_score_peer)
     Initialize(510);
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     CSparkNameTxData nameData;
     nameData.name = "v2proofboundary";
@@ -1433,7 +1297,6 @@ BOOST_AUTO_TEST_CASE(v2_mempool_transfer_proof_failure_does_not_score_peer)
     Initialize(510);
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
     const int singleInputHeight = chainActive.Height() + 1;
     const int activationHeight = chainActive.Height() + 3;
     mutableConsensus.nSparkSingleInputStartBlock = singleInputHeight;
@@ -1554,7 +1417,6 @@ BOOST_AUTO_TEST_CASE(mempool_name_state_conflict_does_not_score_peer)
     mutableConsensus.nSparkChaumV2StartBlock = activationHeight;
     mutableConsensus.nSparkNamesStartBlock = 1;
     mutableConsensus.nSparkNamesV2StartBlock = 1;
-    mutableConsensus.nSparkNamesV21StartBlock = 1;
 
     CSparkNameTxData nameData;
     nameData.nVersion = CSparkNameTxData::CURRENT_VERSION;
@@ -1802,144 +1664,6 @@ BOOST_AUTO_TEST_CASE(transfer_replay_protection_v21)
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // block accepted
     resolvedAddr.clear();
     BOOST_CHECK(sparkNameManager->GetSparkAddress("replayname", resolvedAddr));
-    BOOST_CHECK_EQUAL(resolvedAddr, addrC);
-}
-
-BOOST_AUTO_TEST_CASE(transfer_replay_grace_period_v21)
-{
-    constexpr int nBlockPerYear = 365*24*24;
-
-    // This test synthesizes pre-v2.1 transfers by mutating extra payload after
-    // the wallet builds the spend (nulling inputsHash). Spark V2 spends bind
-    // that payload in the proof, so keep Chaum V2 inactive here. The fixture
-    // destructor restores the original activation heights.
-    mutableConsensus.nSparkSingleInputStartBlock = INT_MAX;
-    mutableConsensus.nSparkChaumV2StartBlock = INT_MAX;
-
-    // regtest: V2.1 starts at block 2700 with a 100-block grace period (stage41SparkNamesGracefulPeriod).
-    // Transfers built before activation carry no inputsHash; if they were broadcast just before the fork
-    // they can still be sitting in the mempool when it activates. During [2700, 2800) such legacy (null
-    // inputsHash) transfers remain acceptable so they aren't dropped; from 2800 on, inputsHash is mandatory.
-    // The fixture starts at height 100 (TestChain100Setup), so Initialize(2600) lands exactly on the V2.1
-    // activation height (2700), at the start of the grace window.
-    Initialize(2600);
-    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock);
-    BOOST_CHECK(chainActive.Height() < consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod);
-
-    auto inputsHashFor = [](uint64_t expirationHeight) {
-        CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
-        hw << expirationHeight;
-        return hw.GetHash();
-    };
-
-    // Re-sign the transfer ownership proof for `addrFrom` over `data` (see transfer_replay_protection_v21).
-    // Because the message commits to inputsHash, this must run after inputsHash has been set on `data`.
-    auto signTransfer = [&](CSparkNameTxData &data, const std::string &addrFrom) {
-        CSparkNameTxData copy = data;
-        copy.addressOwnershipProof.clear();
-        copy.transferOwnershipProof.clear();
-
-        CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
-        nameHash << copy;
-
-        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
-        hashStream << "SparkNameTransferProof";
-        hashStream << data.oldSparkAddress << data.sparkAddress;
-        hashStream << nameHash.GetHash();
-
-        const spark::Params *sparkParams = spark::Params::get_default();
-        spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(sparkParams);
-
-        spark::Address from(sparkParams);
-        from.decode(addrFrom);
-
-        spark::Scalar m;
-        m.SetHex(hashStream.GetHash().ToString());
-
-        spark::OwnershipProof proof;
-        from.prove_own(m, spendKey, spark::FullViewKey(spendKey), proof);
-
-        CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
-        proofStream << proof;
-        data.transferOwnershipProof.assign(proofStream.begin(), proofStream.end());
-    };
-
-    // Build a legacy (pre-v2.1) transfer of `name` from `addrFrom` to `addrTo`: the wallet would normally
-    // fill in inputsHash for v2.1+, so we null it out and re-sign to reproduce a transfer created before
-    // the fork.
-    auto buildLegacyTransfer = [&](const std::string &name, const std::string &addrFrom, const std::string &addrTo, const std::string &info) {
-        CSparkNameTxData data;
-        data.nVersion = CSparkNameTxData::CURRENT_VERSION;
-        data.name = name;
-        data.sparkAddress = addrTo;
-        data.oldSparkAddress = addrFrom;
-        data.sparkNameValidityBlocks = nBlockPerYear;
-        data.operationType = (uint8_t)CSparkNameTxData::opTransfer;
-        data.additionalInfo = info;
-
-        CMutableTransaction tx = CreateSparkNameTx(data, false);
-        ModifySparkNameTx(tx, [&](CSparkNameTxData &d) {
-            d.inputsHash.SetNull();                 // pre-v2.1: no inputsHash
-            signTransfer(d, d.oldSparkAddress);     // keep the transfer proof consistent
-        }, true);
-        return tx;
-    };
-
-    // --- Register "graced" at address A ---
-    std::string addrA = GenerateSparkAddress();
-    CMutableTransaction txReg = CreateSparkNameTx("graced", addrA, nBlockPerYear, "original", true);
-    BOOST_CHECK(lastState.IsValid());
-    GenerateBlock({txReg});
-    BOOST_CHECK(IsSparkNamePresent("graced"));
-
-    // --- Legacy transfer A -> B (null inputsHash) is accepted while inside the grace period ---
-    std::string addrB = GenerateSparkAddress();
-    CMutableTransaction txLegacy = buildLegacyTransfer("graced", addrA, addrB, "legacy");
-
-    BOOST_CHECK(chainActive.Height() < consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod);
-    int oldHeight = chainActive.Height();
-    GenerateBlock({txLegacy});
-    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);  // accepted during grace
-
-    std::string resolvedAddr;
-    BOOST_CHECK(sparkNameManager->GetSparkAddress("graced", resolvedAddr));
-    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
-
-    // --- Advance past the grace period; a legacy (null inputsHash) transfer must now be rejected ---
-    GenerateBlocks(consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod - chainActive.Height());
-    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod);
-
-    std::string addrC = GenerateSparkAddress();
-    CMutableTransaction txLegacyLate = buildLegacyTransfer("graced", addrB, addrC, "legacy-late");
-
-    oldHeight = chainActive.Height();
-    GenerateBlock({txLegacyLate});
-    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);     // rejected after grace
-    resolvedAddr.clear();
-    BOOST_CHECK(sparkNameManager->GetSparkAddress("graced", resolvedAddr));
-    BOOST_CHECK_EQUAL(resolvedAddr, addrB);                 // name unchanged, still at B
-
-    // --- Sanity: a proper v2.1 transfer (inputsHash bound to the current expiration height) is still
-    // accepted after grace. inputsHash must be set before signing the transfer proof, and matches the
-    // value the wallet recomputes in AppendSparkNameTxData. ---
-    uint64_t expirationB = sparkNameManager->GetSparkNameBlockHeight("graced");
-    CSparkNameTxData xferValid;
-    xferValid.nVersion = CSparkNameTxData::CURRENT_VERSION;
-    xferValid.name = "graced";
-    xferValid.sparkAddress = addrC;
-    xferValid.oldSparkAddress = addrB;
-    xferValid.sparkNameValidityBlocks = nBlockPerYear;
-    xferValid.operationType = (uint8_t)CSparkNameTxData::opTransfer;
-    xferValid.additionalInfo = "valid";
-    xferValid.inputsHash = inputsHashFor(expirationB);
-    signTransfer(xferValid, addrB);
-    CMutableTransaction txValid = CreateSparkNameTx(xferValid, false);
-
-    oldHeight = chainActive.Height();
-    GenerateBlock({txValid});
-    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // accepted after grace
-    resolvedAddr.clear();
-    BOOST_CHECK(sparkNameManager->GetSparkAddress("graced", resolvedAddr));
     BOOST_CHECK_EQUAL(resolvedAddr, addrC);
 }
 

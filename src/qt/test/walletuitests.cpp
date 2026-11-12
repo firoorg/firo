@@ -18,6 +18,7 @@
 #include "masternodelist.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
+#include "notifymnemonic.h"
 #include "optionsdialog.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
@@ -1777,6 +1778,228 @@ void WalletUiTests::receiveMnemonics()
     }
 }
 
+void WalletUiTests::mnemonicConfirmation_data()
+{
+    QTest::addColumn<QString>("seed");
+    QTest::newRow("12-words") << QStringLiteral("ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic");
+    QTest::newRow("24-words") << QStringLiteral("hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length");
+}
+
+void WalletUiTests::mnemonicConfirmation()
+{
+    QFETCH(QString, seed);
+    const QString previousClipboard = QApplication::clipboard()->text();
+    const QString previousSelection = QApplication::clipboard()->text(QClipboard::Selection);
+    const auto restoreClipboard = qScopeGuard([&] {
+        QApplication::clipboard()->setText(previousClipboard);
+        if (QApplication::clipboard()->supportsSelection())
+            QApplication::clipboard()->setText(previousSelection, QClipboard::Selection);
+    });
+    NotifyMnemonic dialog(seed);
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    auto* copy = dialog.findChild<QPushButton*>("copyButton");
+    auto* message = dialog.findChild<QLabel*>("errorMessage");
+    auto* scroll = dialog.findChild<QScrollArea*>("seedScrollArea");
+    auto* display = dialog.findChild<QLabel*>("mnemonic");
+    QVERIFY(copy && message && scroll && display);
+    const QStringList words = seed.split(' ');
+    const QStringList displayedWords = display->text().split(QStringLiteral("  "));
+    QCOMPARE(displayedWords.size(), words.size());
+    for (qsizetype i = 0; i < words.size(); ++i)
+        QCOMPARE(displayedWords[i], QStringLiteral("%1.\u00a0%2").arg(i + 1).arg(words[i]));
+    if (!QFontDatabase::families().isEmpty()) {
+        QCoreApplication::processEvents();
+        for (const char* name : {"textLabel", "mnemonic", "textLabel2", "textLabel3"}) {
+            auto* label = dialog.findChild<QLabel*>(name);
+            QVERIFY(label);
+            QVERIFY2(label->height() >= label->heightForWidth(label->width()), name);
+        }
+        scroll->ensureWidgetVisible(copy);
+        QCoreApplication::processEvents();
+        QVERIFY(scroll->viewport()->rect().contains(QRect(copy->mapTo(scroll->viewport(), QPoint()), copy->size())));
+    }
+    QVERIFY(copy->isVisible());
+    const QString clipboardBefore = QStringLiteral("clipboard before seed copy");
+    const QString selectionBefore = QStringLiteral("primary selection before seed copy");
+    QApplication::clipboard()->setText(clipboardBefore);
+    if (QApplication::clipboard()->supportsSelection())
+        QApplication::clipboard()->setText(selectionBefore, QClipboard::Selection);
+    for (const bool allowCopy : {false, true}) {
+        bool warned = false;
+        bool defaultIsNo = false;
+        QString warningText;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                warned = true;
+                warningText = box->text();
+                defaultIsNo = box->defaultButton() == box->button(QMessageBox::No);
+                if (auto* answer = box->button(allowCopy ? QMessageBox::Yes : QMessageBox::No))
+                    answer->click();
+                else
+                    box->reject();
+            }
+        });
+        copy->click();
+        QVERIFY(warned);
+        QVERIFY(defaultIsNo);
+        QVERIFY(warningText.contains(QStringLiteral("clipboard history")));
+        QVERIFY(warningText.contains(QStringLiteral("one minute")));
+        QCOMPARE(QApplication::clipboard()->text(), allowCopy ? seed : clipboardBefore);
+        if (QApplication::clipboard()->supportsSelection())
+            QCOMPARE(QApplication::clipboard()->text(QClipboard::Selection), selectionBefore);
+    }
+    dialog.button(QWizard::NextButton)->click();
+    QVERIFY(!copy->isVisible());
+    QStringList answers;
+    QList<QLineEdit*> inputs;
+    for (int i = 0; i < 3; ++i) {
+        auto* label = dialog.findChild<QLabel*>(QStringLiteral("wordLabel%1").arg(i + 1));
+        auto* input = dialog.findChild<QLineEdit*>(QStringLiteral("word%1").arg(i + 1));
+        QVERIFY(label && input);
+        QCOMPARE(label->buddy(), input);
+        const int index = label->text().section(' ', -1).toInt() - 1;
+        QVERIFY(index >= i * words.size() / 3 && index < (i + 1) * words.size() / 3);
+        answers.append(words.at(index));
+        inputs.append(input);
+    }
+    QSignalSpy accepted(&dialog, &QDialog::accepted);
+    auto* finish = dialog.button(QWizard::FinishButton);
+    finish->click();
+    QCOMPARE(accepted.count(), 0);
+    QVERIFY(!message->text().isEmpty());
+    for (int i = 0; i < inputs.size(); ++i)
+        inputs[i]->setText(answers[i]);
+    for (int i = 0; i < inputs.size(); ++i) {
+        inputs[i]->setText(i == 0 ? seed : QStringLiteral("incorrect"));
+        finish->click();
+        QCOMPARE(accepted.count(), 0);
+        QCOMPARE(dialog.currentId(), 1);
+        QVERIFY(!message->text().isEmpty());
+        inputs[i]->setText(answers[i]);
+    }
+    dialog.button(QWizard::BackButton)->click();
+    QCOMPARE(dialog.currentId(), 0);
+    dialog.button(QWizard::NextButton)->click();
+    for (int i = 0; i < inputs.size(); ++i) {
+        QCOMPARE(inputs[i]->text(), answers[i]);
+        inputs[i]->setText(QStringLiteral(" %1 ").arg(answers[i].toUpper()));
+    }
+    finish->click();
+    QCOMPARE(accepted.count(), 1);
+    QVERIFY(message->text().isEmpty());
+}
+
+void WalletUiTests::mnemonicClipboardExpiry_data()
+{
+    QTest::addColumn<bool>("replaceClipboard");
+    QTest::addColumn<bool>("copyAgain");
+    QTest::newRow("expires-after-wizard-destruction") << false << false;
+    QTest::newRow("preserves-replacement") << true << false;
+    QTest::newRow("repeated-copy-gets-new-deadline") << false << true;
+}
+
+void WalletUiTests::mnemonicClipboardExpiry()
+{
+    QFETCH(bool, replaceClipboard);
+    QFETCH(bool, copyAgain);
+    auto* clipboard = QApplication::clipboard();
+    const QString previousClipboard = clipboard->text();
+    const auto restoreClipboard = qScopeGuard([&] { clipboard->setText(previousClipboard); });
+    const QString seed = QStringLiteral("ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic");
+    QPointer<QTimer> firstExpiry;
+    QPointer<QTimer> secondExpiry;
+    {
+        NotifyMnemonic dialog(seed);
+        dialog.setAttribute(Qt::WA_DontShowOnScreen);
+        dialog.show();
+        auto* copy = dialog.findChild<QPushButton*>("copyButton");
+        QVERIFY(copy);
+        for (int attempt = 0; attempt < (copyAgain ? 2 : 1); ++attempt) {
+            bool warned = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                    warned = true;
+                    box->button(QMessageBox::Yes)->click();
+                }
+            });
+            copy->click();
+            QVERIFY(warned);
+            QCOMPARE(clipboard->text(), seed);
+            const auto timers = qApp->findChildren<QTimer*>("seedClipboardExpiry", Qt::FindDirectChildrenOnly);
+            QVERIFY(!timers.isEmpty());
+            auto* expiry = timers.last();
+            QCOMPARE(expiry->interval(), 60000);
+            QVERIFY(expiry->isSingleShot());
+            QVERIFY(expiry->isActive());
+            if (attempt == 0)
+                firstExpiry = expiry;
+            else
+                secondExpiry = expiry;
+        }
+    }
+    QVERIFY(firstExpiry);
+    const QString replacement = QStringLiteral("copied after the recovery phrase");
+    if (replaceClipboard)
+        clipboard->setText(replacement);
+    firstExpiry->start(0);
+    QTRY_VERIFY(firstExpiry.isNull());
+    QCOMPARE(clipboard->text(), replaceClipboard ? replacement : copyAgain ? seed : QString());
+    if (copyAgain) {
+        QVERIFY(secondExpiry);
+        QVERIFY(secondExpiry->isActive());
+        secondExpiry->start(0);
+        QTRY_VERIFY(secondExpiry.isNull());
+        QVERIFY(clipboard->text().isEmpty());
+    }
+}
+
+void WalletUiTests::mnemonicExitWarning_data()
+{
+    QTest::addColumn<QString>("exitMethod");
+    QTest::addColumn<bool>("confirmationPage");
+    for (const bool confirmationPage : {false, true}) {
+        for (const QString& method : {QStringLiteral("close"), QStringLiteral("cancel"), QStringLiteral("escape")})
+            QTest::newRow(qPrintable(method + (confirmationPage ? "-confirmation" : "-display"))) << method << confirmationPage;
+    }
+}
+
+void WalletUiTests::mnemonicExitWarning()
+{
+    QFETCH(QString, exitMethod);
+    QFETCH(bool, confirmationPage);
+    NotifyMnemonic dialog(QStringLiteral("ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"));
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    if (confirmationPage)
+        dialog.button(QWizard::NextButton)->click();
+    QSignalSpy rejected(&dialog, &QDialog::rejected);
+    for (const bool allowExit : {false, true}) {
+        bool warned = false;
+        bool defaultIsNo = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                warned = true;
+                defaultIsNo = box->defaultButton() == box->button(QMessageBox::No);
+                if (auto* answer = box->button(allowExit ? QMessageBox::Yes : QMessageBox::No))
+                    answer->click();
+                else
+                    box->reject();
+            }
+        });
+        if (exitMethod == "close")
+            dialog.close();
+        else if (exitMethod == "cancel")
+            dialog.button(QWizard::CancelButton)->click();
+        else
+            QTest::keyClick(&dialog, Qt::Key_Escape);
+        QVERIFY(warned);
+        QVERIFY(defaultIsNo);
+        QCOMPARE(rejected.count(), allowExit ? 1 : 0);
+        QCOMPARE(dialog.isVisible(), !allowExit);
+    }
+}
+
 void WalletUiTests::emptyRecoverySeed()
 {
 #ifdef ENABLE_WALLET
@@ -1800,6 +2023,56 @@ void WalletUiTests::emptyRecoverySeed()
         }
     }
 #endif
+}
+
+void WalletUiTests::recoveryPassphraseErrorOpensAdvanced_data()
+{
+    QTest::addColumn<QString>("passphrase");
+    QTest::addColumn<QString>("confirmation");
+    QTest::addColumn<QString>("focusName");
+    QTest::newRow("empty") << QString() << QString() << QStringLiteral("mnemonicPassPhrase");
+    const QString overlong(100, QChar(0x20ac));
+    QTest::newRow("overlong-utf8") << overlong << overlong << QStringLiteral("mnemonicPassPhrase");
+    QTest::newRow("mismatched") << QStringLiteral("one") << QStringLiteral("two") << QStringLiteral("mnemonicPassPhrase2");
+}
+
+void WalletUiTests::recoveryPassphraseErrorOpensAdvanced()
+{
+    QFETCH(QString, passphrase);
+    QFETCH(QString, confirmation);
+    QFETCH(QString, focusName);
+    Recover dialog;
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    auto* create = dialog.findChild<QAbstractButton*>("createNew");
+    auto* advanced = dialog.findChild<QToolButton*>("advancedToggle");
+    auto* options = dialog.findChild<QWidget*>("advancedOptions");
+    auto* usePassphrase = dialog.findChild<QCheckBox*>("usePassphrase");
+    auto* first = dialog.findChild<QLineEdit*>("mnemonicPassPhrase");
+    auto* second = dialog.findChild<QLineEdit*>("mnemonicPassPhrase2");
+    auto* ok = dialog.findChild<QPushButton*>("okButton");
+    auto* message = dialog.findChild<QLabel*>("errorMessage");
+    auto* expectedFocus = dialog.findChild<QLineEdit*>(focusName);
+    QVERIFY(create && advanced && options && usePassphrase && first && second && ok && message && expectedFocus);
+    create->click();
+    advanced->click();
+    usePassphrase->click();
+    first->setText(passphrase);
+    second->setText(confirmation);
+    advanced->click();
+    QVERIFY(!options->isVisible());
+    QSignalSpy accepted(&dialog, &QDialog::accepted);
+    ok->click();
+    QCOMPARE(accepted.count(), 0);
+    QVERIFY(!message->text().isEmpty());
+    QVERIFY(advanced->isChecked());
+    QVERIFY(options->isVisible());
+    QVERIFY(expectedFocus->isVisible());
+    QCOMPARE(dialog.focusWidget(), expectedFocus);
+    first->setText(QStringLiteral("corrected"));
+    second->setText(first->text());
+    ok->click();
+    QCOMPARE(accepted.count(), 1);
 }
 
 void WalletUiTests::recoveryRetryUsesFinalInput_data()

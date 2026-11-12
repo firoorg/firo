@@ -358,6 +358,8 @@ void Recover::markWord(QLineEdit* word, bool invalid)
 void Recover::fail(const QString& message, QWidget* focus)
 {
     ui->errorMessage->setText(message);
+    if (ui->advancedOptions->isAncestorOf(focus))
+        ui->advancedToggle->setChecked(true);
     focus->setFocus();
 }
 

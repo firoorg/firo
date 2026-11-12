@@ -323,18 +323,6 @@ struct Params {
     // The block number when Bip39 was implemented in Zcoin
     int nMnemonicBlock;
 
-    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
-    int nZerocoinV2MintMempoolGracefulPeriod;
-
-    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints to newly mined blocks.
-    int nZerocoinV2MintGracefulPeriod;
-
-    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend into mempool.
-    int nZerocoinV2SpendMempoolGracefulPeriod;
-
-    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend to newly mined blocks.
-    int nZerocoinV2SpendGracefulPeriod;
-
     // Amount of maximum sigma spend per block.
     unsigned nMaxSigmaInputPerBlock;
 

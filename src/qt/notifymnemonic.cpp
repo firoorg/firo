@@ -5,6 +5,7 @@
 #include "guiutil.h"
 
 #include "util.h"
+#include "random.h"
 
 #ifdef ENABLE_WALLET
 #include "walletmodel.h"
@@ -15,16 +16,53 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QAbstractButton>
+#include <QApplication>
+#include <QClipboard>
 #include <QDate>
+#include <QMimeData>
+#include <QPointer>
+#include <QTimer>
 
-NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
+NotifyMnemonic::NotifyMnemonic(const QString& mnemonic, QWidget *parent) :
         QWizard(parent),
-        ui(new Ui::NotifyMnemonic)
+        ui(new Ui::NotifyMnemonic),
+        mnemonicWords(mnemonic.split(' ', Qt::SkipEmptyParts))
 {
     ui->setupUi(this);
+    ui->walletBirthDate->setText(tr("Wallet creation date:  %1").arg(QDate::currentDate().toString("dd-MM-yyyy")));
+    Q_ASSERT(mnemonicWords.size() == 12 || mnemonicWords.size() == 24);
+    QStringList numberedWords;
+    // Keep each number with its word when the label wraps.
+    for (qsizetype i = 0; i < mnemonicWords.size(); ++i)
+        numberedWords << QStringLiteral("%1.\u00a0%2").arg(i + 1).arg(mnemonicWords[i]);
+    ui->mnemonic->setText(numberedWords.join(QStringLiteral("  ")));
+    const int groupSize = static_cast<int>(mnemonicWords.size()) / 3;
+    const std::array<QLabel*, 3> labels{ui->wordLabel1, ui->wordLabel2, ui->wordLabel3};
+    for (int i = 0; i < 3; ++i) {
+        wordIndexes[i] = i * groupSize + GetRandInt(groupSize);
+        labels[i]->setText(tr("Word %1").arg(wordIndexes[i] + 1));
+    }
+    connect(ui->copyButton, &QPushButton::clicked, this, [this] {
+        if (QMessageBox::warning(this, tr("Copy recovery phrase"), tr("Other applications and clipboard history may read and keep your recovery phrase. Anyone who gets it can take your funds. While Firo is running, it will try to clear this clipboard copy after one minute. Copy it anyway?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+            return;
+
+        auto* clipboard = QApplication::clipboard();
+        QPointer<QMimeData> copiedData = new QMimeData;
+        copiedData->setText(mnemonicWords.join(QLatin1Char(' ')));
+        clipboard->setMimeData(copiedData.data(), QClipboard::Clipboard);
+        auto* expiry = new QTimer(qApp);
+        expiry->setObjectName(QStringLiteral("seedClipboardExpiry"));
+        expiry->setSingleShot(true);
+        connect(expiry, &QTimer::timeout, expiry, [clipboard, copiedData, expiry] {
+            // Compare item identity without requesting another application's clipboard text.
+            const QMimeData* current = clipboard->mimeData(QClipboard::Clipboard);
+            if (copiedData && current == copiedData.data())
+                clipboard->clear(QClipboard::Clipboard);
+            expiry->deleteLater();
+        });
+        expiry->start(60 * 1000);
+    });
     applyTheme();
-    disconnect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &QDialog::reject);
-    connect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &NotifyMnemonic::cancelEvent);
 }
 
 void NotifyMnemonic::applyTheme()
@@ -34,6 +72,8 @@ void NotifyMnemonic::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QWizard#NotifyMnemonic { background: $BG; }
         QWizard#NotifyMnemonic QWizardPage { background: $BG; }
+        QWizard#NotifyMnemonic QScrollArea,
+        QWizard#NotifyMnemonic QWidget#seedContents { background: $BG; }
         QWizard#NotifyMnemonic QLabel { background: transparent; color: $INK; }
         QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-weight: 700; }
         QWizard#NotifyMnemonic QLabel#errorMessage { color: $ERROR; font-weight: 700; }
@@ -45,7 +85,7 @@ void NotifyMnemonic::applyTheme()
         QWizard#NotifyMnemonic QLabel#mnemonic {
             color: $INK;
         }
-        QWizard#NotifyMnemonic QTextEdit {
+        QWizard#NotifyMnemonic QLineEdit {
             background: $PANEL_SOFT;
             border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
@@ -62,6 +102,7 @@ void NotifyMnemonic::applyTheme()
         backButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
     if (QAbstractButton* cancelButton = QWizard::button(QWizard::CancelButton))
         cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    ui->copyButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 NotifyMnemonic::~NotifyMnemonic()
@@ -69,16 +110,28 @@ NotifyMnemonic::~NotifyMnemonic()
     delete ui;
 }
 
-void NotifyMnemonic::cancelEvent()
+void NotifyMnemonic::reject()
 {
-    if( QMessageBox::question( this, tr( "Warning" ), tr( "Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?" ), QMessageBox::Yes, QMessageBox::No ) == QMessageBox::Yes ) {
-        // allow cancel
-        reject();
-    }
+    if (QMessageBox::question(this, tr("Warning"), tr("Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes)
+        QWizard::reject();
 }
 
-QString getCurrentDate() {
-    return QDate::currentDate().toString("dd-MM-yyyy");
+bool NotifyMnemonic::validateCurrentPage()
+{
+    if (currentPage() != ui->wizardPage2)
+        return QWizard::validateCurrentPage();
+
+    const std::array<QLineEdit*, 3> inputs{ui->word1, ui->word2, ui->word3};
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        if (inputs[i]->text().trimmed().compare(mnemonicWords.at(wordIndexes[i]), Qt::CaseInsensitive) != 0) {
+            ui->errorMessage->setText(tr("The word at position %1 does not match. Go back to check your recovery phrase.").arg(wordIndexes[i] + 1));
+            inputs[i]->setFocus();
+            inputs[i]->selectAll();
+            return false;
+        }
+    }
+    ui->errorMessage->clear();
+    return true;
 }
 
 void NotifyMnemonic::notify()
@@ -86,25 +139,10 @@ void NotifyMnemonic::notify()
 #ifdef ENABLE_WALLET
     SecureString mnemonic;
     pwalletMain->GetMnemonicContainer().GetMnemonic(mnemonic);
-    NotifyMnemonic notify;
+    NotifyMnemonic notify(QString::fromUtf8(mnemonic.c_str()));
     notify.setWindowIcon(QIcon(":icons/firo"));
     notify.show();
-    notify.ui->walletBirthDate->setText(tr("Wallet creation date:  %1").arg(getCurrentDate()));
-    notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.restart();
-    while(true)
-    {
-        if(notify.exec())
-        {
-            std::string inputMnememonic = notify.ui->words->toPlainText().toStdString();
-            std::string strMnemonic(mnemonic.begin(), mnemonic.end());
-            if(inputMnememonic != strMnemonic) {
-                notify.ui->errorMessage->setText(tr("Your entered words do not match, please press back to re-check your mnemonic."));
-                continue;
-            }
-            break;
-        } else
-            break;
-    }
+    notify.exec();
 #endif
 }

@@ -1027,10 +1027,13 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockI
     bool inMempool = mempool.get(tx.GetHash()) != nullptr;
     bool isDisconnect = pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK;
 
-    // Are we called from validation.cpp/MemPoolConflictRemovalTracker?
+    // Are we called from validation.cpp/MemPoolConflictRemovalTracker (pindex is null, the TX was evicted from the
+    // mempool by a conflicting mined TX) or from DisconnectTip for a TX which did not make it back into the mempool?
+    // Either way the TX is gone, so stop tracking it. A Dandelion stem-phase TX is not in the mempool yet, but it is
+    // not gone either.
     // TODO refactor this when we backport the BlockConnected signal from Bitcoin, as it gives better info about
     // conflicted TXs
-    bool isConflictRemoved = isDisconnect && !inMempool;
+    bool isConflictRemoved = !inMempool && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK && !txpools.getStemTxPool().exists(tx.GetHash());
 
     if (isConflictRemoved) {
         LOCK(cs);
