@@ -30,6 +30,7 @@
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "spendproofdialog.h"
 #include "spark/state.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
@@ -2234,4 +2235,42 @@ void WalletUiTests::masternodeStatusFollowsPoSe()
         QVERIFY(banned.kind == MasternodeList::StatusKind::Banned);
         QCOMPARE(banned.text, QStringLiteral("PoSe banned"));
     }
+}
+
+/**
+ * Both modes of the spend proof dialog reject input they cannot act on before touching the
+ * chain or the wallet's keys: verifying text that is not a proof, and generating a proof
+ * without a message.
+ */
+void WalletUiTests::spendProofDialogRejectsUnusableInput()
+{
+    SpendProofDialog verify(nullptr);
+    auto* proofIn = verify.findChild<QPlainTextEdit*>(QStringLiteral("proofEdit"));
+    auto* verifyButton = verify.findChild<QPushButton*>(QStringLiteral("actionButton"));
+    auto* verifyStatus = verify.findChild<QLabel*>(QStringLiteral("statusLabel"));
+    QVERIFY(proofIn && verifyButton && verifyStatus);
+    QVERIFY(!proofIn->isReadOnly());
+    QVERIFY(!verify.findChild<QPushButton*>(QStringLiteral("copyButton")));
+    proofIn->setPlainText(QStringLiteral("not a proof"));
+    verifyButton->click();
+    QCOMPARE(verifyStatus->property("status").toString(), QStringLiteral("error"));
+    QCOMPARE(verifyStatus->text(), QStringLiteral("This is not a spend proof."));
+
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel model(style.get(), &wallet, &options);
+    SpendProofDialog generate(&model, QString::fromStdString(uint256S("01").GetHex()), nullptr);
+    auto* proofOut = generate.findChild<QPlainTextEdit*>(QStringLiteral("proofEdit"));
+    auto* generateButton = generate.findChild<QPushButton*>(QStringLiteral("actionButton"));
+    auto* copyButton = generate.findChild<QPushButton*>(QStringLiteral("copyButton"));
+    auto* generateStatus = generate.findChild<QLabel*>(QStringLiteral("statusLabel"));
+    QVERIFY(proofOut && generateButton && copyButton && generateStatus);
+    QVERIFY(proofOut->isReadOnly());
+    generateButton->click();
+    QCOMPARE(generateStatus->property("status").toString(), QStringLiteral("error"));
+    QCOMPARE(generateStatus->text(), QStringLiteral("Enter the message the verifier asked you to include."));
+    QVERIFY(proofOut->toPlainText().isEmpty());
+    QVERIFY(!copyButton->isEnabled());
 }

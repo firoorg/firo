@@ -24,6 +24,7 @@
 #include "utilitydialog.h"
 
 #ifdef ENABLE_WALLET
+#include "spendproofdialog.h"
 #include "walletframe.h"
 #include "walletmodel.h"
 #endif // ENABLE_WALLET
@@ -123,6 +124,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     consolidateOutputsAction(0),
     signMessageAction(0),
     verifyMessageAction(0),
+    verifySpendProofAction(0),
     aboutAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
@@ -443,6 +445,8 @@ void BitcoinGUI::createActions()
     signMessageAction->setStatusTip(tr("Sign messages with your Firo addresses to prove you own them"));
     verifyMessageAction = new QAction(tr("&Verify message..."), this);
     verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Firo addresses"));
+    verifySpendProofAction = new QAction(tr("Verify spend &proof..."), this);
+    verifySpendProofAction->setStatusTip(tr("Verify a proof that someone holds the spending keys of a Spark transaction"));
 
     openRPCConsoleAction = new QAction(tr("&Debug window"), this);
     openRPCConsoleAction->setStatusTip(tr("Open debugging and diagnostic console"));
@@ -473,6 +477,7 @@ void BitcoinGUI::createActions()
     GUIUtil::setThemedIcon(backupWalletAction, QStringLiteral(":/icons/archive"));
     GUIUtil::setThemedIcon(signMessageAction, QStringLiteral(":/icons/pen"));
     GUIUtil::setThemedIcon(verifyMessageAction, QStringLiteral(":/icons/shield"));
+    GUIUtil::setThemedIcon(verifySpendProofAction, QStringLiteral(":/icons/shield"));
     GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
     GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
@@ -505,6 +510,12 @@ void BitcoinGUI::createActions()
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(verifyMessageAction, &QAction::triggered, [this]{ gotoVerifyMessageTab(); });
+        // Verifying needs only this node's chain, so it stays available without a loaded wallet.
+        connect(verifySpendProofAction, &QAction::triggered, this, [this]{
+            SpendProofDialog *dialog = new SpendProofDialog(this);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->show();
+        });
         connect(usedSendingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedSendingAddresses);
         connect(usedReceivingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedReceivingAddresses);
         connect(consolidateOutputsAction, &QAction::triggered, walletFrame, &WalletFrame::consolidateCoins);
@@ -534,6 +545,7 @@ void BitcoinGUI::createMenuBar()
         file->addAction(backupWalletAction);
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
+        file->addAction(verifySpendProofAction);
         file->addAction(exportViewKeyAction);
         file->addSeparator();
         file->addAction(usedSendingAddressesAction);

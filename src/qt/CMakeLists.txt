@@ -249,6 +249,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/spendproofdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transactiondesc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transactiondescdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transactionfilterproxy.cpp

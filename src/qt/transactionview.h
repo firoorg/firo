@@ -92,6 +92,7 @@ private:
     QAction *copyLabelAction;
     QAction *abandonAction;
     QAction *resendAction;
+    QAction *spendProofAction;
 
     QWidget *createDateRangeWidget();
     void updateCalendarWidgets();
@@ -118,6 +119,7 @@ private Q_SLOTS:
     void updateWatchOnlyColumn(bool fHaveWatchOnly);
     void abandonTx();
     void rebroadcastTx();
+    void spendProof();
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);
 
