@@ -58,7 +58,8 @@ Key generation follows a FROST-style distributed, verifiable Shamir sharing proc
 
 Each participant obtains the same full view key and can derive ordinary Spark
 addresses. Before accepting deposits, participants confirm that key generation
-completed successfully with consistent parameters and commitment data.
+completed successfully and that they agree on the parameters, coefficient
+commitments and view-key contributions ordered by participant identifier.
 
 ## Nonce preparation
 
