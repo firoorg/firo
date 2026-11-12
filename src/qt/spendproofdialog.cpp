@@ -88,6 +88,17 @@ SpendProofDialog::SpendProofDialog(WalletModel *_model, const QString &_txid, QW
     statusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     layout->addWidget(statusLabel);
 
+    const auto clearStatus = [this] {
+        statusLabel->clear();
+        statusLabel->setProperty("status", QString());
+    };
+    connect(proofEdit, &QPlainTextEdit::textChanged, this, clearStatus);
+    connect(messageEdit, &QPlainTextEdit::textChanged, this, [this, generating, clearStatus] {
+        clearStatus();
+        if (generating)
+            proofEdit->clear();
+    });
+
     QHBoxLayout *buttons = new QHBoxLayout();
     if (generating) {
         QPushButton *copyButton = new QPushButton(tr("&Copy proof"), this);
