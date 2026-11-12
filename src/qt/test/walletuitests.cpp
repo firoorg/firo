@@ -339,8 +339,9 @@ void WalletUiTests::themeTintColors()
             QVERIFY(color.alpha() > 0);
             QCOMPARE(color.alpha() < 255, mode == GUIUtil::ThemeMode::Dark);
             QWidget swatch;
-            swatch.setStyleSheet(QStringLiteral("background-color: %1;").arg(tint));
+            // Initial polishing can resolve the application palette after applying QSS.
             swatch.ensurePolished();
+            swatch.setStyleSheet(QStringLiteral("background-color: %1;").arg(tint));
             QCOMPARE(swatch.palette().color(QPalette::Window), color);
         }
     }
