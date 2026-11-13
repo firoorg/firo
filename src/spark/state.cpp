@@ -2433,9 +2433,12 @@ std::string EncodeSpendProof(const uint256& txid, const spark::ChaumProofV2& cla
 SpendProofResult VerifySpendProof(const std::string& hexProof, const std::string& message, uint256& txid)
 {
     txid.SetNull();
+    // Bound decoding to the largest supported claim, including its envelope and five vector lengths.
+    const size_t maxProofSize = 1 + txid.size() + 5 * GetSizeOfCompactSize(MAX_CHAUM_V2_INPUTS)
+        + MAX_CHAUM_V2_INPUTS * (2 * GroupElement::serialize_size + 3 * Scalar::memoryRequired());
     spark::ChaumProofV2 claim;
     try {
-        if (!IsHex(hexProof))
+        if (hexProof.size() > 2 * maxProofSize || !IsHex(hexProof))
             return SpendProofResult::Malformed;
         CDataStream stream(ParseHex(hexProof), SER_NETWORK, PROTOCOL_VERSION);
         unsigned char version;

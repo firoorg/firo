@@ -4409,6 +4409,29 @@ BOOST_AUTO_TEST_CASE(wallet_cache_verification)
     BOOST_CHECK(wallet->validateLookupIndexes());
 }
 
+BOOST_AUTO_TEST_CASE(spend_proof_size_limit)
+{
+    ChaumProofV2 claim;
+    claim.A1.assign(MAX_CHAUM_V2_INPUTS, params->get_G());
+    claim.A2 = claim.A1;
+    claim.t1.assign(MAX_CHAUM_V2_INPUTS, Scalar(uint64_t(1)));
+    claim.t2 = claim.t1;
+    claim.t3 = claim.t1;
+
+    const uint256 missingTxid = uint256S("01");
+    const std::string proof = EncodeSpendProof(missingTxid, claim);
+    BOOST_REQUIRE_EQUAL(proof.size(), 32876);
+    uint256 named;
+    // A maximum-size envelope must still decode and reach transaction lookup.
+    BOOST_CHECK(VerifySpendProof(proof, "challenge", named) == SpendProofResult::TxNotFound);
+    BOOST_CHECK(named == missingTxid);
+
+    claim.A1.push_back(params->get_G());
+    // Unlike trailing junk, this decodes in the old parser and exposes the missing bound.
+    BOOST_CHECK(VerifySpendProof(EncodeSpendProof(missingTxid, claim), "challenge", named) == SpendProofResult::Malformed);
+    BOOST_CHECK(named.IsNull());
+}
+
 BOOST_AUTO_TEST_CASE(spend_proof)
 {
     RestoreSparkActivationHeights restoreHeights;
