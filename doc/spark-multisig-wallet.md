@@ -6,7 +6,7 @@ spending takes any `nrequired` of them. On chain, the wallet's addresses and
 transactions look like any other Spark addresses and transactions.
 
 This document describes the wallet RPCs and the choices this implementation makes
-on top of the protocol in [spark-multisig.md](spark-multisig.md).
+on top of the protocol in [spark-multisig.md](https://github.com/firoorg/firo/blob/816ff902704d778def1713bf340b37dfa0a45489/doc/spark-multisig.md).
 
 ## The flow, next to transparent multisig
 
