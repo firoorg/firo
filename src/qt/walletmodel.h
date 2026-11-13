@@ -159,6 +159,8 @@ public:
     bool validateSparkAddress(const QString &address);
     bool isSparkAddressMine(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
+    // Whether the wallet's Spark keys are held jointly with co-signers
+    bool isSparkMultisig() const;
     CAmount getCachedPrivateBalance() const { return cachedPrivateBalance; }
 
     // Sign a message with a Spark address held by this wallet. Returns the ownership proof

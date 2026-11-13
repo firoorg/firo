@@ -1305,6 +1305,11 @@ std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
     return wallet->GetSparkBalance();
 }
 
+bool WalletModel::isSparkMultisig() const
+{
+    return wallet->sparkWallet && wallet->sparkWallet->getMultisigKey();
+}
+
 WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vector<WalletModelTransaction> &transactions, QList<SendCoinsRecipient> recipients, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFees, std::list<CReserveKey>& reservekeys, const CCoinControl* coinControl)
 {
     CAmount total = 0;

@@ -23,6 +23,7 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
 class SendCoinsRecipient;
+class SparkMultisigSpendDialog;
 class SparkNamesPage;
 class TransactionView;
 class WalletModel;
@@ -68,6 +69,8 @@ public:
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
+    //! Created on first use
+    SparkMultisigSpendDialog* multisigSpendDialog();
 
 private:
     ClientModel *clientModel;
@@ -84,6 +87,7 @@ private:
     SendCoinsDialog *sendFiroView;
     TransactionView *firoTransactionList;
     MasternodeList *masternodeListPage;
+    SparkMultisigSpendDialog *sparkMultisigSpendDialog = nullptr;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -127,6 +131,8 @@ public Q_SLOTS:
     void changePassphrase();
     /** Show the Spark view key */
     void exportViewKey();
+    /** Set up a multisig wallet, or show the transaction a multisig wallet is working on */
+    void sparkMultisig();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet(const QString & info = "");
 
