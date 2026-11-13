@@ -562,12 +562,15 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
+    // Creating a multisig transaction needs no key: the co-signers unlock when they approve it
+    const bool fMultisig = fAnonymousMode && model->isSparkMultisig();
+
     fNewRecipientAllowed = false;
-    if(!ctx)
+    if(!ctx && !fMultisig)
     {
         ctx = std::unique_ptr<UnlockContext>(new UnlockContext(model->requestUnlock()));
     }
-    if(!ctx->isValid())
+    if(ctx && !ctx->isValid())
     {
         // Unlock wallet was cancelled
         fNewRecipientAllowed = true;
@@ -621,6 +624,13 @@ void SendCoinsDialog::on_sendButton_clicked()
             tr("Sending private funds to an exchange address is temporarily unavailable. "
                "Move the funds to a transparent address first, then send from there."));
         fNewRecipientAllowed = true;
+        return;
+    }
+
+    // The co-signers take it from here
+    if (fMultisig) {
+        fNewRecipientAllowed = true;
+        Q_EMIT sparkMultisigSpendRequested(recipients);
         return;
     }
 

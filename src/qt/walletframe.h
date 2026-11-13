@@ -94,6 +94,8 @@ public Q_SLOTS:
     void changePassphrase();
     /** Export the Spark View Key */
     void exportViewKey();
+    /** Set up a multisig wallet, or show its transaction */
+    void sparkMultisig();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet();
 
