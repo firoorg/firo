@@ -13,6 +13,9 @@
 #include "../sync.h"
 #include "../chain.h"
 
+#include <map>
+#include <optional>
+
 struct CRecipient;
 class CReserveKey;
 class CCoinControl;
@@ -20,6 +23,16 @@ extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
+
+/**
+ * What the cosigners of a Spark multisig spend need besides the unsigned
+ * transaction, to check where its outputs go and to bind their signatures to it.
+ */
+struct CSparkMultisigDraft {
+    std::vector<spark::OutputCoinData> outputs; //!< private outputs, in transaction order
+    std::vector<Scalar> outputNonces; //!< nonce of each private output
+    std::map<uint64_t, spark::CoverSetData> coverSets; //!< by cover set id
+};
 
 class CSparkWallet  {
 public:
@@ -39,6 +52,9 @@ public:
     spark::SpendKey generateSpendKey(const spark::Params* params);
     spark::FullViewKey generateFullViewKey(const spark::SpendKey& spend_key);
     spark::IncomingViewKey generateIncomingViewKey(const spark::FullViewKey& full_view_key);
+
+    // The group key of a Spark multisig wallet, or null in any other wallet
+    const spark::MultisigKey* getMultisigKey() const { return multisigKey ? &*multisigKey : nullptr; }
 
     // get map diversifier to Address
     std::unordered_map<int32_t, spark::Address> getAllAddresses();
@@ -163,8 +179,12 @@ public:
      * @param[out] recipientAmounts Optional caller-owned vector. If non-null it
      *     is overwritten with post-fee amounts (transparent, then private).
      *     The wallet does not take ownership of the container.
+     * @param[out] multisigDraft Required in a multisig wallet and rejected in any
+     *     other. The transaction then carries a placeholder for the authorizing
+     *     proof, which the cosigners produce, and the draft receives what they
+     *     need to do so.
      * @return The constructed wallet transaction.
-     * @pre pwalletMain is unlocked.
+     * @pre pwalletMain is unlocked, unless multisigDraft is given.
      */
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
@@ -174,7 +194,8 @@ public:
             size_t additionalTxSize = 0,
             const uint256& extensionCommitment = uint256(),
             int expectedNextBlockHeight = -1,
-            std::vector<CAmount>* recipientAmounts = nullptr);
+            std::vector<CAmount>* recipientAmounts = nullptr,
+            CSparkMultisigDraft* multisigDraft = nullptr);
 
     /**
      * Select Spark coins and the matching fee for a spend.
@@ -224,6 +245,7 @@ public:
     /** Wait for all Spark wallet tasks queued before this call. */
     void WaitForPendingTasks();
     void FinishTasks();
+    uint64_t GetMintWorkGeneration() const;
 
 public:
     // Protects lastDiversifier, addresses, and coinMeta.
@@ -247,6 +269,12 @@ private:
     spark::FullViewKey fullViewKey;
     // this is incoming view key
     spark::IncomingViewKey viewKey;
+    // set in a multisig wallet, where fullViewKey is the group's and the spend key
+    // is shared among the participants; like the keys above it never changes
+    // ponytail: one group takes over the whole Spark wallet; holding several groups,
+    // or a group next to the wallet's own coins, means scanning per key set.
+    std::optional<spark::MultisigKey> multisigKey;
+    uint64_t mintWorkGeneration = 0; // queued under cs_main
 
     // map diversifier to address.
     std::unordered_map<int32_t, spark::Address> addresses GUARDED_BY(cs_spark_wallet);

@@ -37,6 +37,11 @@ public:
   // Operator for multiplying with a scalar number.
   GroupElement& operator*=(const Scalar& multiplier);
 
+  // Multiply with a secret scalar number. The time the operators above take depends
+  // on the multiplier; the time this takes does not. The element is treated as
+  // public and must not be the point at infinity.
+  GroupElement multiplyConstantTime(const Scalar& multiplier) const;
+
   // Operator for adding to another element.
   GroupElement operator+(const GroupElement& other) const;
 

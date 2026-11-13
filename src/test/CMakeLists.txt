@@ -118,6 +118,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/encrypt_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/coin_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/mint_transaction_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/multisig_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/spend_transaction_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/f4grumble_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/address_test.cpp

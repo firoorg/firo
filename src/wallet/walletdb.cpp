@@ -1193,7 +1193,7 @@ bool CWalletDB::Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKe
                 fReadOK = ReadKeyValue(&dummyWallet, ssKey, ssValue,
                                         wss, strType, strErr);
             }
-            if (!IsKeyType(strType) && strType != "hdchain")
+            if (!IsKeyType(strType) && strType != "hdchain" && strType != "mnemonic" && strType != "sparkMultisigKey")
                 continue;
             if (!fReadOK)
             {
@@ -1284,6 +1284,24 @@ bool CWalletDB::readFullViewKey(spark::FullViewKey& fullViewKey)
 bool CWalletDB::writeFullViewKey(const spark::FullViewKey& fullViewKey)
 {
     return Write(std::string("fullViewKey"), fullViewKey);
+}
+
+bool CWalletDB::ReadSparkMultisigKey(spark::MultisigKey& key)
+{
+    if (!Exists(std::string("sparkMultisigKey"))) {
+        return false;
+    }
+    // Loading the wallet without its group key would leave it showing the group's
+    // funds with every multisig check switched off
+    if (!Read(std::string("sparkMultisigKey"), key)) {
+        throw std::runtime_error("The Spark multisig key of this wallet cannot be read");
+    }
+    return true;
+}
+
+bool CWalletDB::WriteSparkMultisigKey(const spark::MultisigKey& key)
+{
+    return Write(std::string("sparkMultisigKey"), key);
 }
 
 bool CWalletDB::WritePubcoin(const uint256& hashSerial, const GroupElement& pubcoin)

@@ -29,6 +29,7 @@
 #include "wallet/coincontrol.h"
 #include "wallet/sparkspendbatch.h"
 #include "rpcdump.h"
+#include "rpcsparkmultisig.h"
 
 #include <stdint.h>
 
@@ -4378,51 +4379,15 @@ UniValue automintspark(const JSONRPCRequest& request) {
     return result;
 }
 
-UniValue spendspark(const JSONRPCRequest& request)
+void ParseSparkSpendRecipients(
+        const UniValue& value,
+        std::vector<CRecipient>& recipients,
+        std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients)
 {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
-                + HelpRequiringPassphrase(pwallet) + "\n"
-                                                     "\nArguments:\n"
-                                                     "1. recipients              (string, required) A json object with addresses and amounts\n"
-                                                     "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
-                                                     "  ,...\n"
-                                                     " }\n"
-                                                     "\nResult:\n"
-                                                     "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                                                     "                                    the number of addresses.\n"
-                                                     "\nExamples:\n"
-                                                     "\nSend an amount to transparent address:\n"
-                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nSend an amount to a transparent address and two different private addresses:\n"
-                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}, \\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
-                 "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
-                 + HelpExampleRpc("spendspark", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false},\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\":{\"amount\":0.01, \"subtractFee\": true}, \"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"\", \"subtractFee\": false},\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
-        );
-
-    EnsureWalletIsUnlocked(pwallet);
-    EnsureSparkWalletIsAvailable();
-
-    // Ensure spark mints is already accepted by network so users will not lost their coins
-    // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
-    }
-
-    std::vector<CRecipient> recipients;
-    std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
-
     UniValue sendTo;
-    if (request.params[0].isStr()) {
+    if (value.isStr()) {
         // Parse JSON string parameter 
-        if (!sendTo.read(request.params[0].get_str())) {
+        if (!sendTo.read(value.get_str())) {
             throw JSONRPCError(RPC_PARSE_ERROR, "Invalid JSON string");
         }
         if (!sendTo.isObject()) {
@@ -4430,7 +4395,7 @@ UniValue spendspark(const JSONRPCRequest& request)
         }
     } else {
         // Direct object parameter
-        sendTo = request.params[0].get_obj();
+        sendTo = value.get_obj();
     }
     std::vector<std::string> keys = sendTo.getKeys();
     const spark::Params* params = spark::Params::get_default();
@@ -4485,12 +4450,8 @@ UniValue spendspark(const JSONRPCRequest& request)
             else
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ")+name_);
 
-            if (nAmount <= 0)
-                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-                
             // Validate that amount is reasonable when fee is being subtracted
             ValidateFeeSubtractionAmount(nAmount, subtractFee, name_);
-            LogPrintf("rpcWallet.mintSpark() nAmount = %d \n", nAmount);
 
             spark::OutputCoinData data;
             data.address = sAddress;
@@ -4535,6 +4496,54 @@ UniValue spendspark(const JSONRPCRequest& request)
 
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
     }
+}
+
+UniValue spendspark(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                + HelpRequiringPassphrase(pwallet) + "\n"
+                                                     "\nArguments:\n"
+                                                     "1. recipients              (string, required) A json object with addresses and amounts\n"
+                                                     "{\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  ,...\n"
+                                                     " }\n"
+                                                     "\nResult:\n"
+                                                     "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+                                                     "                                    the number of addresses.\n"
+                                                     "\nExamples:\n"
+                                                     "\nSend an amount to transparent address:\n"
+                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
+                 "\nSend an amount to a transparent address and two different private addresses:\n"
+                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}, \\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
+                 "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
+                 + HelpExampleRpc("spendspark", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false},\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\":{\"amount\":0.01, \"subtractFee\": true}, \"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"\", \"subtractFee\": false},\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
+        );
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    // Ensure spark mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    if (pwallet->sparkWallet->getMultisigKey()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "This is a Spark multisig wallet. Use createsparkmultisigspend.");
+    }
+
+    std::vector<CRecipient> recipients;
+    std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
+
+    ParseSparkSpendRecipients(request.params[0], recipients, privateRecipients);
 
     CAmount fee;
     CWalletTx wtx;
@@ -4588,115 +4597,14 @@ UniValue spendsparksplit(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
+    if (pwallet->sparkWallet->getMultisigKey()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "This is a Spark multisig wallet. Use createsparkmultisigspend.");
+    }
+
     std::vector<CRecipient> recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
 
-    UniValue sendTo;
-    if (request.params[0].isStr()) {
-        if (!sendTo.read(request.params[0].get_str())) {
-            throw JSONRPCError(RPC_PARSE_ERROR, "Invalid JSON string");
-        }
-        if (!sendTo.isObject()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "JSON parameter must be an object");
-        }
-    } else {
-        sendTo = request.params[0].get_obj();
-    }
-
-    std::vector<std::string> keys = sendTo.getKeys();
-    const spark::Params* params = spark::Params::get_default();
-    std::set<CBitcoinAddress> setAddress;
-    unsigned char network = spark::GetNetworkType();
-
-    BOOST_FOREACH(const std::string& name_, keys)
-    {
-        spark::Address sAddress(params);
-        bool isSparkAddress;
-        std::string sparkAddressStr;
-
-        if (!name_.empty() && name_[0] == '@') {
-            LOCK(cs_main);
-
-            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->GetSparkAddress(name_.substr(1), sparkAddressStr))
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+name_);
-        } else {
-            sparkAddressStr = name_;
-        }
-
-        try {
-            unsigned char coinNetwork = sAddress.decode(sparkAddressStr);
-            isSparkAddress = true;
-            if (coinNetwork != network)
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+name_);
-        } catch (const std::exception &) {
-            isSparkAddress = false;
-        }
-
-        if (isSparkAddress) {
-            UniValue amountAndMemo = sendTo[name_].get_obj();
-            CAmount nAmount(0);
-            if (amountAndMemo.exists("amount"))
-                nAmount = AmountFromValue(amountAndMemo["amount"]);
-            else
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ")+name_);
-
-            if (nAmount <= 0)
-                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-
-            std::string memo = "";
-            if (amountAndMemo.exists("memo"))
-                memo = amountAndMemo["memo"].get_str();
-
-            bool subtractFee = false;
-            if (amountAndMemo.exists("subtractFee"))
-                subtractFee = amountAndMemo["subtractFee"].get_bool();
-            else
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ")+name_);
-
-            ValidateFeeSubtractionAmount(nAmount, subtractFee, name_);
-
-            spark::OutputCoinData data;
-            data.address = sAddress;
-            data.memo = memo;
-            data.v = nAmount;
-            privateRecipients.push_back(std::make_pair(data, subtractFee));
-            continue;
-        }
-
-        CBitcoinAddress address(name_);
-        if (address.IsValid()) {
-            if (setAddress.count(address))
-                throw JSONRPCError(RPC_INVALID_PARAMETER,
-                                   std::string("Invalid parameter, duplicated address: ") + name_);
-            setAddress.insert(address);
-
-            CScript scriptPubKey = GetScriptForDestination(address.Get());
-
-            UniValue amountObj = sendTo[name_].get_obj();
-            CAmount nAmount(0);
-            if (amountObj.exists("amount"))
-                nAmount = AmountFromValue(amountObj["amount"]);
-            else
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ") + name_);
-            if (nAmount <= 0)
-                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-
-            bool fSubtractFeeFromAmount = false;
-            if (amountObj.exists("subtractFee"))
-                fSubtractFeeFromAmount = amountObj["subtractFee"].get_bool();
-            else
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
-
-            ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, name_);
-
-            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}};
-            recipients.push_back(recipient);
-            continue;
-        }
-
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
-    }
+    ParseSparkSpendRecipients(request.params[0], recipients, privateRecipients);
 
     CAmount fee;
     try {
@@ -5924,6 +5832,11 @@ static const CRPCCommand commands[] =
     { "wallet",             "registersparkname",      &registersparkname,      false, {} },
     { "wallet",             "requestsparknametransfer", &requestsparknametransfer, false,  {} },
     { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
+    { "wallet",             "addsparkmultisigaddress",  &addsparkmultisigaddress,  true,   {"nrequired","keys","data"} },
+    { "wallet",             "createsparkmultisigspend", &createsparkmultisigspend, false,  {"recipients"} },
+    { "wallet",             "signsparkmultisigspend",   &signsparkmultisigspend,   false,  {"hexstring"} },
+    { "wallet",             "combinesparkmultisigspend", &combinesparkmultisigspend, true, {"txs"} },
+    { "wallet",             "decodesparkmultisigspend", &decodesparkmultisigspend, true,   {"hexstring"} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },

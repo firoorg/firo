@@ -3,13 +3,19 @@
 #include "../../policy/policy.h"
 #include "../../spark/state.h"
 #include "../coincontrol.h"
+#include "../rpcsparkmultisig.h"
 #include "../wallet.h"
+#include "../walletdb.h"
+#include "../../base58.h"
+#include "../../rpc/server.h"
+#include "../../utilstrencodings.h"
 #include "../../spark/sparkwallet.h"
 #include "../../streams.h"
 #include "../../validation.h"
 #include "../../validationinterface.h"
 
 #include <algorithm>
+#include <atomic>
 #include <boost/test/unit_test.hpp>
 #include <limits>
 
@@ -50,6 +56,14 @@ static void ReloadSparkWallet()
     pwalletMain->sparkWallet.reset();
     pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
 }
+
+class ReadableWalletDB : public CWalletDB {
+public:
+    using CWalletDB::CWalletDB;
+    using CWalletDB::Read;
+};
+
+extern std::atomic<bool> fRequestShutdown;
 
 BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
 
@@ -890,6 +904,250 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
 
     auto sparkState = spark::CSparkState::GetState();
     sparkState->Reset();
+}
+
+// Run a Spark multisig RPC and return the error message it fails with, or nothing
+static std::string MultisigError(UniValue (*rpc)(const JSONRPCRequest&), const UniValue& param, UniValue* result = nullptr)
+{
+    JSONRPCRequest request;
+    request.params = UniValue(UniValue::VARR);
+    request.params.push_back(param);
+    try {
+        const UniValue value = rpc(request);
+        if (result) {
+            *result = value;
+        }
+    } catch (const UniValue& error) {
+        return find_value(error, "message").get_str();
+    }
+    return "";
+}
+
+static std::string SealMultisigSpend(const spark::MultisigKey& key, const CSparkMultisigSpend& spend)
+{
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << spend;
+    return HexStr(key.seal(spark::Params::get_default(), stream));
+}
+
+static CSparkMultisigSpend OpenMultisigSpend(const spark::MultisigKey& key, const std::string& hex)
+{
+    CSparkMultisigSpend spend;
+    key.open(spark::Params::get_default(), ParseHex(hex)) >> spend;
+    return spend;
+}
+
+// A cosigner can produce any validly sealed spend. What a signer accepts must not
+// depend on the cosigner being honest.
+BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
+{
+    const spark::Params* params = spark::Params::get_default();
+
+    // Make this wallet one of two participants who both have to sign
+    const CPubKey pubkey = GenerateAddress();
+    CKey privkey;
+    BOOST_REQUIRE(pwalletMain->GetKey(pubkey.GetID(), privkey));
+    Scalar own, other;
+    own.deserialize(privkey.begin());
+    other.randomize();
+    const std::vector<GroupElement> participants = {params->get_G()*own, params->get_G()*other};
+    const spark::MultisigKeygen ownKeygen(params, 2, participants, own);
+    const spark::MultisigKeygen otherKeygen(params, 2, participants, other);
+    const std::vector<spark::MultisigKeygenMessage> round1 = {ownKeygen.round1(), otherKeygen.round1()};
+    const std::vector<spark::MultisigKeygenMessage> round2 = {ownKeygen.round2(round1), otherKeygen.round2(round1)};
+    const spark::MultisigKey key = ownKeygen.finalize(round2);
+    const spark::MultisigKey otherKey = otherKeygen.finalize(round2);
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        BOOST_REQUIRE(walletdb.WriteSparkMultisigKey(key));
+        BOOST_REQUIRE(walletdb.writeFullViewKey(key.get_full_view_key(params)));
+    }
+    ReloadSparkWallet();
+    BOOST_REQUIRE(pwalletMain->sparkWallet->getMultisigKey());
+
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({10 * COIN, 10 * COIN}, mintTxs);
+    GenerateBlock(mintTxs, &script);
+    GenerateBlocks(5);
+    pwalletMain->sparkWallet->WaitForPendingTasks();
+
+    // The wallet no longer spends on its own
+    const CRecipient transparent{GetScriptForDestination(GenerateAddress().GetID()), COIN, false, {}, {}};
+    CAmount fee = 0;
+    BOOST_CHECK_THROW(pwalletMain->CreateSparkSpendTransaction({transparent}, {}, fee, nullptr), std::runtime_error);
+    BOOST_CHECK_THROW(pwalletMain->sparkWallet->SignMessage(pwalletMain->sparkWallet->getDefaultAddress(), "message"), std::runtime_error);
+
+    // A spend to a transparent address and to someone else's Spark address
+    const spark::Address foreign(spark::IncomingViewKey(spark::FullViewKey(spark::SpendKey(params))), 1);
+    UniValue amount(UniValue::VOBJ);
+    amount.push_back(Pair("amount", 1));
+    amount.push_back(Pair("subtractFee", false));
+    UniValue recipients(UniValue::VOBJ);
+    recipients.push_back(Pair(CBitcoinAddress(GenerateAddress().GetID()).ToString(), amount));
+    recipients.push_back(Pair(foreign.encode(spark::GetNetworkType()), amount));
+    UniValue created;
+    BOOST_REQUIRE_EQUAL(MultisigError(createsparkmultisigspend, recipients, &created), "");
+    const std::string hex = created["hex"].get_str();
+    BOOST_CHECK_EQUAL(MultisigError(decodesparkmultisigspend, hex), "");
+
+    const CSparkMultisigSpend spend = OpenMultisigSpend(key, hex);
+    BOOST_REQUIRE_EQUAL(spend.outputs.size(), 2); // the payment and the change
+    BOOST_REQUIRE(!spend.tx.vout[0].scriptPubKey.IsSparkSMint());
+
+    const auto rejects = [&](const CSparkMultisigSpend& bad, const std::string& reason) {
+        for (const auto rpc : {decodesparkmultisigspend, signsparkmultisigspend}) {
+            const std::string error = MultisigError(rpc, SealMultisigSpend(key, bad));
+            BOOST_CHECK_MESSAGE(error.find(reason) != std::string::npos, "expected '" + reason + "', got '" + error + "'");
+        }
+    };
+
+    // What a spend says about an output has to be the output
+    CSparkMultisigSpend bad = spend;
+    bad.outputs[0].amount += 1;
+    rejects(bad, "does not match its description");
+    bad = spend;
+    bad.outputs[0].memo = "other";
+    rejects(bad, "does not match its description");
+    bad = spend;
+    std::swap(bad.outputs[0].address, bad.outputs[1].address);
+    rejects(bad, "does not match its description");
+    bad = spend;
+    bad.outputs.pop_back();
+    rejects(bad, "not all described");
+
+    // The transparent part is tied to the signature through the cover set data
+    bad = spend;
+    bad.tx.vout[0].nValue += 1;
+    rejects(bad, "cover set data of another transaction");
+    bad = spend;
+    bad.coverSets.begin()->second.second.back() ^= 1;
+    rejects(bad, "cover set data of another transaction");
+    bad = spend;
+    bad.coverSets.clear();
+    rejects(bad, "missing cover set data");
+
+    // A fee above the wallet's limit is not signed
+    const CAmount savedMaxTxFee = maxTxFee;
+    maxTxFee = 1;
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, hex).find("-maxtxfee") != std::string::npos);
+    maxTxFee = savedMaxTxFee;
+
+    // The wallet commits to the spend, and so does the other signer
+    const auto commit = [&]() {
+        UniValue committed;
+        BOOST_REQUIRE_EQUAL(MultisigError(signsparkmultisigspend, hex, &committed), "");
+        BOOST_REQUIRE(!committed["complete"].get_bool());
+        CSparkMultisigSpend session = OpenMultisigSpend(key, committed["hex"].get_str());
+        BOOST_REQUIRE_EQUAL(session.commitments.size(), 1);
+        BOOST_REQUIRE(session.shares.empty());
+        spark::MultisigNonce nonce;
+        session.commitments.emplace_back(spark::MultisigSession::commit(params, otherKey.index, session.commitments[0].D.size(), other, nonce));
+        return session;
+    };
+    const CSparkMultisigSpend session = commit();
+
+    // From here the cosigner cannot change anything the proof's challenge depends on.
+    // The block a cover set is taken at is such a thing, and the one that neither the
+    // binding hash nor the wallet's other checks cover.
+    CSparkMultisigSpend steered = session;
+    spark::SpendTransaction payload = spark::ParseSparkSpend(CTransaction(steered.tx));
+    std::map<uint64_t, uint256> blockHashes = payload.getBlockHashes();
+    blockHashes.begin()->second = uint256S("01");
+    payload.setBlockHashes(blockHashes);
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << payload;
+    steered.tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+    BOOST_CHECK_EQUAL(MultisigError(decodesparkmultisigspend, SealMultisigSpend(key, steered)), "");
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, steered)).find("changed after") != std::string::npos);
+
+    // The attempt used up the nonce
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, session)).find("no longer holds the nonce") != std::string::npos);
+
+    // Left alone, the spend gets the wallet's signature share, once
+    const CSparkMultisigSpend again = commit();
+    UniValue signedSpend;
+    BOOST_REQUIRE_EQUAL(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again), &signedSpend), "");
+    BOOST_CHECK(!signedSpend["complete"].get_bool());
+    const CSparkMultisigSpend result = OpenMultisigSpend(key, signedSpend["hex"].get_str());
+    BOOST_REQUIRE_EQUAL(result.shares.size(), 1);
+    BOOST_CHECK_EQUAL(result.shares[0].index, key.index);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again)).find("no longer holds the nonce") != std::string::npos);
+
+    // A share that is not the other signer's does not complete the spend
+    CSparkMultisigSpend forged = result;
+    forged.shares.emplace_back(result.shares[0]);
+    forged.shares.back().index = otherKey.index;
+    BOOST_CHECK(MultisigError(combinesparkmultisigspend, UniValue(UniValue::VARR)).find("at least one") != std::string::npos);
+    UniValue list(UniValue::VARR);
+    list.push_back(SealMultisigSpend(key, forged));
+    BOOST_CHECK(MultisigError(combinesparkmultisigspend, list).find("Bad signature share") != std::string::npos);
+
+    spark::CSparkState::GetState()->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(multisig_setup_retires_old_receive_addresses)
+{
+    const spark::Params* params = spark::Params::get_default();
+    const std::string oldAddress = pwalletMain->sparkWallet->getDefaultAddress().encode(spark::GetNetworkType());
+    BOOST_REQUIRE(pwalletMain->SetSparkAddressBook(oldAddress, "old address", "receive"));
+    BOOST_REQUIRE(pwalletMain->AddDestData(oldAddress, "rr1", "saved receive request"));
+
+    const spark::Address contact(spark::IncomingViewKey(spark::FullViewKey(spark::SpendKey(params))), 1);
+    const std::string contactAddress = contact.encode(spark::GetNetworkType());
+    BOOST_REQUIRE(pwalletMain->SetSparkAddressBook(contactAddress, "friend", "send"));
+
+    const CPubKey ownPubKey = GenerateAddress();
+    CKey ownKey;
+    BOOST_REQUIRE(pwalletMain->GetKey(ownPubKey.GetID(), ownKey));
+    Scalar ownSecret, otherSecret;
+    ownSecret.deserialize(ownKey.begin());
+    otherSecret.randomize();
+    const std::vector<GroupElement> participants = {
+        params->get_G()*ownSecret, params->get_G()*otherSecret};
+    const spark::MultisigKeygen other(params, 2, participants, otherSecret);
+    const spark::MultisigKeygen local(params, 2, participants, ownSecret);
+
+    UniValue keys(UniValue::VARR);
+    for (const auto& participant : participants)
+        keys.push_back(HexStr(spark::MultisigKey::serialize_participant(participant)));
+    JSONRPCRequest request;
+    request.params = UniValue(UniValue::VARR);
+    request.params.push_back(2);
+    request.params.push_back(keys);
+    BOOST_CHECK(!addsparkmultisigaddress(request)["complete"].get_bool());
+
+    const auto encode = [](const spark::MultisigKeygenMessage& message) {
+        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+        stream << message;
+        return HexStr(stream.begin(), stream.end());
+    };
+    const auto first = {local.round1(), other.round1()};
+    UniValue data(UniValue::VARR);
+    data.push_back(encode(other.round1()));
+    request.params.push_back(data);
+    BOOST_CHECK(!addsparkmultisigaddress(request)["complete"].get_bool());
+
+    data = UniValue(UniValue::VARR);
+    data.push_back(encode(other.round2(first)));
+    request.params = UniValue(UniValue::VARR);
+    request.params.push_back(2);
+    request.params.push_back(keys);
+    request.params.push_back(data);
+    const UniValue completed = addsparkmultisigaddress(request);
+    fRequestShutdown = false; // The unit runner continues after this RPC.
+    BOOST_REQUIRE(completed["complete"].get_bool());
+
+    ReadableWalletDB walletdb(pwalletMain->strWalletFile);
+    std::string purpose, name, receiveRequest;
+    BOOST_REQUIRE(walletdb.Read(std::make_pair(std::string("purpose"), oldAddress), purpose));
+    BOOST_CHECK_EQUAL(purpose, "retired");
+    BOOST_REQUIRE(walletdb.Read(std::make_pair(std::string("name"), oldAddress), name));
+    BOOST_CHECK_EQUAL(name, "old address");
+    BOOST_CHECK(!walletdb.Read(std::make_pair(std::string("destdata"), std::make_pair(oldAddress, std::string("rr1"))), receiveRequest));
+    BOOST_REQUIRE(walletdb.Read(std::make_pair(std::string("purpose"), contactAddress), purpose));
+    BOOST_CHECK_EQUAL(purpose, "send");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

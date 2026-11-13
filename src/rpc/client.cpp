@@ -194,6 +194,11 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "spendspark", 1, {} },
     { "spendsparksplit", 0, {} },
     { "spendsparksplit", 1, {} },
+    { "addsparkmultisigaddress", 0, "nrequired" },
+    { "addsparkmultisigaddress", 1, "keys" },
+    { "addsparkmultisigaddress", 2, "data" },
+    { "createsparkmultisigspend", 0, "recipients" },
+    { "combinesparkmultisigspend", 0, "txs" },
 
     // Spark names
     { "registersparkname", 2, {} },
