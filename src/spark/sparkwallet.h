@@ -246,6 +246,8 @@ public:
     void WaitForPendingTasks();
     void FinishTasks();
     uint64_t GetMintWorkGeneration() const;
+    /** The database now holds other keys than this wallet runs with: record no more coins. */
+    void SetKeysReplaced();
 
 public:
     // Protects lastDiversifier, addresses, and coinMeta.
@@ -275,6 +277,7 @@ private:
     // or a group next to the wallet's own coins, means scanning per key set.
     std::optional<spark::MultisigKey> multisigKey;
     uint64_t mintWorkGeneration = 0; // queued under cs_main
+    bool fKeysReplaced = false; // under cs_main
 
     // map diversifier to address.
     std::unordered_map<int32_t, spark::Address> addresses GUARDED_BY(cs_spark_wallet);
