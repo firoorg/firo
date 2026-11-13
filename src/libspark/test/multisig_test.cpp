@@ -1,5 +1,6 @@
 #include "../multisig.h"
 #include "../spend_transaction.h"
+#include "../../hash.h"
 #include "../../key.h"
 
 #include "../../test/test_bitcoin.h"
@@ -227,6 +228,56 @@ BOOST_AUTO_TEST_CASE(keygen_is_stateless_and_order_independent)
     Scalar stranger;
     stranger.randomize();
     BOOST_CHECK_THROW(MultisigKeygen(params, 2, keys, stranger), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(keygen_output_is_stable)
+{
+    // Key generation is deterministic, so what it produces can be pinned. A change of
+    // this value is a change of the protocol: participants on different versions
+    // could no longer set up a wallet together, nor repeat the setup of an existing one.
+    const Params* params = Params::get_test();
+
+    std::vector<Scalar> secrets;
+    std::vector<GroupElement> keys;
+    for (uint64_t i = 1; i <= 3; ++i) {
+        secrets.emplace_back(Scalar(1000 + i));
+        keys.emplace_back(params->get_G()*secrets.back());
+    }
+    std::vector<MultisigKeygen> keygens;
+    std::vector<MultisigKeygenMessage> round1, round2;
+    for (const Scalar& secret : secrets) {
+        keygens.emplace_back(params, 2, keys, secret);
+        round1.emplace_back(keygens.back().round1());
+    }
+    CHashWriter hasher(SER_GETHASH, 0);
+    for (const MultisigKeygen& keygen : keygens) {
+        round2.emplace_back(keygen.round2(round1));
+    }
+    hasher << round2;
+    for (const MultisigKeygen& keygen : keygens) {
+        hasher << keygen.finalize(round2);
+    }
+    BOOST_CHECK_EQUAL(hasher.GetHash().GetHex(), "d660b368855275fd8c91230c4148ebdb9f7291331531c1845b6fb62e259486ca");
+}
+
+BOOST_AUTO_TEST_CASE(constant_time_multiplication)
+{
+    // Secret scalars are multiplied in constant time. That gives the same points.
+    const Params* params = Params::get_test();
+    GroupElement point;
+    for (int i = 0; i < 20; ++i) {
+        Scalar scalar;
+        scalar.randomize();
+        point.randomize();
+        BOOST_CHECK(point.multiplyConstantTime(scalar) == point*scalar);
+        BOOST_CHECK(params->get_G().multiplyConstantTime(scalar) == params->get_G()*scalar);
+    }
+
+    const Scalar one(uint64_t(1));
+    BOOST_CHECK(point.multiplyConstantTime(one) == point);
+    BOOST_CHECK(point.multiplyConstantTime(one.negate()) == point.inverse());
+    BOOST_CHECK(point.multiplyConstantTime(Scalar()).isInfinity());
+    BOOST_CHECK_THROW(GroupElement().multiplyConstantTime(one), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(keygen_rejects_bad_messages)

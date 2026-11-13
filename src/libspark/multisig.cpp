@@ -7,6 +7,10 @@
 
 namespace spark {
 
+// Multiplications by a key, a key share, a nonce, or a scalar derived from one use
+// GroupElement::multiplyConstantTime, which takes the same time for every scalar.
+// operator* does not, and is used only where the scalar is no such secret.
+
 namespace {
 
 // Domain separation. These values never reach the chain: they pass between the
@@ -102,7 +106,7 @@ GroupElement MultisigKey::storage_key(const Params* params, const Scalar& secret
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << secret << threshold << participants << commitments;
     hash.include(stream);
-    return params->get_G()*hash.finalize_scalar();
+    return params->get_G().multiplyConstantTime(hash.finalize_scalar());
 }
 
 Scalar MultisigKey::get_share(const Params* params, const Scalar& secret) const
@@ -115,7 +119,7 @@ Scalar MultisigKey::get_share(const Params* params, const Scalar& secret) const
     } catch (const std::exception&) {
         throw std::invalid_argument("The participant key does not open this multisig key share");
     }
-    if (params->get_G()*result != get_verification_share(index)) {
+    if (params->get_G().multiplyConstantTime(result) != get_verification_share(index)) {
         throw std::invalid_argument("Multisig key share does not match the group key");
     }
     return result;
@@ -127,7 +131,7 @@ GroupElement MultisigKey::seal_key(const Params* params, const Scalar& salt) con
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << s1 << s2 << salt;
     hash.include(stream);
-    return params->get_G()*hash.finalize_scalar();
+    return params->get_G().multiplyConstantTime(hash.finalize_scalar());
 }
 
 std::vector<unsigned char> MultisigKey::seal(const Params* params, CDataStream& data) const
@@ -176,7 +180,7 @@ MultisigKeygen::MultisigKeygen(
         throw std::invalid_argument("The multisig threshold must be between 1 and the number of participants");
     }
 
-    const GroupElement own = params->get_G()*secret;
+    const GroupElement own = params->get_G().multiplyConstantTime(secret);
     for (const auto& entry : sorted) {
         participants.emplace_back(entry.second);
         if (entry.second == own) {
@@ -230,7 +234,7 @@ MultisigKeygenMessage MultisigKeygen::round1() const
     MultisigKeygenMessage message;
     message.key = participants[index - 1];
     for (std::size_t j = 0; j < threshold; ++j) {
-        message.C.emplace_back(params->get_G()*derive("coefficient", j));
+        message.C.emplace_back(params->get_G().multiplyConstantTime(derive("coefficient", j)));
     }
 
     const Scalar s1 = derive("s1", 0);
@@ -245,7 +249,7 @@ MultisigKeygenMessage MultisigKeygen::round1() const
     CDataStream proved(SER_NETWORK, PROTOCOL_VERSION);
     proved << message.C << message.view_commitment;
     const Scalar k = derive("nonce", 0, std::vector<unsigned char>(proved.begin(), proved.end()));
-    message.R = params->get_G()*k;
+    message.R = params->get_G().multiplyConstantTime(k);
     message.mu = k + derive("coefficient", 0)*pok_challenge(index, message);
     return message;
 }
@@ -314,7 +318,7 @@ GroupElement MultisigKeygen::share_key(const std::vector<unsigned char>& transcr
     hash.include(stream);
 
     const GroupElement& other = participants[(sender == index ? recipient : sender) - 1];
-    return other*secret*hash.finalize_scalar();
+    return other.multiplyConstantTime(secret*hash.finalize_scalar());
 }
 
 MultisigKeygenMessage MultisigKeygen::round2(const std::vector<MultisigKeygenMessage>& messages) const
@@ -387,7 +391,7 @@ MultisigKey MultisigKeygen::finalize(const std::vector<MultisigKeygenMessage>& m
         }
         if (v1.isZero() || v2.isZero() ||
             view_commitment(i + 1, v1, v2) != message.view_commitment ||
-            params->get_G()*f != Evaluate(message.C, Identifier(index))) {
+            params->get_G().multiplyConstantTime(f) != Evaluate(message.C, Identifier(index))) {
             throw std::invalid_argument("Bad share from " + sender);
         }
 
@@ -449,8 +453,8 @@ MultisigCommitment MultisigSession::commit(const Params* params, std::size_t ind
     for (std::size_t u = 0; u < inputs; ++u) {
         nonce.d.emplace_back(sample());
         nonce.e.emplace_back(sample());
-        commitment.D.emplace_back(params->get_G()*nonce.d[u]);
-        commitment.E.emplace_back(params->get_G()*nonce.e[u]);
+        commitment.D.emplace_back(params->get_G().multiplyConstantTime(nonce.d[u]));
+        commitment.E.emplace_back(params->get_G().multiplyConstantTime(nonce.e[u]));
     }
     return commitment;
 }
@@ -564,7 +568,8 @@ MultisigShare MultisigSession::sign(const Scalar& secret, const MultisigNonce& n
     MultisigShare share;
     share.index = key.index;
     for (std::size_t u = 0; u < w; ++u) {
-        if (params->get_G()*nonce.d[u] != commitments[i].D[u] || params->get_G()*nonce.e[u] != commitments[i].E[u]) {
+        if (params->get_G().multiplyConstantTime(nonce.d[u]) != commitments[i].D[u] ||
+            params->get_G().multiplyConstantTime(nonce.e[u]) != commitments[i].E[u]) {
             throw std::invalid_argument("Multisig nonce does not match this signer's commitment");
         }
         share.z.emplace_back(nonce.d[u] + rho[i][u]*nonce.e[u] + weight);
