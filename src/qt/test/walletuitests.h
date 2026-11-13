@@ -54,6 +54,8 @@ private Q_SLOTS:
     void sparkNameCopyConfirmation();
     void sparkNameRegistrationDetails();
     void masternodeStatusFollowsPoSe();
+    void recoveryMultisigOption();
+    void sparkMultisig();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H
