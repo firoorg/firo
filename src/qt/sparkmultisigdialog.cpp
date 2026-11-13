@@ -107,6 +107,17 @@ QString Grouped(const QString& address)
     return out;
 }
 
+// A memo is written by whoever made the transaction. Line breaks and direction marks
+// in it would let it pass for more of the list it is shown in, or for none of it.
+QString OneLine(QString text)
+{
+    for (QChar& c : text) {
+        const bool fBreak = c.category() == QChar::Separator_Line || c.category() == QChar::Separator_Paragraph;
+        if (fBreak || (!c.isPrint() && !c.isSurrogate())) c = QLatin1Char(' ');
+    }
+    return text;
+}
+
 // Every label shows pasted data at some point, so none of them takes rich text.
 QLabel* MakeLabel(const QString& text, QWidget* parent, const char* name = nullptr)
 {
@@ -756,7 +767,7 @@ SparkMultisigSpendDialog::SparkMultisigSpendDialog(WalletModel* walletModel, QWi
         if (!rawTx.isEmpty()) {
             send();
         } else {
-            sign();
+            advance();
         }
     });
     connect(closeButton, &QPushButton::clicked, this, &QDialog::reject);
@@ -798,9 +809,16 @@ void SparkMultisigSpendDialog::showEvent(QShowEvent* event)
 
 bool SparkMultisigSpendDialog::mayReplace()
 {
-    if (rawTx.isEmpty()) return true;
-    return QMessageBox::question(this, tr("Multisig wallet"), tr("The transaction on screen is fully signed but has not been sent. Replace it?"),
-               QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+    QString question;
+    if (!rawTx.isEmpty()) {
+        question = tr("The transaction on screen is fully signed but has not been sent. Replace it?");
+    } else if (!spend.isEmpty() && fApproved && !fSigned) {
+        // What comes back from a co-signer is expected to be the transaction that went out
+        question = tr("You approved the transaction on screen and have not signed it yet. This is a different transaction, not a copy of it. Replace the one on screen?");
+    } else {
+        return true;
+    }
+    return QMessageBox::question(this, tr("Multisig wallet"), question, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
 }
 
 bool SparkMultisigSpendDialog::createSpend(const QList<SendCoinsRecipient>& recipients)
@@ -838,7 +856,6 @@ bool SparkMultisigSpendDialog::load(const QString& hex)
 {
     const QString cleaned = hex.simplified().remove(QLatin1Char(' '));
     if (cleaned.isEmpty()) return false;
-    if (!mayReplace()) return false;
 
     UniValue decoded;
     QString error;
@@ -847,24 +864,23 @@ bool SparkMultisigSpendDialog::load(const QString& hex)
         return false;
     }
 
-    // A copy of the transaction on screen merges into it; anything else replaces it
+    // A copy of the transaction on screen merges into it. Anything else replaces it,
+    // and never unnoticed where the one on screen still has work left in it.
+    UniValue copies(UniValue::VARR);
+    const QString id = Str(decoded["id"]);
+    const bool fCopy = !spend.isEmpty() && details.isObject() && !id.isEmpty() && id == Str(details["id"]);
+    if (fCopy) {
+        copies.push_back(spend.toStdString());
+    } else if (!mayReplace()) {
+        return false;
+    }
+    copies.push_back(cleaned.toStdString());
     UniValue result;
-    bool fMerged = false;
-    if (!spend.isEmpty()) {
-        UniValue both(UniValue::VARR);
-        both.push_back(spend.toStdString());
-        both.push_back(cleaned.toStdString());
-        fMerged = Call(combinesparkmultisigspend, both, result, error);
+    if (!Call(combinesparkmultisigspend, copies, result, error)) {
+        SetStatus(status, error, true);
+        return false;
     }
-    if (!fMerged) {
-        UniValue alone(UniValue::VARR);
-        alone.push_back(cleaned.toStdString());
-        if (!Call(combinesparkmultisigspend, alone, result, error)) {
-            SetStatus(status, error, true);
-            return false;
-        }
-        details = decoded;
-    }
+    if (!fCopy) details = decoded;
     apply(result);
     return true;
 }
@@ -888,14 +904,16 @@ void SparkMultisigSpendDialog::apply(const UniValue& result)
     if (!fDecoded) SetStatus(status, error, true);
 }
 
-void SparkMultisigSpendDialog::sign()
+void SparkMultisigSpendDialog::advance()
 {
     WalletModel::UnlockContext ctx(model->requestUnlock());
     if (!ctx.isValid()) return;
 
+    // The step is the one the user was shown. The wallet does not sign what it has
+    // not approved, whatever the transaction on screen carries.
     UniValue result;
     QString error;
-    if (!Call(signsparkmultisigspend, UniValue(spend.toStdString()), result, error)) {
+    if (!Call(fApproved ? signsparkmultisigspend : approvesparkmultisigspend, UniValue(spend.toStdString()), result, error)) {
         SetStatus(status, error, true);
         return;
     }
@@ -932,7 +950,7 @@ void SparkMultisigSpendDialog::updateView()
     address->setText(Grouped(ownAddress()));
 
     // What the signers' list says about this co-signer
-    bool fMine = false, fMineSigned = false;
+    fApproved = fSigned = false;
     int count = 0, need = 0;
     QStringList pending; //!< short keys of the signers that have not signed
 
@@ -953,7 +971,7 @@ void SparkMultisigSpendDialog::updateView()
                 continue;
             }
             QString line = tr("%1 to %2").arg(amountOf(out), Grouped(Str(out["address"])));
-            const QString memo = Str(out["memo"]);
+            const QString memo = OneLine(Str(out["memo"]));
             if (!memo.isEmpty()) line += tr(" (%1)").arg(memo);
             payments << line;
         }
@@ -967,15 +985,15 @@ void SparkMultisigSpendDialog::updateView()
         for (const UniValue& signer : details["signers"].getValues()) {
             const QString signerKey = Str(signer["key"]);
             const bool fOwn = !ownKeyHex.isEmpty() && signerKey == ownKeyHex;
-            const bool fSigned = signer["signed"].isTrue();
+            const bool fHasSigned = signer["signed"].isTrue();
             ++count;
             if (fOwn) {
-                fMine = true;
-                fMineSigned = fSigned;
-            } else if (!fSigned) {
+                fApproved = true;
+                fSigned = fHasSigned;
+            } else if (!fHasSigned) {
                 pending << ShortKey(signerKey);
             }
-            lines << (fOwn ? tr("You") : ShortKey(signerKey)) + (fSigned || !rawTx.isEmpty() ? tr(": signed") : tr(": approved"));
+            lines << (fOwn ? tr("You") : ShortKey(signerKey)) + (fHasSigned || !rawTx.isEmpty() ? tr(": signed") : tr(": approved"));
         }
         if (count < need && rawTx.isEmpty()) lines << tr("%1 more needed").arg(need - count);
         approvals->setText(lines.join(QLatin1Char('\n')));
@@ -995,17 +1013,15 @@ void SparkMultisigSpendDialog::updateView()
     } else if (spend.isEmpty() || !fDetails) {
         actionButton->setVisible(false);
         SetStatus(status, tr("To pay from this wallet, use the Send page. To approve a co-signer's transaction, paste it or open its file."), false);
-    } else if (!fMine) {
+    } else if (!fApproved) {
         if (count < need) {
             setAction(tr("Approve"), true);
-            QString text = tr("Check the payment before you approve it.");
-            if (count + 1 == need) text += tr(" Yours is the last approval needed, so approving also signs.");
-            SetStatus(status, text, false);
+            SetStatus(status, tr("Check the payment before you approve it. You sign once all approvals are in, and only what you approved."), false);
         } else {
             setAction(tr("Approve"), false);
             SetStatus(status, tr("This transaction already has its %1 signers, and you are not one of them.").arg(need), false);
         }
-    } else if (fMineSigned) {
+    } else if (fSigned) {
         setAction(tr("Sign"), false);
         SetStatus(status, tr("You have signed. Pass the transaction on to the co-signers who still have to sign: %1.").arg(pending.join(QStringLiteral(", "))), false);
     } else if (count < need) {

@@ -105,15 +105,18 @@ private:
     //! Take the result of signing or combining
     void apply(const UniValue& result);
     void updateView();
-    void sign();
+    //! Approve the transaction on screen, or sign it if this wallet has approved it
+    void advance();
     void send();
-    //! Ask before a fully signed transaction that was not sent is replaced
+    //! Ask before another transaction replaces one that is signed and not sent, or approved and not signed
     bool mayReplace();
 
     WalletModel* model;
     QString spend;    //!< the transaction while it collects signatures, as the co-signers exchange it
     QString rawTx;    //!< the transaction once it is fully signed
     UniValue details; //!< what `spend` does, from decodesparkmultisigspend
+    bool fApproved = false; //!< this wallet is among the signers of `spend`
+    bool fSigned = false;   //!< and has signed it
 
     QLabel* summary;
     QLabel* address;

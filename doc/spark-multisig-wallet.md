@@ -128,10 +128,12 @@ participants using the RPCs can share a wallet: what they exchange is the same
 - **Spending.** In a multisig wallet the Send page creates a spend instead of
   sending a private payment. The spend is shown in the dialog that *File > Multisig
   wallet* opens: what it pays, as `decodesparkmultisigspend` reports it, who has
-  committed and signed, and the one step that applies, which is to approve (the
-  first pass of `signsparkmultisigspend`), to sign (the second) or to send. A spend
-  goes to the other participants and comes back by clipboard or file. A copy of
-  the spend on screen is merged into it, as `combinesparkmultisigspend` does.
+  approved and signed, and the one step that applies, which is to approve
+  (`approvesparkmultisigspend`), to sign (`signsparkmultisigspend`) or to send. A
+  spend goes to the other participants and comes back by clipboard or file. A copy
+  of the spend on screen is merged into it, as `combinesparkmultisigspend` does.
+  Anything else replaces it, and the dialog asks first if the spend on screen is
+  one this wallet approved and has not signed.
 
 ## What travels between the participants
 

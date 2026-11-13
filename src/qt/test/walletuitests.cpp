@@ -2345,16 +2345,18 @@ void WalletUiTests::sparkMultisig()
     const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
     QVERIFY(style);
 
-    // Every message box is answered with Yes, or with OK where that is all it offers.
+    // Every message box is answered with Yes, or with OK where that is all it offers,
+    // and with No while `refuse` is set.
     QStringList messages;
+    bool refuse = false;
     QTimer answer;
     connect(&answer, &QTimer::timeout, [&] {
         auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
         if (!box)
             return;
         messages << box->text();
-        if (QAbstractButton* yes = box->button(QMessageBox::Yes))
-            yes->click();
+        if (QAbstractButton* button = box->button(refuse ? QMessageBox::No : QMessageBox::Yes))
+            button->click();
         else
             box->accept();
     });
@@ -2475,10 +2477,32 @@ void WalletUiTests::sparkMultisig()
     QCOMPARE(dialog->findChild<QLabel*>("address")->text().remove(QLatin1Char(' ')), address);
     QVERIFY(action->isHidden());
     QVERIFY(!copy->isEnabled());
+
+    // A transaction that a co-signer made comes in by clipboard. Its memo is theirs to
+    // write, and stays on the line of its payment.
+    const spark::Address payee(spark::IncomingViewKey(spark::FullViewKey(spark::SpendKey(params))), 1);
+    QString other;
+    try {
+        UniValue payment(UniValue::VOBJ);
+        payment.pushKV("amount", 1);
+        payment.pushKV("memo", "rent\nand 9 FIRO to you");
+        payment.pushKV("subtractFee", UniValue(false));
+        UniValue payments(UniValue::VOBJ);
+        payments.pushKV(payee.encode(spark::GetNetworkType()), payment);
+        JSONRPCRequest request;
+        request.params = UniValue(UniValue::VARR);
+        request.params.push_back(payments);
+        other = QString::fromStdString(createsparkmultisigspend(request)["hex"].get_str());
+    } catch (const UniValue& error) {
+        QFAIL(find_value(error, "message").get_str().c_str());
+    }
+    QApplication::clipboard()->setText(other);
+    paste->click();
+    QCOMPARE(action->text(), SparkMultisigSpendDialog::tr("Approve"));
+    QVERIFY2(pays->text().contains(QStringLiteral("(rent and 9 FIRO to you)")) && !pays->text().contains(QLatin1Char('\n')), qPrintable(pays->text()));
     dialog->close();
 
     // The Send page does not send a private payment of this wallet: it hands it to the co-signers.
-    const spark::Address payee(spark::IncomingViewKey(spark::FullViewKey(spark::SpendKey(params))), 1);
     SendCoinsRecipient recipient;
     recipient.address = QString::fromStdString(payee.encode(spark::GetNetworkType()));
     recipient.amount = 2 * COIN;
@@ -2506,14 +2530,37 @@ void WalletUiTests::sparkMultisig()
     const QString approved = QApplication::clipboard()->text();
     QVERIFY(!approved.isEmpty());
 
-    // The co-signer brings in the last approval, and with it signs.
+    // What comes back is expected to be this transaction. Another one does not take
+    // its place unnoticed: the user is asked, and here says no.
+    int asked = messages.size();
+    refuse = true;
+    QApplication::clipboard()->setText(other);
+    paste->click();
+    refuse = false;
+    QCOMPARE(messages.size(), asked + 1);
+    QVERIFY2(messages.last().contains(QStringLiteral("different transaction")), qPrintable(messages.last()));
+    copy->click();
+    QCOMPARE(QApplication::clipboard()->text(), approved);
+    QVERIFY(pays->text().contains(recipient.message));
+
+    // The co-signer brings in the last approval, and then signs.
     restart(cosignerGroupKey);
     QString cosigned;
     try {
         JSONRPCRequest request;
         request.params = UniValue(UniValue::VARR);
         request.params.push_back(approved.toStdString());
-        const UniValue result = signsparkmultisigspend(request);
+        // Signing is not a way to approve
+        try {
+            signsparkmultisigspend(request);
+            QFAIL("signed a transaction the wallet had not approved");
+        } catch (const UniValue&) {
+        }
+        UniValue result = approvesparkmultisigspend(request);
+        QVERIFY(!result["complete"].get_bool());
+        request.params = UniValue(UniValue::VARR);
+        request.params.push_back(result["hex"].get_str());
+        result = signsparkmultisigspend(request);
         QVERIFY(!result["complete"].get_bool());
         cosigned = QString::fromStdString(result["hex"].get_str());
     } catch (const UniValue& error) {
