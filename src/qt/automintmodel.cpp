@@ -1,4 +1,5 @@
 #include "../masternode-sync.h"
+#include "../spark/sparkwallet.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 
@@ -291,6 +292,12 @@ void AutoMintSparkModel::startAutoMintSpark()
     }
 
     if (!optionsModel->getAutoAnonymize()) {
+        return;
+    }
+
+    // The private addresses of a multisig wallet are the group's, and the wallet does
+    // not move its own transparent funds there by itself
+    if (wallet->sparkWallet && wallet->sparkWallet->getMultisigKey()) {
         return;
     }
 
