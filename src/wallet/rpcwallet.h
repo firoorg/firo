@@ -29,6 +29,7 @@ CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request);
 std::string HelpRequiringPassphrase(CWallet *);
 void EnsureWalletIsUnlocked(CWallet *);
 bool EnsureWalletIsAvailable(CWallet *, bool avoidException);
+void EnsureSparkWalletIsAvailable();
 
 /**
  * Parse the recipients argument of the Spark spend RPCs: an object, or a string

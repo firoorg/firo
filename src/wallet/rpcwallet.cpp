@@ -29,6 +29,7 @@
 #include "wallet/coincontrol.h"
 #include "wallet/sparkspendbatch.h"
 #include "rpcdump.h"
+#include "rpcsparkmultisig.h"
 
 #include <stdint.h>
 
@@ -4535,6 +4536,10 @@ UniValue spendspark(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
+    if (pwallet->sparkWallet->getMultisigKey()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "This is a Spark multisig wallet. Use createsparkmultisigspend.");
+    }
+
     std::vector<CRecipient> recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
 
@@ -4590,6 +4595,10 @@ UniValue spendsparksplit(const JSONRPCRequest& request)
 
     if (!spark::IsSparkAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    if (pwallet->sparkWallet->getMultisigKey()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "This is a Spark multisig wallet. Use createsparkmultisigspend.");
     }
 
     std::vector<CRecipient> recipients;
@@ -5823,6 +5832,11 @@ static const CRPCCommand commands[] =
     { "wallet",             "registersparkname",      &registersparkname,      false, {} },
     { "wallet",             "requestsparknametransfer", &requestsparknametransfer, false,  {} },
     { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
+    { "wallet",             "addsparkmultisigaddress",  &addsparkmultisigaddress,  true,   {"nrequired","keys","data"} },
+    { "wallet",             "createsparkmultisigspend", &createsparkmultisigspend, false,  {"recipients"} },
+    { "wallet",             "signsparkmultisigspend",   &signsparkmultisigspend,   false,  {"hexstring"} },
+    { "wallet",             "combinesparkmultisigspend", &combinesparkmultisigspend, true, {"txs"} },
+    { "wallet",             "decodesparkmultisigspend", &decodesparkmultisigspend, true,   {"hexstring"} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },

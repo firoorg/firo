@@ -22,6 +22,7 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/mnemoniccontainer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/db.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcdump.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpcsparkmultisig.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcwallet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkbatchplanner.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkspendbatch.cpp
