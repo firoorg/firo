@@ -252,6 +252,29 @@
             </layout>
            </widget>
           </item>
+          <item>
+           <widget class="QCheckBox" name="useMultisig">
+            <property name="text">
+             <string>Make this a multisig wallet</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="multisigHelp">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>You'll share this wallet's private funds with co-signers: each of you sees the balance, and sending takes the approval of several of you. You set it up together once the wallet is created.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="help" stdset="0">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
