@@ -37,6 +37,8 @@ SpendProofDialog::SpendProofDialog(QWidget *parent, WalletModel *_model, const Q
              "Enter the message the verifier asked you to include, then send them the proof together with that message. "
              "Anyone who holds the proof can link this wallet to the transaction.")
         : tr("Check a spend proof against this node's copy of the blockchain. "
+             "First ask the prover to include a fresh, unpredictable message you chose. "
+             "Do not accept a message chosen by the prover, as they could replay someone else's proof. "
              "A valid proof shows that its creator holds the spending keys of the transaction it names, and that the proof was made for this exact message. "
              "It does not show the amount or who was paid."),
         this);
@@ -56,7 +58,7 @@ SpendProofDialog::SpendProofDialog(QWidget *parent, WalletModel *_model, const Q
     messageEdit->setObjectName(QStringLiteral("messageEdit"));
     messageEdit->setPlaceholderText(generating
         ? tr("Enter the message the verifier asked you to include")
-        : tr("Enter the message the proof was made for"));
+        : tr("Enter the fresh message you asked the prover to include"));
     messageEdit->setFixedHeight(80);
 
     QLabel *proofLabel = new QLabel(tr("Spend proof"), this);
