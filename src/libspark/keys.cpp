@@ -91,7 +91,7 @@ FullViewKey::FullViewKey(const Params* params, const Scalar& s1, const Scalar& s
 	this->s1 = s1;
 	this->s2 = s2;
 	this->D = D;
-	this->P2 = this->params->get_F()*this->s2 + this->D;
+	this->P2 = this->params->get_F().multiplyConstantTime(this->s2) + this->D;
 }
 
 const Params* FullViewKey::get_params() const {

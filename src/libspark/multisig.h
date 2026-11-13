@@ -7,7 +7,8 @@
 
 namespace spark {
 
-using namespace secp_primitives;
+using secp_primitives::GroupElement;
+using secp_primitives::Scalar;
 
 // Threshold multisignature for Spark spends, as described in doc/spark-multisig.md
 // (section 5 of the Lelantus Spark paper).
