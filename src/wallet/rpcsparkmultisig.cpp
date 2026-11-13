@@ -38,8 +38,9 @@ struct CSparkMultisigSpendInfo {
 };
 
 // A nonce a signer has committed to. Nonces are kept in memory only: one that came
-// back after a restart or from a restored backup could sign a second transaction,
-// and two signatures from one nonce reveal the key share.
+// back after a restart or from a restored backup could sign again. Each signature
+// share from the same nonce pair is one more linear equation in the pair and the
+// key share, so a third one gives the key share away.
 struct CSparkMultisigNonce {
     spark::MultisigNonce nonce;
     Scalar statement; //!< what it was issued for: all that the proof's challenge covers
