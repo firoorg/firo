@@ -290,6 +290,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/kdf.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/keys.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/mint_transaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/multisig.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/params.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/schnorr.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/spend_transaction.cpp
