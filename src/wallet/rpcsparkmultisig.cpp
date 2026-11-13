@@ -518,10 +518,22 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
     }
 
     EnsureSparkWalletIsAvailable();
+    const bool fWasMultisig = pwallet->sparkWallet->getMultisigKey() != nullptr;
+    UniValue result = SetupSparkMultisig(pwallet, request.params, true);
+    if (!fWasMultisig && result["complete"].get_bool()) {
+        StartShutdown();
+        result.push_back(Pair("warning", "Firo server stopping. Restart it to use the Spark multisig wallet. Before the address receives funds, confirm that every participant completed the setup and obtained this address."));
+    }
+    return result;
+}
+
+UniValue SetupSparkMultisig(CWallet* pwallet, const UniValue& args, bool fStore)
+{
+    EnsureSparkWalletIsAvailable();
     const spark::Params* params = spark::Params::get_default();
 
-    const int nRequired = request.params[0].get_int();
-    const UniValue& keys = request.params[1].get_array();
+    const int nRequired = args[0].get_int();
+    const UniValue& keys = args[1].get_array();
     std::vector<GroupElement> participants;
     std::vector<CPubKey> own;
     for (std::size_t i = 0; i < keys.size(); ++i) {
@@ -578,8 +590,8 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
 
         // The latest message of every other participant
         std::vector<spark::MultisigKeygenMessage> messages;
-        if (request.params.size() > 2) {
-            const UniValue& data = request.params[2].get_array();
+        if (args.size() > 2) {
+            const UniValue& data = args[2].get_array();
             for (std::size_t i = 0; i < data.size(); ++i) {
                 const std::string& hex = data[i].get_str();
                 if (!IsHex(hex)) {
@@ -631,13 +643,16 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             throw std::invalid_argument("Expected data from every other participant");
         }
 
-        if (!key) {
+        if (!key || !fStore) {
             CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
             stream << message;
             if (!existing) {
                 result.push_back(Pair("complete", false));
             }
             result.push_back(Pair("hex", HexStr(stream.begin(), stream.end())));
+            if (key) {
+                result.push_back(Pair("address", spark::Address(spark::IncomingViewKey(key->get_full_view_key(params)), 0).encode(spark::GetNetworkType())));
+            }
             return result;
         }
     } catch (const std::exception& e) {
@@ -648,7 +663,7 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
     // scans, then check under cs_main that no new scans were queued while waiting.
     // A second final setup call in the same RPC batch must also see the saved key.
     // Once the keys are saved the running wallet stops using the ones it has: the
-    // node stops, but not before another call or the next block can arrive.
+    // caller stops the node, but not before another call or the next block can arrive.
     bool fSaved = false;
     for (int attempt = 0; attempt < 3 && !fSaved; ++attempt) {
         uint64_t generation;
@@ -695,7 +710,6 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             if (!fSaved)
                 throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to save the Spark multisig key");
             pwallet->sparkWallet->SetKeysReplaced();
-            StartShutdown();
         }
     }
     // Every block with Spark coins and every Spark transaction entering the mempool
@@ -705,7 +719,6 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
 
     result.push_back(Pair("complete", true));
     result.push_back(Pair("address", spark::Address(spark::IncomingViewKey(key->get_full_view_key(params)), 0).encode(spark::GetNetworkType())));
-    result.push_back(Pair("warning", "Firo server stopping. Restart it to use the Spark multisig wallet. Before the address receives funds, confirm that every participant completed the setup and obtained this address."));
     return result;
 }
 
