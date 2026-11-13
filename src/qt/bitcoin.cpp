@@ -103,6 +103,7 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #endif
 
 static bool newWallet = false;
+static bool newMultisigWallet = false;
 
 // Declare meta types used for QMetaObject::invokeMethod
 Q_DECLARE_METATYPE(bool*)
@@ -569,9 +570,12 @@ void BitcoinApplication::initializeResult(int retval)
 
 #ifdef ENABLE_WALLET
 
-        if (pwalletMain)
-            if(newWallet)
+        if (pwalletMain) {
+            if (newWallet)
                 NotifyMnemonic::notify();
+            if (newMultisigWallet)
+                window->showSparkMultisig();
+        }
 
         // Now that initialization/startup is done, process any command-line
         // firo: URIs or payment requests:
@@ -880,7 +884,7 @@ int main(int argc, char *argv[])
        !GetBoolArg("-disablewallet", false) &&
        GetArg("-mnemonic", "").empty() &&
        GetArg("-hdseed", "not hex")=="not hex"){
-        if(!Recover::askRecover(newWallet))
+        if(!Recover::askRecover(newWallet, &newMultisigWallet))
             return EXIT_SUCCESS;
     }
     /// 8. URI IPC sending

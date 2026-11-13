@@ -19,7 +19,10 @@ public:
     explicit Recover(QWidget *parent = 0);
     ~Recover();
 
-    static bool askRecover(bool& newWallet);
+    /**
+     * @param[out] multisig  set to whether the user asked for the new wallet to become a multisig wallet
+     */
+    static bool askRecover(bool& newWallet, bool* multisig = nullptr);
 
 private Q_SLOTS:
     void submit();
