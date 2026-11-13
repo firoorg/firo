@@ -65,6 +65,11 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
         walletdb.writeDiversifier(lastDiversifier);
     } else {
+        spark::MultisigKey storedMultisigKey;
+        if (walletdb.ReadSparkMultisigKey(storedMultisigKey)) {
+            multisigKey = storedMultisigKey;
+            fullViewKey = multisigKey->get_full_view_key(params);
+        }
         viewKey = generateIncomingViewKey(fullViewKey);
         int32_t diversifierInDB = 0;
         // read diversifier from db
@@ -303,6 +308,11 @@ spark::Address CSparkWallet::getChangeAddress() {
 }
 
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
+    if (multisigKey) {
+        // The key derived below belongs to the addresses this wallet had before it
+        // became a multisig wallet, never to the ones it has now
+        throw std::runtime_error("A Spark multisig wallet does not hold its spend key");
+    }
     if (pwalletMain->IsLocked()) {
         LogPrintf("Spark spend key generation FAILED, wallet is locked\n");
         throw WalletLocked();
@@ -1658,10 +1668,17 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         size_t additionalTxSize,
         const uint256& extensionCommitment,
         int expectedNextBlockHeight,
-        std::vector<CAmount>* recipientAmounts) {
+        std::vector<CAmount>* recipientAmounts,
+        CSparkMultisigDraft* multisigDraft) {
 
     if (recipients.empty() && privateRecipients.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
+    }
+    if (multisigKey && !multisigDraft) {
+        throw std::runtime_error(_("This is a Spark multisig wallet. Create the spend with createsparkmultisigspend."));
+    }
+    if (multisigDraft && !multisigKey) {
+        throw std::runtime_error(_("This is not a Spark multisig wallet."));
     }
 
     const auto &consensusParams = Params().GetConsensus();
@@ -1750,6 +1767,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock;
         enforceBoundCoverSetHash =
             nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock - 10;
+        if (multisigDraft && !useChaumV2) {
+            throw std::runtime_error(_("Spark multisig spends use the Chaum V2 proof, which is not active yet."));
+        }
         fullViewKeySnapshot = fullViewKey;
 
         if (vOut > consensusParams.GetMaxValueSparkSpendPerTransaction(nHeight + 1))
@@ -1858,12 +1878,14 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
 
             spark::CSparkState *sparkState = spark::CSparkState::GetState();
-            try {
-                spendKey = std::move(generateSpendKey(params));
-            } catch (const WalletLocked&) {
-                throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
-            } catch (const std::exception&) {
-                throw std::runtime_error(_("Unable to generate spend key."));
+            if (!multisigDraft) {
+                try {
+                    spendKey = std::move(generateSpendKey(params));
+                } catch (const WalletLocked&) {
+                    throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
+                } catch (const std::exception&) {
+                    throw std::runtime_error(_("Unable to generate spend key."));
+                }
             }
 
 
@@ -2041,21 +2063,38 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     // their cover-set context above were captured from one tip while holding the
     // chain and wallet locks; validate the snapshot again before recording the
     // completed transaction below.
-    spark::SpendTransaction spendTransaction(
-        params,
-        fullViewKeySnapshot,
-        spendKey,
-        inputs,
-        cover_set_data,
-        cover_sets,
-        fee,
-        transparentOut,
-        privOutputs,
-        useChaumV2
-            ? spark::SpendTransactionVersion::V2
-            : spark::SpendTransactionVersion::V1,
-        useChaumV2 ? extensionCommitment : uint256(),
-        idAndBlockHashes);
+    spark::SpendTransaction spendTransaction = multisigDraft
+        ? spark::SpendTransaction(
+            params,
+            fullViewKeySnapshot,
+            inputs,
+            cover_set_data,
+            cover_sets,
+            fee,
+            transparentOut,
+            privOutputs,
+            idAndBlockHashes,
+            multisigDraft->outputNonces)
+        : spark::SpendTransaction(
+            params,
+            fullViewKeySnapshot,
+            spendKey,
+            inputs,
+            cover_set_data,
+            cover_sets,
+            fee,
+            transparentOut,
+            privOutputs,
+            useChaumV2
+                ? spark::SpendTransactionVersion::V2
+                : spark::SpendTransactionVersion::V1,
+            useChaumV2 ? extensionCommitment : uint256(),
+            idAndBlockHashes);
+    if (multisigDraft) {
+        multisigDraft->outputs = privOutputs;
+        multisigDraft->coverSets.clear();
+        multisigDraft->coverSets.insert(cover_set_data.begin(), cover_set_data.end());
+    }
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << spendTransaction;
     tx.vExtraPayload.assign(serialized.begin(), serialized.end());

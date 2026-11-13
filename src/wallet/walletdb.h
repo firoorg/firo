@@ -17,6 +17,7 @@
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 #include "../libspark/keys.h"
+#include "../libspark/multisig.h"
 #include "../spark/primitives.h"
 
 #include <list>
@@ -259,6 +260,11 @@ public:
 
     bool readFullViewKey(spark::FullViewKey& viewKey);
     bool writeFullViewKey(const spark::FullViewKey& viewKey);
+
+    // Present only in a Spark multisig wallet, whose full view key is the group's.
+    // Returns false if the wallet has none and throws if it has one that cannot be read.
+    bool ReadSparkMultisigKey(spark::MultisigKey& key);
+    bool WriteSparkMultisigKey(const spark::MultisigKey& key);
 
     bool WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash);
     bool ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash);
