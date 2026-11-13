@@ -75,6 +75,28 @@ its signature share leaves the wallet. A signer that is restarted in between can
 no longer sign that spend. Create the spend again in that case, and to replace a
 signer who does not respond.
 
+## In the GUI
+
+`firo-qt` goes through the same calls, so participants using the GUI and
+participants using the RPCs can share a wallet: what they exchange is the same
+`hex` data.
+
+- **Setup.** The wallet setup dialog of a new installation has "Make this a
+  multisig wallet" under the advanced options of a new wallet; the multisig setup
+  then opens once the wallet exists. For an existing wallet without Spark coins it
+  is under *File > Multisig wallet*. The dialog takes the participant key from the
+  wallet's key pool and leads through the exchange of the keys and of the data of
+  the two rounds. What was entered is kept in the wallet until the setup completes,
+  so the dialog can be closed while waiting for the others. Completing the setup
+  shows the address, offers a backup of the wallet and closes Firo.
+- **Spending.** In a multisig wallet the Send page creates a spend instead of
+  sending a private payment. The spend is shown in the dialog that *File > Multisig
+  wallet* opens: what it pays, as `decodesparkmultisigspend` reports it, who has
+  committed and signed, and the one step that applies, which is to approve (the
+  first pass of `signsparkmultisigspend`), to sign (the second) or to send. A spend
+  goes to the other participants and comes back by clipboard or file. A copy of
+  the spend on screen is merged into it, as `combinesparkmultisigspend` does.
+
 ## What travels between the participants
 
 All `hex` values can be sent over any channel. The setup data carries secrets only
@@ -137,7 +159,8 @@ These complete the protocol description where it leaves room.
 
 ## Not included
 
-- No GUI: the wallet shows balances and history, and spending is by RPC.
+- In the GUI, a participant cannot rejoin a group after a restore, nor produce its
+  setup data again for one who does. Both take the RPC.
 - A multisig wallet cannot register Spark names or sign messages with its Spark
   addresses, as both take the spend key.
 - Nonces are not prepared in advance, so signing always takes two passes.
