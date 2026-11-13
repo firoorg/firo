@@ -514,8 +514,17 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
 
-    if (cmp::greater(mint.i, lastDiversifier)) {
-        lastDiversifier = mint.i;
+    // A coin at an address past the last one issued here means another copy of this
+    // wallet issued it, as before a restore, and the count follows. Only so far,
+    // though: whoever holds the view key can send to an address at any diversifier,
+    // and every start generates all addresses up to the count. The change address
+    // counts as issued, as any spend with change moves the count there.
+    // ponytail: a wallet restored from its seed counts no further than the look-ahead
+    // past a gap of unused addresses, and then issues some of them again. Generate
+    // addresses on demand instead if such gaps turn out to matter.
+    const int64_t limit = std::min<int64_t>(std::max<int64_t>(lastDiversifier, SPARK_CHANGE_D) + SPARK_DIVERSIFIER_LOOKAHEAD, std::numeric_limits<int32_t>::max());
+    if (cmp::greater(mint.i, lastDiversifier) && !cmp::greater(mint.i, limit)) {
+        lastDiversifier = static_cast<int32_t>(mint.i);
         walletdb.writeDiversifier(lastDiversifier);
     }
     auto it = coinMeta.find(lTagHash);

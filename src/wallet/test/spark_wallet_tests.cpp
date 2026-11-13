@@ -906,6 +906,56 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(received_coin_moves_the_address_count_only_so_far)
+{
+    // The diversifier of a coin is the sender's choice for whoever holds the view key,
+    // and at every start the wallet generates all addresses up to the last one it
+    // counts as issued. A coin far past that count is the wallet's all the same, but
+    // does not move the count: one coin at a diversifier near 2^31 would otherwise
+    // keep the wallet from starting again.
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    const auto receive = [&](int32_t diversifier) {
+        spark::MintedCoinData data;
+        data.address = pwalletMain->sparkWallet->getAddress(diversifier);
+        data.v = COIN;
+        data.memo = "";
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        BOOST_REQUIRE_EQUAL(pwalletMain->MintAndStoreSpark({data}, wtxAndFee, false, true), "");
+        std::vector<CMutableTransaction> txs;
+        for (const auto& wtx : wtxAndFee) {
+            txs.emplace_back(*wtx.first.tx);
+        }
+        BOOST_REQUIRE(GenerateBlock(txs));
+        pwalletMain->sparkWallet->WaitForPendingTasks();
+    };
+    const auto count = [] {
+        int32_t diversifier = -1;
+        CWalletDB(pwalletMain->strWalletFile).readDiversifier(diversifier);
+        return diversifier;
+    };
+
+    // A later address of the wallet, as a restored wallet comes across them
+    receive(5);
+    BOOST_CHECK_EQUAL(count(), 5);
+
+    receive(2000000000);
+    BOOST_REQUIRE_EQUAL(count(), 5);
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getMintMap().size(), 2);
+    ReloadSparkWallet();
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getMintMap().size(), 2);
+
+    // The count follows up to the look-ahead past what the wallet may have issued
+    const int32_t furthest = static_cast<int32_t>(SPARK_CHANGE_D) + SPARK_DIVERSIFIER_LOOKAHEAD;
+    receive(furthest);
+    BOOST_CHECK_EQUAL(count(), furthest);
+    receive(furthest + SPARK_DIVERSIFIER_LOOKAHEAD + 1);
+    BOOST_CHECK_EQUAL(count(), furthest);
+
+    spark::CSparkState::GetState()->Reset();
+}
+
 // Run a Spark multisig RPC and return the error message it fails with, or nothing
 static std::string MultisigError(UniValue (*rpc)(const JSONRPCRequest&), const UniValue& param, UniValue* result = nullptr)
 {

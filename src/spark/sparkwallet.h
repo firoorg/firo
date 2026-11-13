@@ -23,6 +23,9 @@ extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
+// How far past the addresses a wallet counts as issued a received coin moves that
+// count (CSparkWallet::addOrUpdateMint)
+const int32_t SPARK_DIVERSIFIER_LOOKAHEAD = 1000;
 
 /**
  * What the cosigners of a Spark multisig spend need besides the unsigned
