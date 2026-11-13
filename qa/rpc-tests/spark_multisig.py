@@ -18,8 +18,13 @@ GROUP = [0, 1, 2]
 class SparkMultisigTest(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
-        self.num_nodes = 4
+        self.num_nodes = 5  # node 4 tests a competing setup without changing the spend group
         self.setup_clean_chain = False
+
+    def setup_network(self, split=False):
+        super().setup_network(split)
+        connect_nodes_bi(self.nodes, 3, 4)
+        self.sync_all()
 
     # ---- helpers
 
@@ -27,7 +32,7 @@ class SparkMultisigTest(BitcoinTestFramework):
         self.nodes[i] = start_node(i, self.options.tmpdir, extra_args)
 
     def reconnect(self):
-        for a, b in ((0, 1), (1, 2), (2, 3)):
+        for a, b in ((0, 1), (1, 2), (2, 3), (3, 4)):
             connect_nodes_bi(self.nodes, a, b)
 
     def fails(self, fun, *args):
@@ -58,6 +63,54 @@ class SparkMultisigTest(BitcoinTestFramework):
         return self.nodes[0].createsparkmultisigspend(recipients)['hex']
 
     # ---- scenarios
+
+    def competing_setup(self):
+        """One RPC batch cannot finalize two different groups for the same wallet."""
+        n = self.nodes
+        shared = n[4].validateaddress(n[4].getnewaddress())['pubkey']
+        rounds = []
+        for other in (0, 1):
+            remote = n[other].validateaddress(n[other].getnewaddress())['pubkey']
+            keys = [shared, remote]
+            first = [n[i].addsparkmultisigaddress(2, keys)['hex'] for i in (4, other)]
+            remote_second = n[other].addsparkmultisigaddress(2, keys, [first[0]])['hex']
+            rounds.append((keys, remote_second))
+        calls = [dict(method='addsparkmultisigaddress', params=[2, keys, [data]], id=i)
+                 for i, (keys, data) in enumerate(rounds)]
+        replies = n[4].auth_service_proxy_instance._batch(calls)
+        assert replies[0]['error'] is None and replies[0]['result']['complete'] is True
+        assert 'already completed' in replies[1]['error']['message']
+        group_address = replies[0]['result']['address']
+        self.competing_keys = rounds[0][0]
+        wait_node(4)
+        self.restart(4)
+        self.reconnect()
+        assert_equal(n[4].getsparkdefaultaddress()[0], group_address)
+
+        # Key-only salvage must keep the group even though it drops the cached view key.
+        stop_node(n[4], 4)
+        self.restart(4, ['-salvagewallet'])
+        self.reconnect()
+        assert_equal(n[4].getsparkdefaultaddress()[0], group_address)
+        assert n[4].addsparkmultisigaddress(2, self.competing_keys)['complete'] is True
+
+    def funded_setup_is_rejected(self):
+        """A pending incoming mint must be seen before replacing the wallet's keys."""
+        n = self.nodes
+        own = n[3].validateaddress(n[3].getnewaddress())['pubkey']
+        remote = n[0].validateaddress(n[0].getnewaddress())['pubkey']
+        keys = [own, remote]
+        first = [n[i].addsparkmultisigaddress(2, keys)['hex'] for i in (3, 0)]
+        remote_second = n[0].addsparkmultisigaddress(2, keys, [first[0]])['hex']
+
+        n[2].mintspark({self.spark3: {"amount": 5, "memo": ""}})
+        sync_mempools(n)
+        assert "holds Spark coins" in self.fails(n[3].addsparkmultisigaddress, 2, keys, [remote_second])
+        self.mine(1)
+        deadline = time.time() + 60
+        while n[3].getsparkbalance()['availableBalance'] != 5 * COIN and time.time() < deadline:
+            time.sleep(0.5)
+        assert_equal(n[3].getsparkbalance()['availableBalance'], 5 * COIN)
 
     def setup_group(self):
         self.addrs = [self.nodes[i].getnewaddress() for i in GROUP]
@@ -316,6 +369,8 @@ class SparkMultisigTest(BitcoinTestFramework):
         self.nodes[3].generate(501)
         self.sync_all()
         self.spark3 = self.nodes[3].getsparkdefaultaddress()[0]
+        self.competing_setup()
+        self.funded_setup_is_rejected()
         self.setup_group()   # A
         self.fund()          # B
         self.spend_a()       # C

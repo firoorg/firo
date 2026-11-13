@@ -33,8 +33,14 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
     bool fWalletJustUnlocked = false;
 
-    // try to get incoming view key from db, if it fails, that means it is first start
-    if (!walletdb.readFullViewKey(fullViewKey)) {
+    spark::MultisigKey storedMultisigKey;
+    if (walletdb.ReadSparkMultisigKey(storedMultisigKey)) {
+        multisigKey = std::move(storedMultisigKey);
+        fullViewKey = multisigKey->get_full_view_key(params);
+    }
+
+    // A salvaged multisig wallet has its group key but no separate full view key.
+    if (!multisigKey && !walletdb.readFullViewKey(fullViewKey)) {
         if (pwalletMain->IsLocked()) {
             pwalletMain->RequestUnlock();
             if (pwalletMain->WaitForUnlock()) {
@@ -65,11 +71,8 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
         walletdb.writeDiversifier(lastDiversifier);
     } else {
-        spark::MultisigKey storedMultisigKey;
-        if (walletdb.ReadSparkMultisigKey(storedMultisigKey)) {
-            multisigKey = storedMultisigKey;
-            fullViewKey = multisigKey->get_full_view_key(params);
-        }
+        if (multisigKey && !walletdb.writeFullViewKey(fullViewKey))
+            throw std::runtime_error("Failed to restore the Spark multisig full view key");
         viewKey = generateIncomingViewKey(fullViewKey);
         int32_t diversifierInDB = 0;
         // read diversifier from db
@@ -158,6 +161,11 @@ void CSparkWallet::WaitForPendingTasks() {
         return;
 
     pool->PostTask([]() {}).wait();
+}
+
+uint64_t CSparkWallet::GetMintWorkGeneration() const {
+    AssertLockHeld(cs_main);
+    return mintWorkGeneration;
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
@@ -961,6 +969,8 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
 }
 
 void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash) {
+    LOCK(cs_main);
+    ++mintWorkGeneration;
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
         std::vector<IdentifiedMint> mints;
         for (const auto& coin : coins) {
@@ -986,6 +996,8 @@ void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& co
 }
 
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
+    LOCK(cs_main);
+    ++mintWorkGeneration;
     const uint256 blockHash = block.GetHash();
     {
         LOCK2(cs_main, cs_spark_wallet);

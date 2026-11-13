@@ -539,28 +539,59 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
-    // ponytail: the Spark wallet reads its keys once, when it starts, and its worker
-    // then uses them without a lock. So store the group's keys and stop, as
-    // encryptwallet does; swapping them in a running wallet needs those reads guarded.
-    {
-        LOCK2(cs_main, pwallet->cs_wallet);
-        CWalletDB walletdb(pwallet->strWalletFile);
-        bool fSaved = walletdb.TxnBegin();
-        if (fSaved) {
-            fSaved = walletdb.WriteSparkMultisigKey(*key) &&
-                walletdb.writeFullViewKey(key->get_full_view_key(params)) &&
-                walletdb.writeDiversifier(0);
-            if (fSaved) {
-                fSaved = walletdb.TxnCommit();
-            } else {
-                walletdb.TxnAbort();
-            }
+    // The Spark wallet uses one immutable key set until restart. Drain earlier
+    // scans, then check under cs_main that no new scans were queued while waiting.
+    // A second final setup call in the same RPC batch must also see the saved key.
+    bool fSaved = false;
+    for (int attempt = 0; attempt < 3 && !fSaved; ++attempt) {
+        uint64_t generation;
+        {
+            LOCK(cs_main);
+            generation = pwallet->sparkWallet->GetMintWorkGeneration();
         }
-        if (!fSaved) {
-            throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to save the Spark multisig key");
+        pwallet->sparkWallet->WaitForPendingTasks();
+        {
+            LOCK2(cs_main, pwallet->cs_wallet);
+            if (pwallet->sparkWallet->GetMintWorkGeneration() != generation)
+                continue;
+
+            CWalletDB walletdb(pwallet->strWalletFile);
+            spark::MultisigKey savedKey;
+            if (walletdb.ReadSparkMultisigKey(savedKey))
+                throw JSONRPCError(RPC_WALLET_ERROR, "This wallet already completed Spark multisig setup. Restart it to use the saved group.");
+            if (!pwallet->sparkWallet->getMintMap().empty())
+                throw JSONRPCError(RPC_WALLET_ERROR, "This wallet holds Spark coins, which it would lose sight of. Set up Spark multisig in a new wallet.");
+
+            fSaved = walletdb.TxnBegin();
+            if (fSaved) {
+                fSaved = walletdb.WriteSparkMultisigKey(*key) &&
+                    walletdb.writeFullViewKey(key->get_full_view_key(params)) &&
+                    walletdb.writeDiversifier(0);
+                // Old single-signer receive addresses must not remain in the GUI
+                // or its saved receive requests after this wallet changes keys.
+                for (const auto& address : pwallet->mapSparkAddressBook) {
+                    if (!fSaved)
+                        break;
+                    if (!pwallet->sparkWallet->isAddressMine(address.first))
+                        continue;
+                    fSaved = walletdb.WritePurpose(address.first, "retired");
+                    for (const auto& item : address.second.destdata) {
+                        if (fSaved && item.first.rfind("rr", 0) == 0)
+                            fSaved = walletdb.EraseDestData(address.first, item.first);
+                    }
+                }
+                if (fSaved)
+                    fSaved = walletdb.TxnCommit();
+                else
+                    walletdb.TxnAbort();
+            }
+            if (!fSaved)
+                throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to save the Spark multisig key");
+            StartShutdown();
         }
     }
-    StartShutdown();
+    if (!fSaved)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet received new coins during setup. Retry after it finishes scanning.");
 
     result.push_back(Pair("complete", true));
     result.push_back(Pair("address", spark::Address(spark::IncomingViewKey(key->get_full_view_key(params)), 0).encode(spark::GetNetworkType())));
