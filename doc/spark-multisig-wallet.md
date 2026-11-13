@@ -17,7 +17,7 @@ on top of the protocol in [spark-multisig.md](https://github.com/firoorg/firo/bl
 | Fund it | send to the address | send or mint to the Spark address |
 | Create a spend | `createrawtransaction` | `createsparkmultisigspend recipients` |
 | Review it | `decoderawtransaction` | `decodesparkmultisigspend hex` |
-| Each signer signs and passes it on | `signrawtransaction hex` | `signsparkmultisigspend hex`, two passes |
+| Each signer signs and passes it on | `signrawtransaction hex` | `approvesparkmultisigspend hex`, then `signsparkmultisigspend hex` |
 | Broadcast once `complete` is true | `sendrawtransaction hex` | the same |
 
 The extra passes exist because the participants generate the spend key together
@@ -56,41 +56,56 @@ are not affected. One wallet belongs to one group.
 ### Spending
 
 ```
-A: createsparkmultisigspend '{"<address>":{"amount":1,"subtractFee":false}}'  -> {"hex": S0, "fee": ...}
-A: signsparkmultisigspend S0   -> {"hex": S1, "complete": false}    A commits
-B: signsparkmultisigspend S1   -> {"hex": S2, "complete": false}    B commits and signs
-A: signsparkmultisigspend S2   -> {"hex": TX, "complete": true}     A signs
+A: createsparkmultisigspend '{"<address>":{"amount":1,"subtractFee":false}}'  -> {"hex": S0, "fee": ..., "id": ID}
+A: approvesparkmultisigspend S0  -> {"hex": S1, "complete": false, "id": ID}    A approves
+B: approvesparkmultisigspend S1  -> {"hex": S2, "complete": false, "id": ID}    B approves
+B: signsparkmultisigspend S2     -> {"hex": S3, "complete": false, "id": ID}    B signs
+A: signsparkmultisigspend S3     -> {"hex": TX, "complete": true, "id": ID}     A signs
    sendrawtransaction TX
 ```
 
-A spend has exactly `nrequired` signers: the first participants to commit. A
-signer's first call adds its nonce commitment; called again once all signers have
-committed, it adds its signature share. The call that brings in the last
-commitment does both, so a spend passed along a chain of signers travels there
-and back once. Signers working in parallel merge their copies between the passes
-with `combinesparkmultisigspend`. Creating, combining and decoding need no key,
-so any participant can coordinate, with a locked wallet.
+A spend has exactly `nrequired` signers: the first participants to approve it.
+Approving adds the signer's nonce commitment. Once all signers have approved,
+each adds its signature share with `signsparkmultisigspend`. A spend passed along
+a chain of signers travels there and back once. Signers working in parallel merge
+their copies with `combinesparkmultisigspend` after approving and again after
+signing. Creating, combining and decoding need no key, so any participant can
+coordinate, with a locked wallet.
 
-`signsparkmultisigspend` checks a spend against the signer's own wallet before it
-signs: the inputs are coins of the wallet, every output pays the address and
-amount the spend states, and the amounts and fee balance. `decodesparkmultisigspend`
-shows the same, checked the same way, for a person or a policy engine to approve.
+Approving and signing are separate calls, and what a call does never depends on
+what the spend it is given already carries. `signsparkmultisigspend` signs a spend
+only if this wallet approved it and it has not changed since. A signer that is
+handed another transaction in place of the one it approved, by a cosigner or by
+anyone who holds the view key, gets an error and signs nothing. Every result names
+its spend by an `id`, the same for all copies of one spend, which lets the signers
+tell each other, and their records, which spend they mean.
 
-A signer keeps its nonce in memory between its two passes and discards it before
-its signature share leaves the wallet. A signer that is restarted in between can
-no longer sign that spend. Create the spend again in that case, and to replace a
-signer who does not respond.
+Review a spend with `decodesparkmultisigspend` before approving it. The preparer
+of a spend is one of the parties the threshold is there to guard against, so the
+wallet checks every spend against its own records before it shows, approves or
+signs it: the inputs are coins of the wallet, every output pays the address and
+amount the spend states and can be spent on its own (no two outputs share a serial
+number), the amounts and fee balance, the transaction has no time lock, and the
+signature shares it carries are valid. `decodesparkmultisigspend` shows what the
+checks established, for a person or a policy engine to approve.
+
+A signer keeps its nonce in memory between approving and signing, and discards it
+before its signature share leaves the wallet. A signer that is restarted in
+between can no longer sign that spend. Create the spend again in that case, and to
+replace a signer who does not respond. An approval otherwise stands until the
+wallet is restarted: there is no call to withdraw one.
 
 ### History
 
-`signsparkmultisigspend` and `combinesparkmultisigspend` record in the wallet
-where the Spark outputs of a spend go, before anything is signed, and fail if that
-cannot be saved. The wallet's transaction history shows the recipients from this
-record. The chain does not carry them: a participant that took no part in a spend
-sees the transaction and its total, but for an output to someone else the entry in
-`listtransactions` and `gettransaction` has no address and an amount of 0. For a
-complete history, pass that participant the spend, at any stage of signing, and
-have it call `combinesparkmultisigspend` with it.
+`approvesparkmultisigspend`, `signsparkmultisigspend` and
+`combinesparkmultisigspend` record in the wallet where the Spark outputs of a
+spend go, before anything is signed, and fail if that cannot be saved. The
+wallet's transaction history shows the recipients from this record. The chain does
+not carry them: a participant that took no part in a spend sees the transaction
+and its total, but for an output to someone else the entry in `listtransactions`
+and `gettransaction` has no address and an amount of 0. For a complete history,
+pass that participant the spend, at any stage of signing, and have it call
+`combinesparkmultisigspend` with it.
 
 ## What travels between the participants
 
@@ -104,6 +119,23 @@ A spend shows its holder what the transaction pays and, through the signing
 transcript, which coins it consumes. Anyone who can read it therefore belongs to
 those who may view the wallet, which is why it is encrypted to the group. That
 includes anyone the group has given its view key (`dumpsparkviewkey`).
+
+The same key that opens a spend also seals one, so a spend says nothing about who
+made it or who changed it on the way. Whoever holds the view key can prepare a
+spend, add to one, or put another in its place. This is why a signer goes by what
+its own wallet establishes about a spend and not by where the spend came from.
+What such a party can still do is get in the way: a spend with made-up approvals
+of other signers costs a signer that signs it its nonce, and the spend has to be
+created again.
+
+The setup data shows whoever reads it the public keys of the participants and the
+threshold. What it keeps secret can be opened with a participant key at any later
+time: a recorded exchange together with that key gives away the participant's
+share and the group's view key. Use a key that serves no other purpose, and keep
+it as safe as the wallet.
+
+A complete spend is broadcast with `sendrawtransaction`, which announces it to all
+peers at once and not through Dandelion++, as the wallet's own spends are.
 
 ## Backup
 
@@ -157,13 +189,22 @@ These complete the protocol description where it leaves room.
   cosigner from steering the challenge after seeing the commitments.
 - **Nonces.** Sampled from the system's randomness mixed with a secret of the
   signer, never written to disk, tied to the same value the binding factors commit
-  to, and removed before the signature share is computed.
+  to, and removed before the signature share is computed. A nonce that comes back
+  with another transaction is kept for its own.
+- **Untrusted view-key holders.** Every participant, and anyone given the view
+  key, can make coins and spends that the wallet takes for the group's. The wallet
+  treats what they choose as untrusted: the nonces and addresses of outputs, the
+  fields of a transaction that its recipients and amounts do not determine, the
+  entries of a spend, and the diversifier of a received coin, which moves the
+  wallet's count of issued addresses only a bounded distance.
 
 ## Not included
 
 - No GUI: the wallet shows balances and history, and spending is by RPC.
 - A multisig wallet cannot register Spark names or sign messages with its Spark
   addresses, as both take the spend key.
-- Nonces are not prepared in advance, so signing always takes two passes.
+- Nonces are not prepared in advance, so signing always takes two steps.
+- Approvals do not expire and cannot be withdrawn, short of restarting the wallet.
+- Spends and the entries signers add to them are not signed by a participant key.
 - No repair or redistribution of key shares. To change the group, move the funds
   to a new wallet.

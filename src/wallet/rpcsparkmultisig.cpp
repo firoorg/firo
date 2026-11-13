@@ -18,13 +18,15 @@
 #include "rpcwallet.h"
 
 #include <algorithm>
+#include <set>
 
 // Spark multisig follows the shape of transparent multisig. The cosigners exchange
 // public keys and each of them runs addsparkmultisigaddress, which here takes three
 // passes because they generate the spend key together and each keeps a share of it.
 // Unless one signer is enough, the key itself never exists in one place.
-// A spend is created by anyone, passed among the signers with signsparkmultisigspend
-// until it is complete, and sent with sendrawtransaction.
+// A spend is created by anyone, passed among the signers, who each approve it with
+// approvesparkmultisigspend and then sign it with signsparkmultisigspend, until it is
+// complete, and sent with sendrawtransaction.
 
 namespace {
 
@@ -102,6 +104,19 @@ CSparkMultisigSpend DecodeSpend(const spark::MultisigKey& key, const UniValue& v
     } catch (const std::exception&) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Not a Spark multisig spend of this wallet's group");
     }
+
+    // A spend has at most one nonce commitment and one signature share from each of
+    // its signers. Anyone who can seal a spend can add entries, so they are counted
+    // before anything works through them.
+    const auto fSigners = [&key](const auto& entries) {
+        std::set<uint32_t> seen;
+        return entries.size() <= key.threshold && std::all_of(entries.begin(), entries.end(), [&](const auto& entry) {
+            return entry.index >= 1 && entry.index <= key.participants.size() && seen.insert(entry.index).second;
+        });
+    };
+    if (!fSigners(spend.commitments) || !fSigners(spend.shares)) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Invalid Spark multisig spend: more signers than the spend takes, or unknown ones");
+    }
     return spend;
 }
 
@@ -133,6 +148,13 @@ CSparkMultisigSpendInfo CheckSpend(CWallet* pwallet, const spark::MultisigKey& k
     try {
         if (!tx.IsSparkSpendV2()) {
             throw std::invalid_argument("not a Spark V2 spend");
+        }
+        // The input the wallet gives its own spends. The signatures cover these
+        // fields, and nothing shows them to a signer: a sequence below the maximum
+        // would make the lock time of the transaction a real time lock.
+        if (tx.vin.size() != 1 || !tx.vin[0].prevout.IsNull() || tx.vin[0].nSequence != CTxIn::SEQUENCE_FINAL ||
+            tx.vin[0].scriptSig != (CScript() << OP_SPARKSPEND) || tx.HasWitness()) {
+            throw std::invalid_argument("unexpected input");
         }
         info.spend = spark::ParseSparkSpend(tx);
         if (!info.spend.getExtensionCommitment().IsNull()) {
@@ -176,7 +198,14 @@ CSparkMultisigSpendInfo CheckSpend(CWallet* pwallet, const spark::MultisigKey& k
         }
         const std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         CAmount privateValue = 0;
+        std::set<std::vector<unsigned char>> serialCommitments;
         for (std::size_t j = 0; j < coins.size(); ++j) {
+            // Whoever creates a spend chooses the nonces of its outputs. Two outputs
+            // to one address with one nonce are different coins with the same serial
+            // number: each matches its description, and only one can ever be spent.
+            if (!serialCommitments.insert(coins[j].S.getvch()).second) {
+                throw std::invalid_argument("two outputs share a serial number, so that only one of them could be spent");
+            }
             const CSparkMultisigOutput& output = package.outputs[j];
             spark::Address address(params);
             if (address.decode(output.address) != spark::GetNetworkType()) {
@@ -228,8 +257,15 @@ CSparkMultisigSpendInfo CheckSpend(CWallet* pwallet, const spark::MultisigKey& k
         // Inputs
         const spark::FullViewKey fullViewKey = key.get_full_view_key(params);
         const std::unordered_map<uint256, CSparkMintMeta> mints = pwallet->sparkWallet->getMintMap();
+        const std::vector<GroupElement>& tags = info.spend.getUsedLTags();
+        const std::vector<GroupElement>& offsets = info.spend.getS1();
+        const GroupElement& D = fullViewKey.get_D();
+        if (offsets.size() != tags.size()) {
+            throw std::invalid_argument("bad input");
+        }
         CAmount inputValue = 0;
-        for (const GroupElement& tag : info.spend.getUsedLTags()) {
+        for (std::size_t u = 0; u < tags.size(); ++u) {
+            const GroupElement& tag = tags[u];
             const uint256 tagHash = primitives::GetLTagHash(tag);
             const auto mint = mints.find(tagHash);
             if (mint == mints.end()) {
@@ -238,7 +274,11 @@ CSparkMultisigSpendInfo CheckSpend(CWallet* pwallet, const spark::MultisigKey& k
             const CSparkMintMeta& meta = mint->second;
             spark::Coin coin = meta.coin;
             const spark::RecoveredCoinData recovered = coin.recover(fullViewKey, {meta.i, meta.d, meta.v, meta.k, meta.memo});
-            if (recovered.T != tag || !MoneyRange(inputValue + static_cast<CAmount>(meta.v))) {
+            // The serial commitment offset is the one the wallet derives for this coin.
+            // With another mask the proof could still be completed, and the
+            // transaction would show which coin it spends.
+            if (recovered.T != tag || !MoneyRange(inputValue + static_cast<CAmount>(meta.v)) ||
+                params->get_F()*recovered.s + params->get_H().inverse()*spark::SparkUtils::hash_ser1(recovered.s, D) + D != offsets[u]) {
                 throw std::invalid_argument("bad input");
             }
             info.serials.emplace_back(recovered.s);
@@ -253,20 +293,45 @@ CSparkMultisigSpendInfo CheckSpend(CWallet* pwallet, const spark::MultisigKey& k
         if (inputValue != privateValue + transparentValue + info.fee) {
             throw std::invalid_argument("amounts do not balance");
         }
+
+        // A signature share exists only once all signers are known, and can then be
+        // checked. One that does not verify could never complete the spend, and would
+        // be reported as a signature until then.
+        if (!package.shares.empty()) {
+            const spark::MultisigSession session(params, key, info.spend.getBindingHash(), info.spend.getChaumContext(), offsets, tags, package.commitments);
+            for (const spark::MultisigShare& share : package.shares) {
+                if (!session.verify(share)) {
+                    throw std::invalid_argument("bad signature share from participant " + std::to_string(share.index));
+                }
+            }
+        }
     } catch (const std::exception& e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, std::string("Invalid Spark multisig spend: ") + e.what());
     }
     return info;
 }
 
+// What a call asks this wallet to do with a spend. A signer approves a spend and later
+// signs it, and says which of the two it means. What a spend already carries never
+// decides it: a signer handed another transaction in place of the one it approved
+// would otherwise approve and sign that one in a single call.
+enum class SpendAction {
+    Combine, //!< nothing that takes the wallet's key
+    Approve, //!< commit to nonces for the spend
+    Sign,    //!< add the signature share to a spend this wallet approved
+};
+
 /**
- * Take a spend as far as it goes: optionally add this wallet's nonce commitment and
- * signature share, and complete the transaction once every signer has signed.
+ * Take a spend one step further: add this wallet's nonce commitment or its signature
+ * share if asked to, and complete the transaction once every signer has signed.
  * @return hex of the complete transaction, or of the spend to pass on
  */
-UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMultisigSpend& package, bool fSign)
+UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMultisigSpend& package, SpendAction action)
 {
     const spark::Params* params = spark::Params::get_default();
+    if (package.commitments.size() > key.threshold) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("More participants approved this spend than the %u it takes. Combine the spends of exactly that many signers.", key.threshold));
+    }
     CSparkMultisigSpendInfo info = CheckSpend(pwallet, key, package);
 
     // Record where the outputs go, as the wallet does for its own spends. Only the
@@ -296,21 +361,23 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
     const std::vector<GroupElement>& T = info.spend.getUsedLTags();
     const Scalar statement = spark::MultisigSession::statement_hash(params, mu, context, S, T);
 
-    if (package.commitments.size() > key.threshold) {
-        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("More participants committed to sign than the %u this spend takes. Combine the spends of exactly that many signers.", key.threshold));
-    }
-
     bool fComplete = false;
     CTransactionRef signedTx;
     try {
-        if (fSign) {
+        if (action != SpendAction::Combine) {
             if (info.fee > maxTxFee) {
                 throw JSONRPCError(RPC_WALLET_ERROR, "The fee of this spend exceeds the maximum set with -maxtxfee");
             }
             const Scalar secret = GetParticipantSecret(pwallet, GetParticipantPubKey(key.participants.at(key.index - 1)));
+            const auto commitment = std::find_if(package.commitments.begin(), package.commitments.end(), [&key](const spark::MultisigCommitment& entry) {
+                return entry.index == key.index;
+            });
 
-            // First pass: commit to a fresh nonce for each input
-            if (!HasIndex(package.commitments, key.index)) {
+            if (action == SpendAction::Approve) {
+                // Commit to a fresh nonce for each input
+                if (commitment != package.commitments.end()) {
+                    throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has approved this spend already");
+                }
                 if (package.commitments.size() == key.threshold) {
                     throw JSONRPCError(RPC_WALLET_ERROR, "This spend already has its signers and this wallet is not among them");
                 }
@@ -322,17 +389,24 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
                     mapMultisigNonces[SerializeHash(package.commitments.back())] = entry;
                 }
                 SortByIndex(package.commitments);
-            }
-
-            // Second pass, once the signers are known: sign
-            if (package.commitments.size() == key.threshold && !HasIndex(package.shares, key.index)) {
+            } else {
+                // Sign, once the signers are known, what this wallet approved
+                if (commitment == package.commitments.end()) {
+                    throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has not approved this spend. Check what it pays with decodesparkmultisigspend, then approve it with approvesparkmultisigspend.");
+                }
+                if (package.commitments.size() < key.threshold) {
+                    throw JSONRPCError(RPC_WALLET_ERROR, strprintf("This spend needs %u more to approve it before it can be signed", key.threshold - static_cast<uint32_t>(package.commitments.size())));
+                }
+                if (HasIndex(package.shares, key.index)) {
+                    throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has signed this spend already");
+                }
                 const spark::MultisigSession session(params, key, mu, context, S, T, package.commitments);
-                const auto commitment = std::find_if(package.commitments.begin(), package.commitments.end(), [&key](const spark::MultisigCommitment& entry) {
-                    return entry.index == key.index;
-                });
 
                 // The nonce leaves memory before a signature share exists, so that
-                // nothing that goes wrong from here on can make it sign twice
+                // nothing that goes wrong from here on can make it sign twice. Handed
+                // back with another transaction it stays, for the one it was made for:
+                // no signature came of it, and whoever can seal a spend would
+                // otherwise be able to end the signing of any other.
                 CSparkMultisigNonce entry;
                 {
                     LOCK(cs_multisigNonces);
@@ -340,11 +414,11 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
                     if (nonce == mapMultisigNonces.end()) {
                         throw JSONRPCError(RPC_WALLET_ERROR, "This wallet no longer holds the nonce it committed to for this spend: it has signed already or was restarted. Start over with a new spend.");
                     }
+                    if (nonce->second.statement != statement) {
+                        throw JSONRPCError(RPC_WALLET_ERROR, "The transaction changed after this wallet approved it");
+                    }
                     entry = nonce->second;
                     mapMultisigNonces.erase(nonce);
-                }
-                if (entry.statement != statement) {
-                    throw JSONRPCError(RPC_WALLET_ERROR, "The transaction changed after this wallet committed to signing it");
                 }
                 package.shares.emplace_back(session.sign(secret, entry.nonce));
                 SortByIndex(package.shares);
@@ -367,7 +441,8 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
     }
 
     if (fComplete) {
-        // The same check the mempool makes, so that complete means valid
+        // The check of the Spark proofs that the mempool makes, so that complete
+        // means authorized. Whether its coins are still unspent, the mempool decides.
         LOCK(cs_main);
         CValidationState state;
         if (!spark::CheckSparkTransaction(*signedTx, state, signedTx->GetHash(), false, INT_MAX, false, true, nullptr)) {
@@ -378,6 +453,7 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hex", fComplete ? EncodeHexTx(*signedTx) : EncodeSpend(key, package)));
     result.push_back(Pair("complete", fComplete));
+    result.push_back(Pair("id", package.GetBodyHash().GetHex()));
     return result;
 }
 
@@ -620,7 +696,7 @@ UniValue createsparkmultisigspend(const JSONRPCRequest& request)
             "createsparkmultisigspend {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
             "\nCreate a spend from this Spark multisig wallet for its participants to sign.\n"
             "The recipients are given as for spendspark. Any participant can create a spend; it takes\n"
-            "no key, so the wallet may stay locked. The result goes to signsparkmultisigspend.\n"
+            "no key, so the wallet may stay locked. The result goes to approvesparkmultisigspend.\n"
             "\nArguments:\n"
             "1. recipients       (string, required) A json object with addresses and amounts\n"
             "{\n"
@@ -630,7 +706,8 @@ UniValue createsparkmultisigspend(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"hex\" : \"value\",   (string) The unsigned spend, encrypted to the participants of the wallet\n"
-            "  \"fee\" : n          (numeric) The fee the transaction pays, in " + CURRENCY_UNIT + "\n"
+            "  \"fee\" : n,         (numeric) The fee the transaction pays, in " + CURRENCY_UNIT + "\n"
+            "  \"id\" : \"hex\"       (string) Names this spend in the results of all the calls it goes through\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("createsparkmultisigspend", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
@@ -672,7 +749,44 @@ UniValue createsparkmultisigspend(const JSONRPCRequest& request)
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hex", EncodeSpend(key, spend)));
     result.push_back(Pair("fee", ValueFromAmount(fee)));
+    result.push_back(Pair("id", spend.GetBodyHash().GetHex()));
     return result;
+}
+
+UniValue approvesparkmultisigspend(const JSONRPCRequest& request)
+{
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "approvesparkmultisigspend \"hexstring\"\n"
+            "\nApprove a spend of this Spark multisig wallet: commit the wallet to signing it. Check what the\n"
+            "spend pays first, with decodesparkmultisigspend. The first nrequired participants to approve a\n"
+            "spend are its signers.\n"
+            "\nApproving does not sign. Once the spend has its signers, each of them adds its signature with\n"
+            "signsparkmultisigspend, which signs nothing but what this call approved. A wallet that is\n"
+            "restarted after approving cannot sign that spend any more; create the spend again in that case,\n"
+            "and also to replace a signer.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nArguments:\n"
+            "1. \"hexstring\"      (string, required) The spend, from createsparkmultisigspend or another signer\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"hex\" : \"value\",          (string) The spend to pass on\n"
+            "  \"complete\" : false,       (boolean) Approving never completes a spend\n"
+            "  \"id\" : \"hex\"              (string) Names the spend, as in the result of createsparkmultisigspend\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("approvesparkmultisigspend", "\"hexstring\"")
+            + HelpExampleRpc("approvesparkmultisigspend", "\"hexstring\""));
+    }
+
+    const spark::MultisigKey& key = GetMultisigKey(pwallet);
+    CSparkMultisigSpend spend = DecodeSpend(key, request.params[0]);
+    return AdvanceSpend(pwallet, key, spend, SpendAction::Approve);
 }
 
 UniValue signsparkmultisigspend(const JSONRPCRequest& request)
@@ -688,23 +802,23 @@ UniValue signsparkmultisigspend(const JSONRPCRequest& request)
             "\nSign a spend of this Spark multisig wallet and return it, as signrawtransaction does for a\n"
             "transparent multisig transaction. Pass the result to the next signer until it is complete, then\n"
             "send the transaction with sendrawtransaction.\n"
-            "\nA spend takes exactly nrequired signers, and each of them signs in two passes:\n"
-            "  1. The first call commits the wallet to the spend. The first nrequired participants to do so\n"
-            "     are its signers.\n"
-            "  2. Called again once all signers have committed, it adds the wallet's signature share.\n"
-            "The call that brings in the last commitment does both passes at once, so with 2 signers the\n"
-            "spend goes A, B, A. Signers working in parallel merge their results with\n"
-            "combinesparkmultisigspend between the passes.\n"
-            "\nThe call checks the spend against the wallet before it signs. To inspect what it pays first,\n"
-            "use decodesparkmultisigspend. A signer that was restarted between its two passes cannot sign\n"
-            "any more; create the spend again in that case, and also to replace a signer.\n"
+            "\nA spend takes exactly nrequired signers, and each of them takes two steps:\n"
+            "  1. approvesparkmultisigspend commits the wallet to the spend. The first nrequired\n"
+            "     participants to do so are its signers.\n"
+            "  2. signsparkmultisigspend, once all signers have approved, adds the wallet's signature share.\n"
+            "With 2 signers the spend goes A (approve), B (approve, then sign), A (sign). Signers working in\n"
+            "parallel merge their results with combinesparkmultisigspend between the steps.\n"
+            "\nThe call signs only a spend that this wallet approved, and fails for any other and for one that\n"
+            "changed since: a signer that is handed another transaction in place of the one it approved does\n"
+            "not sign it. The id in the results tells the spends apart.\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
-            "1. \"hexstring\"      (string, required) The spend, from createsparkmultisigspend or another signer\n"
+            "1. \"hexstring\"      (string, required) The spend, from approvesparkmultisigspend or another signer\n"
             "\nResult:\n"
             "{\n"
             "  \"hex\" : \"value\",          (string) The spend to pass on, or once complete the hex-encoded transaction\n"
-            "  \"complete\" : true|false   (boolean) Whether the transaction is fully signed and ready to send\n"
+            "  \"complete\" : true|false,  (boolean) Whether the transaction is fully signed and ready to send\n"
+            "  \"id\" : \"hex\"              (string) Names the spend, as in the result of createsparkmultisigspend\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("signsparkmultisigspend", "\"hexstring\"")
@@ -713,7 +827,7 @@ UniValue signsparkmultisigspend(const JSONRPCRequest& request)
 
     const spark::MultisigKey& key = GetMultisigKey(pwallet);
     CSparkMultisigSpend spend = DecodeSpend(key, request.params[0]);
-    return AdvanceSpend(pwallet, key, spend, true);
+    return AdvanceSpend(pwallet, key, spend, SpendAction::Sign);
 }
 
 UniValue combinesparkmultisigspend(const JSONRPCRequest& request)
@@ -726,14 +840,15 @@ UniValue combinesparkmultisigspend(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
             "combinesparkmultisigspend [\"hexstring\",...]\n"
-            "\nMerge copies of one Spark multisig spend that different participants have signed.\n"
-            "Signers who work in parallel use this after each pass of signsparkmultisigspend. Any\n"
-            "participant can combine; it takes no key.\n"
-            "\nLike signsparkmultisigspend, the call records in the wallet where the outputs of the spend go.\n"
-            "A participant that does not sign a spend passes its copy here, at any stage, for the wallet's\n"
-            "transaction history to show the recipients. The chain alone does not tell them.\n"
+            "\nMerge copies of one Spark multisig spend that different participants have approved or signed.\n"
+            "Signers who work in parallel use this after approvesparkmultisigspend and again after\n"
+            "signsparkmultisigspend. Any participant can combine; it takes no key.\n"
+            "\nLike those two, the call records in the wallet where the outputs of the spend go. A participant\n"
+            "that does not sign a spend passes its copy here, at any stage, for the wallet's transaction\n"
+            "history to show the recipients. The chain alone does not tell them.\n"
             "\nArguments:\n"
-            "1. \"txs\"            (string, required) A json array of results of signsparkmultisigspend\n"
+            "1. \"txs\"            (string, required) A json array of results of approvesparkmultisigspend or\n"
+            "                    signsparkmultisigspend\n"
             "     [\n"
             "       \"hexstring\"  (string) A spend\n"
             "       ,...\n"
@@ -741,7 +856,8 @@ UniValue combinesparkmultisigspend(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"hex\" : \"value\",          (string) The merged spend, or once complete the hex-encoded transaction\n"
-            "  \"complete\" : true|false   (boolean) Whether the transaction is fully signed and ready to send\n"
+            "  \"complete\" : true|false,  (boolean) Whether the transaction is fully signed and ready to send\n"
+            "  \"id\" : \"hex\"              (string) Names the spend, as in the result of createsparkmultisigspend\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("combinesparkmultisigspend", "\"[\\\"hexstring\\\",\\\"hexstring\\\"]\"")
@@ -779,7 +895,7 @@ UniValue combinesparkmultisigspend(const JSONRPCRequest& request)
     SortByIndex(spend.commitments);
     SortByIndex(spend.shares);
 
-    return AdvanceSpend(pwallet, key, spend, false);
+    return AdvanceSpend(pwallet, key, spend, SpendAction::Combine);
 }
 
 UniValue decodesparkmultisigspend(const JSONRPCRequest& request)
@@ -792,13 +908,16 @@ UniValue decodesparkmultisigspend(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
             "decodesparkmultisigspend \"hexstring\"\n"
-            "\nShow what a spend of this Spark multisig wallet does, for a signer to review before signing.\n"
+            "\nShow what a spend of this Spark multisig wallet does, for a signer to review before approving.\n"
             "Everything shown is checked against the transaction and this wallet's own records: the inputs\n"
-            "are coins of the wallet and the outputs pay exactly what is listed.\n"
+            "are coins of the wallet, the outputs pay exactly what is listed, and the signatures are those\n"
+            "of the signers they are listed for.\n"
             "\nArguments:\n"
             "1. \"hexstring\"      (string, required) The spend, from createsparkmultisigspend or a signer\n"
             "\nResult:\n"
             "{\n"
+            "  \"id\" : \"hex\",               (string) Names the spend. It is the same for every copy of a spend,\n"
+            "                              whoever has approved or signed it, and differs for any other spend.\n"
             "  \"fee\" : n,                  (numeric) The fee in " + CURRENCY_UNIT + "\n"
             "  \"inputs\" : [                (array) The coins of the wallet that are spent\n"
             "    { \"lTagHash\" : \"hex\", \"amount\" : n }, ...\n"
@@ -810,7 +929,7 @@ UniValue decodesparkmultisigspend(const JSONRPCRequest& request)
             "    { \"address\" : \"value\", \"amount\" : n }, ...\n"
             "  ],\n"
             "  \"nrequired\" : n,            (numeric) The number of signers the spend takes\n"
-            "  \"signers\" : [               (array) The participants that committed to sign so far\n"
+            "  \"signers\" : [               (array) The participants that approved the spend so far\n"
             "    { \"key\" : \"hex\", \"signed\" : true|false }, ...\n"
             "  ]\n"
             "}\n"
@@ -825,9 +944,6 @@ UniValue decodesparkmultisigspend(const JSONRPCRequest& request)
 
     UniValue signers(UniValue::VARR);
     for (const spark::MultisigCommitment& commitment : spend.commitments) {
-        if (commitment.index < 1 || commitment.index > key.participants.size()) {
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Invalid Spark multisig spend: unknown signer");
-        }
         UniValue signer(UniValue::VOBJ);
         signer.push_back(Pair("key", HexStr(GetParticipantPubKey(key.participants[commitment.index - 1]))));
         signer.push_back(Pair("signed", HasIndex(spend.shares, commitment.index)));
@@ -835,6 +951,7 @@ UniValue decodesparkmultisigspend(const JSONRPCRequest& request)
     }
 
     UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("id", spend.GetBodyHash().GetHex()));
     result.push_back(Pair("fee", ValueFromAmount(info.fee)));
     result.push_back(Pair("inputs", info.inputs));
     result.push_back(Pair("outputs", info.outputs));

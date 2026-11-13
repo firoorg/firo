@@ -1059,7 +1059,7 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     CSparkOutputTx record;
     for (const int failAfterWrites : {0, 1}) {
         CWallet::SetSparkOutputWriteFailureForTesting(failAfterWrites);
-        BOOST_CHECK(MultisigError(signsparkmultisigspend, hex).find("Unable to save") != std::string::npos);
+        BOOST_CHECK(MultisigError(approvesparkmultisigspend, hex).find("Unable to save") != std::string::npos);
         BOOST_CHECK(MultisigError(combinesparkmultisigspend, copies).find("Unable to save") != std::string::npos);
         for (const CTxOut& out : spend.tx.vout) {
             BOOST_CHECK(!pwalletMain->GetSparkOutputTx(out.scriptPubKey, record));
@@ -1076,7 +1076,7 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     }
 
     const auto rejects = [&](const CSparkMultisigSpend& bad, const std::string& reason) {
-        for (const auto rpc : {decodesparkmultisigspend, signsparkmultisigspend}) {
+        for (const auto rpc : {decodesparkmultisigspend, approvesparkmultisigspend, signsparkmultisigspend}) {
             const std::string error = MultisigError(rpc, SealMultisigSpend(key, bad));
             BOOST_CHECK_MESSAGE(error.find(reason) != std::string::npos, "expected '" + reason + "', got '" + error + "'");
         }
@@ -1096,6 +1096,43 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     bad.outputs.pop_back();
     rejects(bad, "not all described");
 
+    // Every output has to be a coin that can be spent. Whoever creates a spend chooses
+    // the nonces of its outputs, and two outputs to one address with one nonce have the
+    // same serial number: each is what its description says, and one of them is lost.
+    bad = spend;
+    bad.outputs[1].address = bad.outputs[0].address;
+    bad.outputs[1].nonce = bad.outputs[0].nonce;
+    {
+        spark::Address address(params);
+        address.decode(bad.outputs[1].address);
+        const spark::Coin twin(params, spark::COIN_TYPE_SPEND, bad.outputs[1].nonce, address, bad.outputs[1].amount, bad.outputs[1].memo, spark::getSerialContext(CTransaction(bad.tx)));
+        CDataStream serializedTwin(SER_NETWORK, PROTOCOL_VERSION);
+        serializedTwin << twin;
+        CScript& twinScript = bad.tx.vout[2].scriptPubKey;
+        twinScript = CScript() << OP_SPARKSMINT;
+        twinScript.insert(twinScript.end(), serializedTwin.begin(), serializedTwin.end());
+    }
+    BOOST_REQUIRE(spend.outputs[0].amount != spend.outputs[1].amount);
+    rejects(bad, "share a serial number");
+
+    // The input is the one the wallet gives its own spends. With a sequence below the
+    // maximum, the lock time would hold the transaction back, and nothing shows either.
+    bad = spend;
+    bad.tx.vin[0].nSequence = 0;
+    bad.tx.nLockTime = 1000000;
+    rejects(bad, "unexpected input");
+
+    // A spend names each of its signers once, and no more of them than it takes
+    bad = spend;
+    bad.commitments.resize(2);
+    bad.commitments[0].index = bad.commitments[1].index = 1;
+    rejects(bad, "more signers than the spend takes");
+    bad.commitments[1].index = 3;
+    rejects(bad, "more signers than the spend takes");
+    bad.commitments[1].index = 2;
+    bad.commitments.resize(3);
+    rejects(bad, "more signers than the spend takes");
+
     // The transparent part is tied to the signature through the cover set data
     bad = spend;
     bad.tx.vout[0].nValue += 1;
@@ -1107,25 +1144,59 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     bad.coverSets.clear();
     rejects(bad, "missing cover set data");
 
-    // A fee above the wallet's limit is not signed
+    // A fee above the wallet's limit is not approved
     const CAmount savedMaxTxFee = maxTxFee;
     maxTxFee = 1;
-    BOOST_CHECK(MultisigError(signsparkmultisigspend, hex).find("-maxtxfee") != std::string::npos);
+    BOOST_CHECK(MultisigError(approvesparkmultisigspend, hex).find("-maxtxfee") != std::string::npos);
     maxTxFee = savedMaxTxFee;
 
-    // The wallet commits to the spend, and so does the other signer
-    const auto commit = [&]() {
-        UniValue committed;
-        BOOST_REQUIRE_EQUAL(MultisigError(signsparkmultisigspend, hex, &committed), "");
-        BOOST_REQUIRE(!committed["complete"].get_bool());
-        CSparkMultisigSpend session = OpenMultisigSpend(key, committed["hex"].get_str());
-        BOOST_REQUIRE_EQUAL(session.commitments.size(), 1);
-        BOOST_REQUIRE(session.shares.empty());
+    // Signing takes an approval, and approving is a call of its own
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, hex).find("has not approved") != std::string::npos);
+
+    // The wallet approves the spend, and so does the other signer
+    const auto otherApproves = [&](CSparkMultisigSpend& approved) {
         spark::MultisigNonce nonce;
-        session.commitments.emplace_back(spark::MultisigSession::commit(params, otherKey.index, session.commitments[0].D.size(), other, nonce));
-        return session;
+        const std::size_t inputs = spark::ParseSparkSpend(CTransaction(approved.tx)).getUsedLTags().size();
+        approved.commitments.emplace_back(spark::MultisigSession::commit(params, otherKey.index, inputs, other, nonce));
     };
-    const CSparkMultisigSpend session = commit();
+    UniValue approval;
+    BOOST_REQUIRE_EQUAL(MultisigError(approvesparkmultisigspend, hex, &approval), "");
+    BOOST_REQUIRE(!approval["complete"].get_bool());
+    BOOST_CHECK_EQUAL(approval["id"].get_str(), created["id"].get_str());
+    CSparkMultisigSpend session = OpenMultisigSpend(key, approval["hex"].get_str());
+    BOOST_REQUIRE_EQUAL(session.commitments.size(), 1);
+    BOOST_REQUIRE(session.shares.empty());
+    BOOST_CHECK(MultisigError(approvesparkmultisigspend, approval["hex"]).find("approved this spend already") != std::string::npos);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, approval["hex"]).find("needs 1 more") != std::string::npos);
+    otherApproves(session);
+
+    // A signer may be handed another transaction in place of the one it approved. Here
+    // it is one the other signer approved, so that a single approval more makes it
+    // ready to sign. The wallet signs what it approved and nothing else: it does not
+    // take the spend for a new one to approve and sign in the same call.
+    amount = UniValue(UniValue::VOBJ);
+    amount.push_back(Pair("amount", 2));
+    amount.push_back(Pair("subtractFee", false));
+    recipients = UniValue(UniValue::VOBJ);
+    recipients.push_back(Pair(foreign.encode(spark::GetNetworkType()), amount));
+    UniValue createdOther;
+    BOOST_REQUIRE_EQUAL(MultisigError(createsparkmultisigspend, recipients, &createdOther), "");
+    BOOST_CHECK(createdOther["id"].get_str() != created["id"].get_str());
+    CSparkMultisigSpend redirected = OpenMultisigSpend(key, createdOther["hex"].get_str());
+    otherApproves(redirected);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, redirected)).find("has not approved") != std::string::npos);
+    // nor with the approval it gave to the first one
+    redirected.commitments.emplace_back(session.commitments[0]);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, redirected)).find("changed after") != std::string::npos);
+    redirected.commitments.pop_back();
+    // Approving it is a decision of its own, and does not sign either
+    UniValue approvedOther;
+    BOOST_REQUIRE_EQUAL(MultisigError(approvesparkmultisigspend, SealMultisigSpend(key, redirected), &approvedOther), "");
+    BOOST_CHECK(!approvedOther["complete"].get_bool());
+    BOOST_CHECK_EQUAL(approvedOther["id"].get_str(), createdOther["id"].get_str());
+    redirected = OpenMultisigSpend(key, approvedOther["hex"].get_str());
+    BOOST_CHECK_EQUAL(redirected.commitments.size(), 2);
+    BOOST_CHECK(redirected.shares.empty());
 
     // From here the cosigner cannot change anything the proof's challenge depends on.
     // The block a cover set is taken at is such a thing, and the one that neither the
@@ -1141,31 +1212,35 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     BOOST_CHECK_EQUAL(MultisigError(decodesparkmultisigspend, SealMultisigSpend(key, steered)), "");
     BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, steered)).find("changed after") != std::string::npos);
 
-    // The attempt used up the nonce
-    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, session)).find("no longer holds the nonce") != std::string::npos);
-
-    // Left alone, the spend gets the wallet's signature share, once. A failure to
-    // save the outputs comes before the nonce is touched and does not cost it.
-    const CSparkMultisigSpend again = commit();
+    // The nonce stays with the transaction it was made for. Neither that attempt nor
+    // a failure to save the outputs, which comes before the nonce is touched, costs it.
     CWallet::SetSparkOutputWriteFailureForTesting(0);
-    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again)).find("Unable to save") != std::string::npos);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, session)).find("Unable to save") != std::string::npos);
     CWallet::SetSparkOutputWriteFailureForTesting(-1);
+
+    // Left alone, the spend gets the wallet's signature share, once
     UniValue signedSpend;
-    BOOST_REQUIRE_EQUAL(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again), &signedSpend), "");
+    BOOST_REQUIRE_EQUAL(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, session), &signedSpend), "");
     BOOST_CHECK(!signedSpend["complete"].get_bool());
     const CSparkMultisigSpend result = OpenMultisigSpend(key, signedSpend["hex"].get_str());
     BOOST_REQUIRE_EQUAL(result.shares.size(), 1);
     BOOST_CHECK_EQUAL(result.shares[0].index, key.index);
-    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again)).find("no longer holds the nonce") != std::string::npos);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, session)).find("no longer holds the nonce") != std::string::npos);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, signedSpend["hex"]).find("signed this spend already") != std::string::npos);
+    UniValue decoded;
+    BOOST_REQUIRE_EQUAL(MultisigError(decodesparkmultisigspend, signedSpend["hex"], &decoded), "");
+    BOOST_REQUIRE_EQUAL(decoded["signers"].size(), 2);
+    BOOST_CHECK(decoded["signers"][0]["signed"].get_bool() != decoded["signers"][1]["signed"].get_bool());
 
-    // A share that is not the other signer's does not complete the spend
+    // A share that is not the other signer's is not taken for its signature
     CSparkMultisigSpend forged = result;
     forged.shares.emplace_back(result.shares[0]);
     forged.shares.back().index = otherKey.index;
     BOOST_CHECK(MultisigError(combinesparkmultisigspend, UniValue(UniValue::VARR)).find("at least one") != std::string::npos);
     UniValue list(UniValue::VARR);
     list.push_back(SealMultisigSpend(key, forged));
-    BOOST_CHECK(MultisigError(combinesparkmultisigspend, list).find("Bad signature share") != std::string::npos);
+    BOOST_CHECK(MultisigError(combinesparkmultisigspend, list).find("bad signature share") != std::string::npos);
+    BOOST_CHECK(MultisigError(decodesparkmultisigspend, SealMultisigSpend(key, forged)).find("bad signature share") != std::string::npos);
 
     spark::CSparkState::GetState()->Reset();
 }

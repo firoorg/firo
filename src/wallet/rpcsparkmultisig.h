@@ -16,6 +16,7 @@ class JSONRPCRequest;
 // Spark threshold multisignature wallets (doc/spark-multisig-wallet.md)
 UniValue addsparkmultisigaddress(const JSONRPCRequest& request);
 UniValue createsparkmultisigspend(const JSONRPCRequest& request);
+UniValue approvesparkmultisigspend(const JSONRPCRequest& request);
 UniValue signsparkmultisigspend(const JSONRPCRequest& request);
 UniValue combinesparkmultisigspend(const JSONRPCRequest& request);
 UniValue decodesparkmultisigspend(const JSONRPCRequest& request);

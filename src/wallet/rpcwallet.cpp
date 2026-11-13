@@ -5834,6 +5834,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
     { "wallet",             "addsparkmultisigaddress",  &addsparkmultisigaddress,  true,   {"nrequired","keys","data"} },
     { "wallet",             "createsparkmultisigspend", &createsparkmultisigspend, false,  {"recipients"} },
+    { "wallet",             "approvesparkmultisigspend", &approvesparkmultisigspend, false, {"hexstring"} },
     { "wallet",             "signsparkmultisigspend",   &signsparkmultisigspend,   false,  {"hexstring"} },
     { "wallet",             "combinesparkmultisigspend", &combinesparkmultisigspend, true, {"txs"} },
     { "wallet",             "decodesparkmultisigspend", &decodesparkmultisigspend, true,   {"hexstring"} },

@@ -208,13 +208,19 @@ class SparkMultisigTest(BitcoinTestFramework):
         fee = int(dec['fee'] * COIN)
         assert fee > 0
 
-        r = n[0].signsparkmultisigspend(hexstr)
+        # Each signer approves, and once both have, each signs. Every copy of the
+        # spend carries the same id.
+        r = n[0].approvesparkmultisigspend(hexstr)
+        assert r['complete'] is False and r['id'] == dec['id']
+        dec = n[1].decodesparkmultisigspend(r['hex'])
+        assert len(dec['signers']) == 1 and dec['id'] == r['id']
+        r = n[1].approvesparkmultisigspend(r['hex'])
         assert r['complete'] is False
-        assert_equal(len(n[1].decodesparkmultisigspend(r['hex'])['signers']), 1)
+        assert_equal([s['signed'] for s in n[2].decodesparkmultisigspend(r['hex'])['signers']], [False, False])
         r = n[1].signsparkmultisigspend(r['hex'])
         assert r['complete'] is False
         r = n[0].signsparkmultisigspend(r['hex'])
-        assert r['complete'] is True
+        assert r['complete'] is True and r['id'] == dec['id']
         txid = self.finish(r['hex'])
 
         assert_equal(n[3].getreceivedbyaddress(t_addr), Decimal(2))
@@ -245,8 +251,8 @@ class SparkMultisigTest(BitcoinTestFramework):
         spark3_before = n[3].getsparkbalance()['availableBalance']
         hexstr = self.new_spend()
         fee = int(n[2].decodesparkmultisigspend(hexstr)['fee'] * COIN)
-        a1 = n[1].signsparkmultisigspend(hexstr)
-        a2 = n[2].signsparkmultisigspend(hexstr)
+        a1 = n[1].approvesparkmultisigspend(hexstr)
+        a2 = n[2].approvesparkmultisigspend(hexstr)
         assert a1['complete'] is False and a2['complete'] is False
         c = n[0].combinesparkmultisigspend([a1['hex'], a2['hex']])
         assert c['complete'] is False
@@ -267,7 +273,9 @@ class SparkMultisigTest(BitcoinTestFramework):
         """Pass a spend along two signers and back, broadcast it and return its fee."""
         n = self.nodes
         fee = int(n[first].decodesparkmultisigspend(hexstr)['fee'] * COIN)
-        r = n[first].signsparkmultisigspend(hexstr)
+        r = n[first].approvesparkmultisigspend(hexstr)
+        assert r['complete'] is False
+        r = n[second].approvesparkmultisigspend(r['hex'])
         assert r['complete'] is False
         r = n[second].signsparkmultisigspend(r['hex'])
         assert r['complete'] is False
@@ -318,7 +326,7 @@ class SparkMultisigTest(BitcoinTestFramework):
         self.total = self.balances(self.total - COIN - fee)
 
     def locked_wallet(self):
-        """Only signing takes the wallet passphrase."""
+        """Only approving and signing take the wallet passphrase."""
         n = self.nodes
         n[1].encryptwallet("pass")
         wait_node(1)
@@ -332,7 +340,7 @@ class SparkMultisigTest(BitcoinTestFramework):
         assert n[1].combinesparkmultisigspend([hexstr])['complete'] is False
         r = n[1].addsparkmultisigaddress(2, self.keys)
         assert r['complete'] is True and r['address'] == self.group_addr and 'hex' not in r
-        assert_raises_jsonrpc(-13, "walletpassphrase", n[1].signsparkmultisigspend, hexstr)
+        assert_raises_jsonrpc(-13, "walletpassphrase", n[1].approvesparkmultisigspend, hexstr)
 
         n[1].walletpassphrase("pass", 600)
         fee = self.sign_chain(hexstr, 1, 0)
@@ -341,22 +349,45 @@ class SparkMultisigTest(BitcoinTestFramework):
     def misuse(self):
         n = self.nodes
 
-        # a third signer cannot join after two committed
+        # signing takes an approval first, and the approvals of all signers
         s = self.new_spend()
-        h0 = n[0].signsparkmultisigspend(s)['hex']
-        h1 = n[1].signsparkmultisigspend(h0)['hex']  # commits and signs
-        assert "already has its signers" in self.fails(n[2].signsparkmultisigspend, h1)
+        assert "has not approved" in self.fails(n[0].signsparkmultisigspend, s)
+        h0 = n[0].approvesparkmultisigspend(s)['hex']
+        assert "approved this spend already" in self.fails(n[0].approvesparkmultisigspend, h0)
+        assert "needs 1 more" in self.fails(n[0].signsparkmultisigspend, h0)
+
+        # a third signer cannot join after two approved
+        h1 = n[1].approvesparkmultisigspend(h0)['hex']
+        assert "already has its signers" in self.fails(n[2].approvesparkmultisigspend, h1)
 
         # a nonce is single-use: node 0 completes, then cannot sign the same pre-signature again
-        r = n[0].signsparkmultisigspend(h1)
+        h2 = n[1].signsparkmultisigspend(h1)['hex']
+        assert "signed this spend already" in self.fails(n[1].signsparkmultisigspend, h2)
+        r = n[0].signsparkmultisigspend(h2)
         assert r['complete'] is True
-        assert "no longer holds the nonce" in self.fails(n[0].signsparkmultisigspend, h1)
+        assert "no longer holds the nonce" in self.fails(n[0].signsparkmultisigspend, h2)
         # (r['hex'] is never broadcast)
 
-        # a signer restarted between its two passes can no longer sign
+        # A signer that is handed another spend in place of the one it approved does not
+        # sign it. Node 1 answers node 0's approval of x with a spend y of its own, which
+        # it approved: one more approval would make y ready to sign.
+        x = n[0].approvesparkmultisigspend(self.new_spend())
+        y = n[1].approvesparkmultisigspend(n[1].createsparkmultisigspend({self.spark3: {"amount": 3, "subtractFee": False}})['hex'])
+        assert x['id'] != y['id']
+        assert "has not approved" in self.fails(n[0].signsparkmultisigspend, y['hex'])
+        # Approving y is a step of its own, and does not sign either
+        y = n[0].approvesparkmultisigspend(y['hex'])
+        assert y['complete'] is False
+        assert_equal([s['signed'] for s in n[2].decodesparkmultisigspend(y['hex'])['signers']], [False, False])
+        # None of this cost node 0 its approval of x
+        x = n[1].approvesparkmultisigspend(x['hex'])
+        x = n[1].signsparkmultisigspend(x['hex'])
+        assert n[0].signsparkmultisigspend(x['hex'])['complete'] is True
+
+        # a signer restarted between approving and signing can no longer sign
         s = self.new_spend()
-        h0 = n[0].signsparkmultisigspend(s)['hex']
-        h1 = n[1].signsparkmultisigspend(h0)['hex']
+        h0 = n[0].approvesparkmultisigspend(s)['hex']
+        h1 = n[1].approvesparkmultisigspend(h0)['hex']
         stop_node(n[0], 0)
         self.restart(0)
         self.reconnect()
@@ -370,11 +401,12 @@ class SparkMultisigTest(BitcoinTestFramework):
 
         # a flipped character
         bad = x[:100] + ('0' if x[100] != '0' else '1') + x[101:]
-        for fun in (n[1].decodesparkmultisigspend, n[1].signsparkmultisigspend):
+        for fun in (n[1].decodesparkmultisigspend, n[1].approvesparkmultisigspend, n[1].signsparkmultisigspend):
             assert "group" in self.fails(fun, bad)
 
         # not a multisig wallet / outside the group
         for fun, arg in ((n[3].createsparkmultisigspend, {self.spark3: {"amount": 1, "subtractFee": False}}),
+                         (n[3].approvesparkmultisigspend, x),
                          (n[3].signsparkmultisigspend, x),
                          (n[3].decodesparkmultisigspend, x),
                          (n[3].combinesparkmultisigspend, [x])):
