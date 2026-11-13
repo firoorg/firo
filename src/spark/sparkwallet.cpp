@@ -168,6 +168,11 @@ uint64_t CSparkWallet::GetMintWorkGeneration() const {
     return mintWorkGeneration;
 }
 
+void CSparkWallet::SetKeysReplaced() {
+    AssertLockHeld(cs_main);
+    fKeysReplaced = true;
+}
+
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     walletdb.readDiversifier(lastDiversifier);
@@ -932,6 +937,10 @@ CSparkWallet::IdentifiedMint CSparkWallet::IdentifyMint(spark::Coin coin, const 
 void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb)
 {
     LOCK2(cs_main, cs_spark_wallet);
+    // Found with keys that are no longer the wallet's: after the restart the wallet
+    // would list this coin, and could neither identify nor spend it.
+    if (fKeysReplaced)
+        return;
     auto& mintMeta = mint.meta;
     auto* sparkState = spark::CSparkState::GetState();
     const auto heightAndId = sparkState->GetMintedCoinHeightAndId(mintMeta.coin);

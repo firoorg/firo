@@ -1148,6 +1148,20 @@ BOOST_AUTO_TEST_CASE(multisig_setup_retires_old_receive_addresses)
     BOOST_CHECK(!walletdb.Read(std::make_pair(std::string("destdata"), std::make_pair(oldAddress, std::string("rr1"))), receiveRequest));
     BOOST_REQUIRE(walletdb.Read(std::make_pair(std::string("purpose"), contactAddress), purpose));
     BOOST_CHECK_EQUAL(purpose, "send");
+
+    // A payment to the old address can still arrive before the node is down. The
+    // wallet does not record it: after the restart it would list a coin of other keys.
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({10 * COIN}, mintTxs);
+    BOOST_REQUIRE(GenerateBlock(mintTxs, &script));
+    pwalletMain->sparkWallet->WaitForPendingTasks();
+    ReloadSparkWallet();
+    BOOST_REQUIRE(pwalletMain->sparkWallet->getMultisigKey());
+    BOOST_CHECK(pwalletMain->sparkWallet->getMintMap().empty());
+
+    spark::CSparkState::GetState()->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

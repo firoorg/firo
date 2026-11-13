@@ -132,6 +132,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     encryptWalletAction(0),
     backupWalletAction(0),
     exportViewKeyAction(0),
+    sparkMultisigAction(0),
     changePassphraseAction(0),
     aboutQtAction(0),
     openRPCConsoleAction(0),
@@ -437,6 +438,8 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     exportViewKeyAction = new QAction(tr("&Export View Key..."), this);
     exportViewKeyAction->setStatusTip(tr("Export Spark view key"));
+    sparkMultisigAction = new QAction(tr("&Multisig wallet..."), this);
+    sparkMultisigAction->setStatusTip(tr("Set up a multisig wallet, or approve and send its transactions"));
     changePassphraseAction = new QAction(tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
     signMessageAction = new QAction(tr("Sign &message..."), this);
@@ -474,6 +477,7 @@ void BitcoinGUI::createActions()
     GUIUtil::setThemedIcon(signMessageAction, QStringLiteral(":/icons/pen"));
     GUIUtil::setThemedIcon(verifyMessageAction, QStringLiteral(":/icons/shield"));
     GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
+    GUIUtil::setThemedIcon(sparkMultisigAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
     GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
     GUIUtil::setThemedIcon(consolidateOutputsAction, QStringLiteral(":/icons/coins"));
@@ -502,6 +506,7 @@ void BitcoinGUI::createActions()
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(exportViewKeyAction, &QAction::triggered, walletFrame, &WalletFrame::exportViewKey);
+        connect(sparkMultisigAction, &QAction::triggered, this, &BitcoinGUI::showSparkMultisig);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(verifyMessageAction, &QAction::triggered, [this]{ gotoVerifyMessageTab(); });
@@ -535,6 +540,7 @@ void BitcoinGUI::createMenuBar()
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
         file->addAction(exportViewKeyAction);
+        file->addAction(sparkMultisigAction);
         file->addSeparator();
         file->addAction(usedSendingAddressesAction);
         file->addAction(usedReceivingAddressesAction);
@@ -1464,6 +1470,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
     exportViewKeyAction->setEnabled(enabled);
+    sparkMultisigAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
@@ -1625,6 +1632,11 @@ void BitcoinGUI::gotoSendCoinsPage(QString addr)
 {
     sendCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoSendCoinsPage(addr);
+}
+
+void BitcoinGUI::showSparkMultisig()
+{
+    if (walletFrame) walletFrame->sparkMultisig();
 }
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)

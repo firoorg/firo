@@ -11,10 +11,23 @@
 
 #include <univalue.h>
 
+class CWallet;
 class JSONRPCRequest;
 
 // Spark threshold multisignature wallets (doc/spark-multisig-wallet.md)
 UniValue addsparkmultisigaddress(const JSONRPCRequest& request);
+
+/**
+ * One pass of the Spark multisig setup: addsparkmultisigaddress without the stop of
+ * the node, for the GUI, which shows its user the outcome before it restarts.
+ * @param[in] args   The arguments of addsparkmultisigaddress.
+ * @param[in] fStore Whether a pass that has everyone's data makes this the multisig
+ *                   wallet. If not, the pass reports the address the wallet would get.
+ * @return The result of addsparkmultisigaddress. After the pass that stored the keys,
+ *         which is the first to return "complete", the caller has to stop the node.
+ * @throws UniValue As the RPC does.
+ */
+UniValue SetupSparkMultisig(CWallet* pwallet, const UniValue& args, bool fStore);
 UniValue createsparkmultisigspend(const JSONRPCRequest& request);
 UniValue signsparkmultisigspend(const JSONRPCRequest& request);
 UniValue combinesparkmultisigspend(const JSONRPCRequest& request);

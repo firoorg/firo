@@ -119,6 +119,8 @@ Q_SIGNALS:
     // Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
     void outOfSyncWarningClicked();
+    // A multisig wallet cannot send on its own: the payment goes to its co-signers for approval
+    void sparkMultisigSpendRequested(const QList<SendCoinsRecipient>& recipients);
 };
 
 

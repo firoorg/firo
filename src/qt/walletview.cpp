@@ -19,6 +19,7 @@
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "sparkmultisigdialog.h"
 #include "sparknamespage.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
@@ -27,11 +28,13 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QDebug>
 #include <QDialog>
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include <QMessageBox>
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QTableView>
@@ -99,6 +102,12 @@ void WalletView::setupSendCoinPage()
     connect(sendFiroView, &SendCoinsDialog::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
     connect(sendFiroView, &SendCoinsDialog::message, this, &WalletView::message);
+    connect(sendFiroView, &SendCoinsDialog::sparkMultisigSpendRequested, this, [this](const QList<SendCoinsRecipient>& recipients) {
+        if (multisigSpendDialog()->createSpend(recipients)) {
+            sendFiroView->clear();
+            multisigSpendDialog()->open();
+        }
+    });
 
     // Set layout for send coin page
     auto pageLayout = new QVBoxLayout();
@@ -343,6 +352,45 @@ void WalletView::exportViewKey()
 {
     ExportViewKeyDialog dlg(this, walletModel->getWallet()->GetSparkViewKeyStr());
     dlg.exec();
+}
+
+SparkMultisigSpendDialog* WalletView::multisigSpendDialog()
+{
+    // One model for the lifetime of a WalletView, and the dialog is its child
+    if (!sparkMultisigSpendDialog)
+        sparkMultisigSpendDialog = new SparkMultisigSpendDialog(walletModel, this);
+    return sparkMultisigSpendDialog;
+}
+
+void WalletView::sparkMultisig()
+{
+    if (!walletModel)
+        return;
+
+    if (walletModel->isSparkMultisig()) {
+        multisigSpendDialog()->open();
+        return;
+    }
+
+    if (!walletModel->getWallet()->sparkWallet) {
+        QMessageBox::information(this, tr("Multisig wallet"), tr("This wallet has no Spark wallet, so it cannot become a multisig wallet."));
+        return;
+    }
+    if (!walletModel->getWallet()->sparkWallet->getMintMap().empty()) {
+        QMessageBox::information(this, tr("Multisig wallet"), tr("This wallet already holds private funds, so it cannot become a multisig wallet. Create a new wallet for that."));
+        return;
+    }
+
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if (!ctx.isValid())
+        return;
+
+    SparkMultisigSetupDialog dialog(walletModel, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        // The wallet now holds the group's keys and reads them at the next start
+        backupWallet();
+        QApplication::quit();
+    }
 }
 
 void WalletView::changePassphrase()

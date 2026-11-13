@@ -128,6 +128,7 @@ Recover::Recover(QWidget *parent) :
         ui->advancedToggle->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
     });
     connect(ui->usePassphrase, &QCheckBox::toggled, ui->passphraseFields, &QWidget::setVisible);
+    connect(ui->useMultisig, &QCheckBox::toggled, ui->multisigHelp, &QWidget::setVisible);
     connect(ui->restoreUsePassphrase, &QCheckBox::toggled, ui->restorePassphraseFields, &QWidget::setVisible);
 
     QAction* reveal = ui->restorePassPhrase->addAction(QIcon(), QLineEdit::TrailingPosition);
@@ -414,7 +415,7 @@ void Recover::submit()
     accept();
 }
 
-bool Recover::askRecover(bool& newWallet)
+bool Recover::askRecover(bool& newWallet, bool* multisig)
 {
 #ifdef ENABLE_WALLET
     namespace fs = boost::filesystem;
@@ -432,6 +433,8 @@ bool Recover::askRecover(bool& newWallet)
 
         // submit() accepts only input that passed every check, so the args come from the final input alone.
         newWallet = recover.ui->pages->currentWidget() == recover.ui->createPage;
+        if (multisig)
+            *multisig = newWallet && recover.ui->useMultisig->isChecked();
         if (newWallet) {
             SoftSetBoolArg("-newwallet", true);
             if (recover.ui->use12->isChecked())
