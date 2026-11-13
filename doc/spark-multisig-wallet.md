@@ -149,8 +149,11 @@ the group's keys. Because the setup derives all of a participant's values from i
 participant key, such a participant can rejoin: in a wallet that holds its
 participant key and no Spark coins, it goes through the three setup calls again
 with the data that all the others return again, and restarts with `-rescan` to find
-the group's coins. This takes every other participant. As long as `nrequired`
-participants have their wallets, the funds can also simply be moved.
+the group's coins. This takes every other participant. A wallet that is set up
+gives its data only for the round one data its group was set up with, and the
+participant that rejoins checks that it arrives at the group's address, as at the
+first setup. As long as `nrequired` participants have their wallets, the funds can
+also simply be moved.
 
 ## Implementation notes
 

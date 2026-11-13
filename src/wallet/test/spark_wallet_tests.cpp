@@ -987,6 +987,20 @@ static CSparkMultisigSpend OpenMultisigSpend(const spark::MultisigKey& key, cons
     return spend;
 }
 
+// A participant that departs from the protocol: it presents another polynomial with
+// the constant coefficient, and so the proof of knowledge, of its own
+class OtherPolynomialKeygen : public spark::MultisigKeygen {
+public:
+    using spark::MultisigKeygen::MultisigKeygen;
+
+protected:
+    Scalar derive(const std::string& purpose, uint64_t i, const std::vector<unsigned char>& data) const override
+    {
+        const Scalar value = spark::MultisigKeygen::derive(purpose, i, data);
+        return purpose == "coefficient" && i > 0 ? value + Scalar(uint64_t(1)) : value;
+    }
+};
+
 // A cosigner can produce any validly sealed spend. What a signer accepts must not
 // depend on the cosigner being honest.
 BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
@@ -1243,6 +1257,54 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     BOOST_CHECK(MultisigError(decodesparkmultisigspend, SealMultisigSpend(key, forged)).find("bad signature share") != std::string::npos);
 
     spark::CSparkState::GetState()->Reset();
+}
+
+// A wallet that is set up still gives its data to a participant that repeats the
+// setup, but only for the round one data its group was set up with. With another
+// polynomial under the same constant coefficient, that participant would arrive at
+// the group's spend key in a share that does not go with this wallet's.
+BOOST_AUTO_TEST_CASE(multisig_wallet_repeats_the_setup_of_its_group_only)
+{
+    const spark::Params* params = spark::Params::get_default();
+    const CPubKey pubkey = GenerateAddress();
+    CKey privkey;
+    BOOST_REQUIRE(pwalletMain->GetKey(pubkey.GetID(), privkey));
+    Scalar own, other;
+    own.deserialize(privkey.begin());
+    other.randomize();
+    const std::vector<GroupElement> participants = {params->get_G()*own, params->get_G()*other};
+    const spark::MultisigKeygen ownKeygen(params, 2, participants, own);
+    const spark::MultisigKeygen otherKeygen(params, 2, participants, other);
+    const std::vector<spark::MultisigKeygenMessage> round1 = {ownKeygen.round1(), otherKeygen.round1()};
+    BOOST_REQUIRE(CWalletDB(pwalletMain->strWalletFile).WriteSparkMultisigKey(ownKeygen.finalize({ownKeygen.round2(round1), otherKeygen.round2(round1)})));
+    ReloadSparkWallet();
+    BOOST_REQUIRE(pwalletMain->sparkWallet->getMultisigKey());
+
+    UniValue keys(UniValue::VARR);
+    for (const GroupElement& participant : participants) {
+        keys.push_back(HexStr(spark::MultisigKey::serialize_participant(participant)));
+    }
+    const auto repeatError = [&](const spark::MultisigKeygenMessage& message) {
+        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+        stream << message;
+        UniValue data(UniValue::VARR);
+        data.push_back(HexStr(stream.begin(), stream.end()));
+        JSONRPCRequest request;
+        request.params = UniValue(UniValue::VARR);
+        request.params.push_back(2);
+        request.params.push_back(keys);
+        request.params.push_back(data);
+        try {
+            BOOST_CHECK(addsparkmultisigaddress(request)["hex"].isStr());
+        } catch (const UniValue& error) {
+            return find_value(error, "message").get_str();
+        }
+        return std::string();
+    };
+    BOOST_CHECK_EQUAL(repeatError(otherKeygen.round1()), "");
+    const OtherPolynomialKeygen twoFaced(params, 2, participants, other);
+    BOOST_CHECK(twoFaced.round1().C[0] == otherKeygen.round1().C[0]);
+    BOOST_CHECK(repeatError(twoFaced.round1()).find("not the round one data") != std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(multisig_setup_retires_old_receive_addresses)

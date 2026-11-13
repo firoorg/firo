@@ -604,6 +604,20 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             messages.emplace_back(message);
             message = keygen.round2(messages);
             messages.back() = message;
+            if (existing) {
+                // Whoever repeats the setup has to arrive at the key this wallet
+                // holds a share of. Round one data that adds up to other commitments
+                // would leave it with a share of another key.
+                std::vector<GroupElement> commitments(existing->commitments.size());
+                for (const spark::MultisigKeygenMessage& other : messages) {
+                    for (std::size_t j = 0; j < commitments.size(); ++j) {
+                        commitments[j] += other.C.at(j);
+                    }
+                }
+                if (commitments != existing->commitments) {
+                    throw std::invalid_argument("This is not the round one data the wallet's group was set up with");
+                }
+            }
             if (!existing && std::none_of(messages.begin(), messages.end(), [](const spark::MultisigKeygenMessage& other) { return other.shares.empty(); })) {
                 key = keygen.finalize(messages);
             }
