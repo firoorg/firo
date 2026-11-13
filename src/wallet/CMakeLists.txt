@@ -7,6 +7,7 @@
 add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/../activemasternode.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../masternode-sync.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/multisig.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../spark/state.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../spark/sparkwallet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../spark/primitives.cpp
