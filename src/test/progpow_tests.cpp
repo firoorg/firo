@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include "clientversion.h"
+#include "init.h"
 #include "pow.h"
 #include "primitives/transaction.h"
 #include "random.h"
@@ -9,12 +10,17 @@
 #include "utilmoneystr.h"
 #include "validation.h"
 #include "validationinterface.h"
+#include "warnings.h"
 #include "test/test_bitcoin.h"
 #include "script/standard.h"
 #include <consensus/merkle.h>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/signals2/connection.hpp>
+#include <atomic>
+
+extern std::atomic<bool> fRequestShutdown;
+extern std::string strMiscWarning;
 
 struct ProgpowTestingSetup : public TestChain100Setup
 {
@@ -239,6 +245,63 @@ BOOST_AUTO_TEST_CASE(mtp_anchor_unknown_at_startup)
     mapPrevBlockIndex.clear();
     BOOST_REQUIRE(LoadBlockIndex(Params()));
     BOOST_CHECK(chainActive.Tip()->GetBlockHash() == tipHash);
+}
+
+BOOST_AUTO_TEST_CASE(mtp_anchor_conflicts_with_active_tip)
+{
+    struct RestoreWarnings
+    {
+        bool shutdown = fRequestShutdown.load();
+        std::string warning = strMiscWarning;
+        ~RestoreWarnings()
+        {
+            fRequestShutdown = shutdown;
+            SetMiscWarning(warning);
+        }
+    } restoreWarnings;
+
+    const uint256 tipHash = chainActive.Tip()->GetBlockHash();
+    CBlockHeader fork = chainActive.Tip()->GetBlockHeader();
+    fork.hashMerkleRoot = GetRandHash();
+    while (!CheckProofOfWork(fork.GetHash(), fork.nBits, mutableParams))
+        ++fork.nNonce;
+    CValidationState forkState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({fork}, forkState, Params()));
+
+    CBlockHeader anchor = fork;
+    anchor.hashPrevBlock = fork.GetHash();
+    ++anchor.nTime;
+    {
+        LOCK(cs_main);
+        anchor.nBits = GetNextWorkRequired(mapBlockIndex.at(fork.GetHash()), &anchor, mutableParams);
+    }
+    while (!CheckProofOfWork(anchor.GetHash(), anchor.nBits, mutableParams))
+        ++anchor.nNonce;
+    mutableParams.nMTPAnchorHeight = chainActive.Height() + 1;
+    mutableParams.hashMTPAnchor = anchor.GetHash();
+
+    FlushStateToDisk();
+    UnloadBlockIndex();
+    mapPrevBlockIndex.clear();
+    BOOST_REQUIRE(LoadBlockIndex(Params()));
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == tipHash);
+
+    // Recovery must not depend on the incompatible tip's claimed work.
+    chainActive.Tip()->nChainWork += GetBlockProof(*chainActive.Tip()) * 100;
+    CValidationState anchorState;
+    BOOST_CHECK(!ProcessNewBlockHeaders({anchor}, anchorState, Params()));
+    BOOST_CHECK(anchorState.IsError());
+    BOOST_CHECK_EQUAL(anchorState.GetRejectReason(),
+        "Active chain does not connect to the MTP anchor; restart with -reindex");
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == tipHash);
+    {
+        LOCK(cs_main);
+        const CBlockIndex* anchorIndex = mapBlockIndex.at(anchor.GetHash());
+        BOOST_CHECK(IsBlockIndexAnchored(anchorIndex, mutableParams));
+        BOOST_CHECK(!(anchorIndex->nStatus & BLOCK_FAILED_MASK));
+        BOOST_CHECK(chainActive.Tip()->nChainWork > anchorIndex->nChainWork);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(limit)

@@ -4847,6 +4847,13 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     if (pindex == NULL)
         pindex = AddToBlockIndex(block);
 
+    const auto& consensusParams = chainparams.GetConsensus();
+    if (consensusParams.nMTPAnchorHeight && hash == consensusParams.hashMTPAnchor &&
+        chainActive.Tip() && !IsBlockIndexAnchored(chainActive.Tip(), consensusParams)) {
+        const std::string message = "Active chain does not connect to the MTP anchor; restart with -reindex";
+        return AbortNode(state, message, message);
+    }
+
     if (ppindex)
         *ppindex = pindex;
 
