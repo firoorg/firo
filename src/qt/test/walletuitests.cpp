@@ -30,6 +30,7 @@
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "spendproofdialog.h"
 #include "spark/state.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
@@ -65,6 +66,8 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QLocale>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPointer>
@@ -1226,6 +1229,11 @@ void WalletUiTests::synchronizationProgress()
     node.setNumBlocks(101, now, 1.0, false);
     QVERIFY(node.progressBarLabel->isHidden());
     QVERIFY(node.progressBar->isHidden());
+
+    // Verifying a spend proof needs only the chain, so the walletless window offers it too.
+    QVERIFY(node.appMenuBar->actions().constFirst()->menu()->actions().contains(node.verifySpendProofAction));
+    node.verifySpendProofAction->trigger();
+    QVERIFY(node.findChild<SpendProofDialog*>());
 }
 
 void WalletUiTests::synchronizationEstimates()
@@ -2234,4 +2242,62 @@ void WalletUiTests::masternodeStatusFollowsPoSe()
         QVERIFY(banned.kind == MasternodeList::StatusKind::Banned);
         QCOMPARE(banned.text, QStringLiteral("PoSe banned"));
     }
+}
+
+/**
+ * Both modes reject unusable input and clear stale results when that input changes.
+ */
+void WalletUiTests::spendProofDialogRejectsUnusableInput()
+{
+    SpendProofDialog verify(nullptr);
+    auto* proofIn = verify.findChild<QPlainTextEdit*>(QStringLiteral("proofEdit"));
+    auto* verifyMessage = verify.findChild<QPlainTextEdit*>(QStringLiteral("messageEdit"));
+    auto* verifyButton = verify.findChild<QPushButton*>(QStringLiteral("actionButton"));
+    auto* verifyStatus = verify.findChild<QLabel*>(QStringLiteral("statusLabel"));
+    QVERIFY(proofIn && verifyMessage && verifyButton && verifyStatus);
+    QVERIFY(!proofIn->isReadOnly());
+    QVERIFY(!verify.findChild<QPushButton*>(QStringLiteral("copyButton")));
+    proofIn->setPlainText(QStringLiteral("not a proof"));
+    verifyButton->click();
+    QCOMPARE(verifyStatus->property("status").toString(), QStringLiteral("error"));
+    QCOMPARE(verifyStatus->text(), QStringLiteral("This is not a spend proof."));
+    verifyStatus->setProperty("status", QStringLiteral("success"));
+    verifyStatus->setText(QStringLiteral("Valid"));
+    proofIn->setPlainText(QStringLiteral("changed proof"));
+    QVERIFY(verifyStatus->text().isEmpty());
+    QVERIFY(verifyStatus->property("status").toString().isEmpty());
+    verifyStatus->setProperty("status", QStringLiteral("success"));
+    verifyStatus->setText(QStringLiteral("Valid"));
+    verifyMessage->setPlainText(QStringLiteral("changed message"));
+    QVERIFY(verifyStatus->text().isEmpty());
+    QVERIFY(verifyStatus->property("status").toString().isEmpty());
+
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel model(style.get(), &wallet, &options);
+    SpendProofDialog generate(nullptr, &model, QString::fromStdString(uint256S("01").GetHex()));
+    auto* proofOut = generate.findChild<QPlainTextEdit*>(QStringLiteral("proofEdit"));
+    auto* generateMessage = generate.findChild<QPlainTextEdit*>(QStringLiteral("messageEdit"));
+    auto* generateButton = generate.findChild<QPushButton*>(QStringLiteral("actionButton"));
+    auto* copyButton = generate.findChild<QPushButton*>(QStringLiteral("copyButton"));
+    auto* generateStatus = generate.findChild<QLabel*>(QStringLiteral("statusLabel"));
+    QVERIFY(proofOut && generateMessage && generateButton && copyButton && generateStatus);
+    QVERIFY(proofOut->isReadOnly());
+    generateButton->click();
+    QCOMPARE(generateStatus->property("status").toString(), QStringLiteral("error"));
+    QCOMPARE(generateStatus->text(), QStringLiteral("Enter the message the verifier asked you to include."));
+    QVERIFY(proofOut->toPlainText().isEmpty());
+    QVERIFY(!copyButton->isEnabled());
+    generateMessage->setPlainText(QStringLiteral("first message"));
+    proofOut->setPlainText(QStringLiteral("generated proof"));
+    QVERIFY(copyButton->isEnabled());
+    generateStatus->setProperty("status", QStringLiteral("success"));
+    generateStatus->setText(QStringLiteral("Generated"));
+    generateMessage->setPlainText(QStringLiteral("second message"));
+    QVERIFY(proofOut->toPlainText().isEmpty());
+    QVERIFY(!copyButton->isEnabled());
+    QVERIFY(generateStatus->text().isEmpty());
+    QVERIFY(generateStatus->property("status").toString().isEmpty());
 }

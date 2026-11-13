@@ -21,6 +21,7 @@
 #endif
 #include "txdb.h"
 #include "spark/sparkmessage.h"
+#include "spark/state.h"
 
 #include "masternode-sync.h"
 #include "evo/deterministicmns.h"
@@ -526,6 +527,44 @@ UniValue verifymessagewithsparkaddress(const JSONRPCRequest& request)
     }
 
     return false; // every enumerator is handled above
+}
+
+UniValue verifysparkspendproof(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "verifysparkspendproof \"proof\" \"message\"\n"
+            "\nVerify a spend proof produced by createsparkspendproof.\n"
+            "A valid proof shows that its creator knows the spending keys behind every input of the named\n"
+            "Spark spend, and that the proof was made for this exact message. It says nothing about the\n"
+            "amount or recipient of the transaction. Check that the returned txid is the transaction you\n"
+            "expect and that the message is one you issued for this purpose.\n"
+            "\nArguments:\n"
+            "1. \"proof\"     (string, required) The spend proof as a hex string.\n"
+            "2. \"message\"   (string, required) The message the proof was created with.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"valid\": true|false,   (boolean) Whether the proof is valid for the transaction and message.\n"
+            "  \"txid\": \"hex\"          (string) The confirmed Spark spend the proof names.\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("verifysparkspendproof", "\"proof\" \"my message\"") +
+            "\nAs json rpc\n"
+            + HelpExampleRpc("verifysparkspendproof", "\"proof\", \"my message\"")
+        );
+
+    uint256 txid;
+    const spark::SpendProofResult result = spark::VerifySpendProof(
+        request.params[0].get_str(), request.params[1].get_str(), txid);
+    if (result == spark::SpendProofResult::Malformed)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, spark::SpendProofResultMessage(result));
+    if (result != spark::SpendProofResult::Ok && result != spark::SpendProofResult::Mismatch)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, spark::SpendProofResultMessage(result));
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("valid", result == spark::SpendProofResult::Ok));
+    ret.push_back(Pair("txid", txid.GetHex()));
+    return ret;
 }
 
 UniValue signmessagewithprivkey(const JSONRPCRequest& request)
@@ -2085,6 +2124,7 @@ static const CRPCCommand commands[] =
     { "util",               "createmultisig",         &createmultisig,         true,        {"nrequired","keys"} },
     { "util",               "verifymessage",          &verifymessage,          true,        {"address","signature","message"} },
     { "util",               "verifymessagewithsparkaddress", &verifymessagewithsparkaddress, true, {"sparkaddress","signature","message"} },
+    { "util",               "verifysparkspendproof",  &verifysparkspendproof,  true,        {"proof","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,        {"privkey","message"} },
 
         /* Address index */

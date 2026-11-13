@@ -12,6 +12,7 @@
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "spendproofdialog.h"
 #include "transactiondescdialog.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
@@ -407,6 +408,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     abandonAction = new QAction(tr("Abandon transaction"), this);
     resendAction  = new QAction(tr("Re-broadcast transaction"), this);
+    spendProofAction = new QAction(tr("Generate spend proof..."), this);
 
     QAction *copyAddressAction   = new QAction(tr("Copy address"), this);
     copyLabelAction              = new QAction(tr(CopyLabelText), this);
@@ -426,6 +428,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     GUIUtil::setThemedIcon(editLabelAction, QStringLiteral(":/icons/edit"));
     GUIUtil::setThemedIcon(abandonAction, QStringLiteral(":/icons/remove"));
     GUIUtil::setThemedIcon(resendAction, QStringLiteral(":/icons/refresh"));
+    GUIUtil::setThemedIcon(spendProofAction, QStringLiteral(":/icons/shield"));
 
     contextMenu = new QMenu(this);
     contextMenu->addAction(copyAddressAction);
@@ -439,8 +442,9 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     contextMenu->addAction(abandonAction);
     contextMenu->addAction(editLabelAction);
     contextMenu->addAction(resendAction);
+    contextMenu->addAction(spendProofAction);
 
-    connect(dateWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
+    connect(dateWidget,        qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
     connect(typeWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseType);
     connect(watchOnlyWidget,    qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
     connect(instantsendWidget,  qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
@@ -475,6 +479,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(showDetailsAction,  &QAction::triggered, this, &TransactionView::showDetails);
     connect(this,               &TransactionView::doubleClicked, this, &TransactionView::openTransaction);
     connect(resendAction,       &QAction::triggered, this, &TransactionView::rebroadcastTx);
+    connect(spendProofAction,   &QAction::triggered, this, &TransactionView::spendProof);
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, &TransactionView::applyTheme);
@@ -925,11 +930,28 @@ void TransactionView::contextualMenu(const QPoint &point)
         copyLabelAction->setText(tr(CopyLabelText));
     abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
     resendAction->setEnabled(model->transactionCanBeRebroadcast(hash));
+    // These two types are this wallet's own Spark spends. The dialog reports one that is not confirmed yet.
+    const int type = index.data(TransactionTableModel::TypeRole).toInt();
+    spendProofAction->setEnabled(type == TransactionRecord::SpendSparkTo || type == TransactionRecord::SpendSparkToSelf);
 
     if(index.isValid())
     {
         contextMenu->exec(QCursor::pos());
     }
+}
+
+void TransactionView::spendProof()
+{
+    // The row that was right-clicked. With several rows selected it need not be the first
+    // selected one, and a proof must not be made for a transaction the user did not pick.
+    const QModelIndex index = transactionView ? transactionView->currentIndex() : QModelIndex();
+    if (!index.isValid())
+        return;
+
+    SpendProofDialog *dialog = new SpendProofDialog(
+        this, model, index.data(TransactionTableModel::TxHashRole).toString());
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
 }
 
 void TransactionView::abandonTx()

@@ -54,6 +54,13 @@ public:
     // fails for any other reason.
     std::string SignMessage(const spark::Address& address, const std::string& message);
 
+    // Prove, for a confirmed Spark spend made by this wallet, that we know the
+    // spending keys behind every input, bound to `message`. Returns the proof
+    // as hex for spark::VerifySpendProof. Requires cs_main. Throws WalletLocked
+    // if the wallet is locked, or std::runtime_error if the transaction is not
+    // a confirmed Spark spend of this wallet's coins.
+    std::string CreateSpendProof(const uint256& txid, const std::string& message);
+
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     std::list<CSparkSpendEntry> ListSparkSpends() const;

@@ -318,6 +318,11 @@ public:
     void loadReceiveRequests(std::vector<std::string>& vReceiveRequests);
     bool saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest);
 
+    // Generate a spend proof for a confirmed Spark spend of this wallet's own coins, bound to
+    // `message`. Returns the proof as hex, or a null QString with `error` set to a message fit
+    // to show the user.
+    QString createSpendProof(uint256 hash, const QString &message, QString &error);
+
     bool transactionCanBeAbandoned(uint256 hash) const;
     bool abandonTransaction(uint256 hash) const;
 
