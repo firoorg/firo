@@ -441,14 +441,7 @@ std::string CSparkWallet::CreateSpendProof(const uint256& txid, const std::strin
         }
     }
 
-    spark::SpendKey spendKey(params);
-    try {
-        spendKey = std::move(generateSpendKey(params));
-    } catch (const WalletLocked&) {
-        throw;
-    } catch (const std::exception&) {
-        throw std::runtime_error("Unable to generate spend key");
-    }
+    const spark::SpendKey spendKey = generateSpendKey(params); // throws WalletLocked
 
     spark::ChaumProofV2 claim;
     try {

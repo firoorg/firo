@@ -2277,7 +2277,7 @@ void WalletUiTests::spendProofDialogRejectsUnusableInput()
     const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
     QVERIFY(style);
     WalletModel model(style.get(), &wallet, &options);
-    SpendProofDialog generate(&model, QString::fromStdString(uint256S("01").GetHex()), nullptr);
+    SpendProofDialog generate(nullptr, &model, QString::fromStdString(uint256S("01").GetHex()));
     auto* proofOut = generate.findChild<QPlainTextEdit*>(QStringLiteral("proofEdit"));
     auto* generateMessage = generate.findChild<QPlainTextEdit*>(QStringLiteral("messageEdit"));
     auto* generateButton = generate.findChild<QPushButton*>(QStringLiteral("actionButton"));

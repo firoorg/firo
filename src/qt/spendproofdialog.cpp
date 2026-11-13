@@ -21,12 +21,7 @@
 #include <QTextOption>
 #include <QVBoxLayout>
 
-SpendProofDialog::SpendProofDialog(QWidget *parent) :
-    SpendProofDialog(nullptr, QString(), parent)
-{
-}
-
-SpendProofDialog::SpendProofDialog(WalletModel *_model, const QString &_txid, QWidget *parent) :
+SpendProofDialog::SpendProofDialog(QWidget *parent, WalletModel *_model, const QString &_txid) :
     QDialog(parent),
     model(_model),
     txid(_txid)

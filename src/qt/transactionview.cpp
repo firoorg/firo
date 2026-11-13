@@ -949,7 +949,7 @@ void TransactionView::spendProof()
         return;
 
     SpendProofDialog *dialog = new SpendProofDialog(
-        model, index.data(TransactionTableModel::TxHashRole).toString(), this);
+        this, model, index.data(TransactionTableModel::TxHashRole).toString());
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
 }
