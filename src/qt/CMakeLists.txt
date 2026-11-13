@@ -264,6 +264,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/createsparknamepage.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparknamespage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparkmultisigdialog.cpp
   )
   target_link_libraries(firoqt
     PRIVATE
