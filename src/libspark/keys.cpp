@@ -86,6 +86,13 @@ FullViewKey::FullViewKey(const SpendKey& spend_key) {
 	this->D = this->params->get_G()*spend_key.get_r();
 	this->P2 = this->params->get_F()*this->s2 + this->D;
 }
+FullViewKey::FullViewKey(const Params* params, const Scalar& s1, const Scalar& s2, const GroupElement& D) {
+	this->params = params;
+	this->s1 = s1;
+	this->s2 = s2;
+	this->D = D;
+	this->P2 = this->params->get_F()*this->s2 + this->D;
+}
 
 const Params* FullViewKey::get_params() const {
 	return this->params;
