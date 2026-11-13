@@ -14,6 +14,8 @@
 #include "guitheme.h"
 #include "guiutil.h"
 #include "init.h"
+#include "key.h"
+#include "libspark/multisig.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
 #include "modaloverlay.h"
@@ -27,13 +29,19 @@
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
 #include "recover.h"
+#include "rpc/server.h"
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
+#include "sendcoinsentry.h"
 #include "signverifymessagedialog.h"
+#include "spark/sparkwallet.h"
 #include "spark/state.h"
+#include "sparkmultisigdialog.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
 #include "splashscreen.h"
+#include "streams.h"
+#include "test/fixtures.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -41,8 +49,12 @@
 #include "txmempool.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "utilstrencodings.h"
 #include "validation.h"
+#include "validationinterface.h"
+#include "wallet/rpcsparkmultisig.h"
 #include "wallet/wallet.h"
+#include "wallet/walletdb.h"
 #include "walletmodel.h"
 #include "walletview.h"
 
@@ -65,6 +77,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QLocale>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPointer>
@@ -2234,4 +2247,302 @@ void WalletUiTests::masternodeStatusFollowsPoSe()
         QVERIFY(banned.kind == MasternodeList::StatusKind::Banned);
         QCOMPARE(banned.text, QStringLiteral("PoSe banned"));
     }
+}
+
+/**
+ * Verify that the multisig choice under the create page's advanced options reaches the caller.
+ */
+void WalletUiTests::recoveryMultisigOption()
+{
+#ifdef ENABLE_WALLET
+    extern std::map<std::string, std::string> mapArgs;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto previousArgs = mapArgs;
+    const auto restore = qScopeGuard([&] { mapArgs = previousArgs; });
+    for (const char* arg : {"-mnemonic", "-newwallet", "-wcdate", "-mnemonicpassphrase", "-use12"})
+        mapArgs.erase(arg);
+    ForceSetArg("-wallet", directory.filePath(QStringLiteral("wallet.dat")).toStdString());
+
+    bool helpHiddenAtFirst = false;
+    bool helpShown = false;
+    QTimer timer;
+    QTimer::singleShot(5000, &timer, [] {
+        if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
+            dialog->reject();
+    });
+    connect(&timer, &QTimer::timeout, [&] {
+        auto* dialog = qobject_cast<Recover*>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        timer.stop();
+        auto* createNew = dialog->findChild<QAbstractButton*>("createNew");
+        auto* advanced = dialog->findChild<QToolButton*>("advancedToggle");
+        auto* useMultisig = dialog->findChild<QCheckBox*>("useMultisig");
+        auto* help = dialog->findChild<QLabel*>("multisigHelp");
+        auto* ok = dialog->findChild<QPushButton*>("okButton");
+        if (!createNew || !advanced || !useMultisig || !help || !ok) {
+            dialog->reject();
+            return;
+        }
+        createNew->click();
+        advanced->click();
+        helpHiddenAtFirst = help->isHidden();
+        useMultisig->click();
+        helpShown = !help->isHidden();
+        ok->click();
+    });
+    timer.start(0);
+    bool newWallet = false;
+    bool multisig = false;
+    QVERIFY(Recover::askRecover(newWallet, &multisig));
+    timer.stop();
+    QVERIFY(newWallet);
+    QVERIFY(multisig);
+    QVERIFY(helpHiddenAtFirst);
+    QVERIFY(helpShown);
+#endif
+}
+
+namespace {
+QString EncodeSetupData(const spark::MultisigKeygenMessage& message)
+{
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << message;
+    return QString::fromStdString(HexStr(stream.begin(), stream.end()));
+}
+
+spark::MultisigKeygenMessage DecodeSetupData(const QString& hex)
+{
+    CDataStream stream(ParseHex(hex.toStdString()), SER_NETWORK, PROTOCOL_VERSION);
+    spark::MultisigKeygenMessage message;
+    stream >> message;
+    return message;
+}
+} // namespace
+
+/**
+ * Take a wallet through the multisig dialogs against the real backend: set it up with a co-signer, hand a payment from
+ * the Send page to the co-signers, then approve, sign and send it. The co-signer is played with the group's keys, in
+ * this same wallet: all co-signers see the same coins, so its wallet differs only in the share of the key it holds.
+ */
+void WalletUiTests::sparkMultisig()
+{
+#ifdef ENABLE_WALLET
+    extern std::map<std::string, std::string> mapArgs;
+    const auto previousArgs = mapArgs;
+    // The chain fixture brings its own ECC context and data directory.
+    ECC_Stop();
+    const auto restore = qScopeGuard([&] {
+        ECC_Start();
+        mapArgs = previousArgs;
+        ClearDatadirCache();
+    });
+    SparkTestingSetup setup;
+    const spark::Params* params = spark::Params::get_default();
+    GUIUtil::loadTheme();
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+
+    // Every message box is answered with Yes, or with OK where that is all it offers.
+    QStringList messages;
+    QTimer answer;
+    connect(&answer, &QTimer::timeout, [&] {
+        auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+        if (!box)
+            return;
+        messages << box->text();
+        if (QAbstractButton* yes = box->button(QMessageBox::Yes))
+            yes->click();
+        else
+            box->accept();
+    });
+    answer.start(10);
+
+    // Two co-signers. One will sign with this wallet; two of the three have to.
+    CKey cosignerKey, thirdKey;
+    cosignerKey.MakeNewKey(true);
+    thirdKey.MakeNewKey(true);
+    Scalar cosigner, third;
+    cosigner.deserialize(cosignerKey.begin());
+    third.deserialize(thirdKey.begin());
+    spark::MultisigKey ownGroupKey, cosignerGroupKey;
+    QString address;
+    {
+        WalletModel model(style.get(), pwalletMain, &options);
+        QVERIFY(!model.isSparkMultisig());
+        auto dialog = std::make_unique<SparkMultisigSetupDialog>(&model);
+        auto* ownData = dialog->findChild<QLineEdit*>("ownData");
+        auto* cosignerKeys = dialog->findChild<QPlainTextEdit*>("cosignerKeys");
+        auto* cosignerData = dialog->findChild<QPlainTextEdit*>("cosignerData");
+        auto* required = dialog->findChild<QSpinBox*>("required");
+        auto* next = dialog->findChild<QPushButton*>("nextButton");
+        auto* finish = dialog->findChild<QPushButton*>("finishButton");
+        QVERIFY(dialog->findChild<QLineEdit*>("ownKey") && ownData && cosignerKeys && cosignerData && required && next && finish);
+        const QString ownKeyHex = dialog->findChild<QLineEdit*>("ownKey")->text();
+        CKey privkey;
+        QVERIFY(pwalletMain->GetKey(CPubKey(ParseHex(ownKeyHex.toStdString())).GetID(), privkey));
+        Scalar own;
+        own.deserialize(privkey.begin());
+        const std::vector<GroupElement> group = {params->get_G() * own, params->get_G() * cosigner, params->get_G() * third};
+        const spark::MultisigKeygen keygen(params, 2, group, cosigner);
+        const spark::MultisigKeygen thirdKeygen(params, 2, group, third);
+
+        // The exchange of setup data waits for the keys of the co-signers.
+        QVERIFY(!next->isEnabled());
+        QVERIFY(finish->isHidden());
+        cosignerKeys->setPlainText(QString::fromStdString(HexStr(cosignerKey.GetPubKey()) + "\n" + HexStr(thirdKey.GetPubKey())));
+        required->setValue(2);
+        QVERIFY(next->isEnabled());
+        next->click();
+        QVERIFY(!finish->isHidden() && !finish->isEnabled());
+        const spark::MultisigKeygenMessage ownPart1 = DecodeSetupData(ownData->text());
+        QVERIFY(ownPart1.shares.empty());
+
+        // The wallet stays on its first part until it has the first part of every co-signer.
+        cosignerData->setPlainText(EncodeSetupData(keygen.round1()));
+        QCOMPARE(ownData->text(), EncodeSetupData(ownPart1));
+        cosignerData->appendPlainText(EncodeSetupData(thirdKeygen.round1()));
+        const spark::MultisigKeygenMessage ownPart2 = DecodeSetupData(ownData->text());
+        QVERIFY(!ownPart2.shares.empty());
+        QVERIFY(!finish->isEnabled());
+
+        // Their second parts, each replacing a first, complete the exchange.
+        const std::vector<spark::MultisigKeygenMessage> parts1 = {ownPart1, keygen.round1(), thirdKeygen.round1()};
+        const spark::MultisigKeygenMessage cosignerPart2 = keygen.round2(parts1);
+        const spark::MultisigKeygenMessage thirdPart2 = thirdKeygen.round2(parts1);
+        cosignerData->appendPlainText(EncodeSetupData(cosignerPart2));
+        QVERIFY(!finish->isEnabled());
+        cosignerData->appendPlainText(EncodeSetupData(thirdPart2));
+        QVERIFY(finish->isEnabled());
+        cosignerGroupKey = keygen.finalize({ownPart2, cosignerPart2, thirdPart2});
+
+        // A dialog that was closed picks up where it was.
+        dialog->reject();
+        dialog = std::make_unique<SparkMultisigSetupDialog>(&model);
+        QCOMPARE(dialog->findChild<QLineEdit*>("ownKey")->text(), ownKeyHex);
+        finish = dialog->findChild<QPushButton*>("finishButton");
+        QVERIFY(finish && !finish->isHidden() && finish->isEnabled());
+        QVERIFY(messages.isEmpty());
+        finish->click();
+        QCOMPARE(dialog->result(), int(QDialog::Accepted));
+        QVERIFY(CWalletDB(pwalletMain->strWalletFile).ReadSparkMultisigKey(ownGroupKey));
+        QCOMPARE(ownGroupKey.threshold, uint32_t(2));
+        QCOMPARE(ownGroupKey.participants.size(), size_t(3));
+        address = QString::fromStdString(spark::Address(spark::IncomingViewKey(ownGroupKey.get_full_view_key(params)), 0).encode(spark::GetNetworkType()));
+        QCOMPARE(messages.size(), 2);
+        QVERIFY(messages.last().remove(QLatin1Char(' ')).contains(address));
+    }
+
+    // Firo restarts into the multisig wallet. The same serves to change places with the co-signer.
+    const auto restart = [](const spark::MultisigKey& key) {
+        QVERIFY(CWalletDB(pwalletMain->strWalletFile).WriteSparkMultisigKey(key));
+        pwalletMain->sparkWallet.reset();
+        pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+    };
+    restart(ownGroupKey);
+    {
+        LOCK(pwalletMain->cs_wallet);
+        QVERIFY(pwalletMain->AddKeyPubKey(cosignerKey, cosignerKey.GetPubKey()));
+    }
+    pwalletMain->SetBroadcastTransactions(true);
+    setup.GenerateBlocks(1001);
+    std::vector<CMutableTransaction> mints;
+    setup.GenerateMints({10 * COIN, 10 * COIN}, mints);
+    setup.GenerateBlock(mints, &setup.script);
+    setup.GenerateBlocks(5);
+    pwalletMain->sparkWallet->WaitForPendingTasks();
+
+    WalletModel model(style.get(), pwalletMain, &options);
+    QVERIFY(model.isSparkMultisig());
+    WalletView view(style.get(), nullptr);
+    view.setWalletModel(&model);
+
+    // What sets up a wallet shows the transaction of one that is set up.
+    QVERIFY(!view.findChild<SparkMultisigSpendDialog*>());
+    view.sparkMultisig();
+    auto* dialog = view.findChild<SparkMultisigSpendDialog*>();
+    QVERIFY(dialog && !dialog->isHidden());
+    auto* pays = dialog->findChild<QLabel*>("pays");
+    auto* approvals = dialog->findChild<QLabel*>("approvals");
+    auto* status = dialog->findChild<QLabel*>("status");
+    auto* action = dialog->findChild<QPushButton*>("actionButton");
+    auto* copy = dialog->findChild<QPushButton*>("copyButton");
+    auto* paste = dialog->findChild<QPushButton*>("pasteButton");
+    QVERIFY(dialog->findChild<QLabel*>("address") && pays && approvals && status && action && copy && paste);
+    // Addresses are shown in groups, so that they wrap.
+    QCOMPARE(dialog->findChild<QLabel*>("address")->text().remove(QLatin1Char(' ')), address);
+    QVERIFY(action->isHidden());
+    QVERIFY(!copy->isEnabled());
+    dialog->close();
+
+    // The Send page does not send a private payment of this wallet: it hands it to the co-signers.
+    const spark::Address payee(spark::IncomingViewKey(spark::FullViewKey(spark::SpendKey(params))), 1);
+    SendCoinsRecipient recipient;
+    recipient.address = QString::fromStdString(payee.encode(spark::GetNetworkType()));
+    recipient.amount = 2 * COIN;
+    recipient.message = QStringLiteral("<b>rent</b>");
+    auto* send = view.findChild<SendCoinsDialog*>();
+    QVERIFY(send);
+    auto* entry = send->findChild<SendCoinsEntry*>();
+    QVERIFY(entry);
+    entry->setValue(recipient);
+    QVERIFY(QMetaObject::invokeMethod(send, "on_sendButton_clicked", Qt::DirectConnection));
+    QVERIFY2(!dialog->isHidden() && copy->isEnabled(), qPrintable(status->text()));
+    QVERIFY2(!status->property("error").toBool(), qPrintable(status->text()));
+    // What a co-signer wrote is shown as it is, never interpreted.
+    QCOMPARE(pays->textFormat(), Qt::PlainText);
+    QVERIFY2(pays->text().remove(QLatin1Char(' ')).contains(recipient.address) && pays->text().contains(recipient.message), qPrintable(pays->text()));
+
+    // This wallet approves, and the transaction waits for the co-signer.
+    QCOMPARE(action->text(), SparkMultisigSpendDialog::tr("Approve"));
+    QVERIFY(action->isEnabled());
+    action->click();
+    QVERIFY2(!action->isEnabled(), qPrintable(status->text()));
+    QVERIFY2(approvals->text().contains(SparkMultisigSpendDialog::tr("%1 more needed").arg(1)), qPrintable(approvals->text()));
+    QVERIFY(copy->isEnabled());
+    copy->click();
+    const QString approved = QApplication::clipboard()->text();
+    QVERIFY(!approved.isEmpty());
+
+    // The co-signer brings in the last approval, and with it signs.
+    restart(cosignerGroupKey);
+    QString cosigned;
+    try {
+        JSONRPCRequest request;
+        request.params = UniValue(UniValue::VARR);
+        request.params.push_back(approved.toStdString());
+        const UniValue result = signsparkmultisigspend(request);
+        QVERIFY(!result["complete"].get_bool());
+        cosigned = QString::fromStdString(result["hex"].get_str());
+    } catch (const UniValue& error) {
+        QFAIL(find_value(error, "message").get_str().c_str());
+    }
+    restart(ownGroupKey);
+
+    // Back in this wallet the transaction takes the last signature and can be sent.
+    QApplication::clipboard()->setText(cosigned);
+    paste->click();
+    QCOMPARE(action->text(), SparkMultisigSpendDialog::tr("Sign"));
+    QVERIFY2(action->isEnabled(), qPrintable(status->text()));
+    action->click();
+    QCOMPARE(action->text(), SparkMultisigSpendDialog::tr("Send transaction"));
+    QVERIFY2(action->isEnabled(), qPrintable(status->text()));
+    QVERIFY(!copy->isEnabled());
+    QVERIFY(mempool.size() == 0);
+    // The status then points to the Transactions page, so the wallet has to pick the transaction
+    // up as a running node's wallet does. The fixture leaves its wallet unregistered.
+    RegisterValidationInterface(pwalletMain);
+    action->click();
+    UnregisterValidationInterface(pwalletMain);
+    QVERIFY2(mempool.size() == 1, qPrintable(status->text()));
+    std::vector<uint256> sent;
+    mempool.queryHashes(sent);
+    {
+        LOCK(pwalletMain->cs_wallet);
+        QVERIFY(pwalletMain->mapWallet.count(sent.at(0)));
+    }
+    QVERIFY(action->isHidden());
+#endif
 }
