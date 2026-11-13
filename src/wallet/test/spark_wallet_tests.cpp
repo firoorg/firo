@@ -1029,6 +1029,12 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     BOOST_CHECK_THROW(pwalletMain->CreateSparkSpendTransaction({transparent}, {}, fee, nullptr), std::runtime_error);
     BOOST_CHECK_THROW(pwalletMain->sparkWallet->SignMessage(pwalletMain->sparkWallet->getDefaultAddress(), "message"), std::runtime_error);
 
+    // Nor does it anonymize its transparent funds by itself: they would go to the
+    // group's address, and so into the group's custody
+    std::vector<std::pair<CWalletTx, CAmount>> minted;
+    BOOST_CHECK(pwalletMain->MintAndStoreSpark({}, minted, false, true, true).find("multisig") != std::string::npos);
+    BOOST_CHECK(minted.empty());
+
     // A spend to a transparent address and to someone else's Spark address
     const spark::Address foreign(spark::IncomingViewKey(spark::FullViewKey(spark::SpendKey(params))), 1);
     UniValue amount(UniValue::VOBJ);

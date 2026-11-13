@@ -1186,6 +1186,13 @@ bool CSparkWallet::CreateSparkMintTransactions(
         const CCoinControl *coinControl,
         bool autoMintAll)
 {
+    // Minting everything goes to the wallet's default address, which in a multisig
+    // wallet is the group's: the wallet's own transparent funds would pass into the
+    // custody of the group without anyone having said so.
+    if (autoMintAll && multisigKey) {
+        strFailReason = _("A Spark multisig wallet does not anonymize its transparent funds by itself, as they would become the group's. To hand them to the group, mint or send them to its address.");
+        return false;
+    }
 
     int nChangePosRequest = nChangePosInOut;
 
