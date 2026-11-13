@@ -196,6 +196,13 @@ void WalletFrame::exportViewKey()
         walletView->exportViewKey();
 }
 
+void WalletFrame::sparkMultisig()
+{
+    WalletView *walletView = currentWalletView();
+    if (walletView)
+        walletView->sparkMultisig();
+}
+
 void WalletFrame::changePassphrase()
 {
     WalletView *walletView = currentWalletView();
