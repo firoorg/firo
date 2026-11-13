@@ -849,7 +849,8 @@ BOOST_AUTO_TEST_CASE(transfer)
     std::string addrA = GenerateSparkAddress();
     CMutableTransaction txReg = CreateSparkNameTx("xfername", addrA, nBlockPerYear * 5, "original", true);
     BOOST_CHECK(lastState.IsValid());
-    GenerateBlock({txReg});
+    CBlockIndex* registrationIndex = GenerateBlock({txReg});
+    BOOST_REQUIRE(registrationIndex);
     BOOST_CHECK(IsSparkNamePresent("xfername"));
 
     std::string resolvedAddr;
@@ -900,7 +901,39 @@ BOOST_AUTO_TEST_CASE(transfer)
 
     CMutableTransaction txTransfer = CreateSparkNameTx(transferData, true);
     BOOST_CHECK(lastState.IsValid());
-    GenerateBlock({txTransfer});
+    CBlockIndex* transferIndex = GenerateBlock({txTransfer});
+    BOOST_REQUIRE(transferIndex);
+
+    CBlock registrationBlock, transferBlock;
+    BOOST_REQUIRE(ReadBlockFromDisk(registrationBlock, registrationIndex, consensus));
+    BOOST_REQUIRE(ReadBlockFromDisk(transferBlock, transferIndex, consensus));
+    const CBlockHeader anchor = CreateBlock({}, script).GetBlockHeader();
+    {
+        LOCK(cs_main);
+        CValidationState disconnectState;
+        BOOST_REQUIRE(InvalidateBlock(disconnectState, ::Params(), registrationIndex));
+        BOOST_REQUIRE(ResetBlockFailureFlags(registrationIndex));
+    }
+    CBlockIndex* prefixTip = chainActive.Tip();
+    BOOST_REQUIRE(!IsSparkNamePresent("xfername"));
+
+    // Reindex checks bodies before the anchor permits rebuilding the name registry.
+    mutableConsensus.nMTPAnchorHeight = transferIndex->nHeight + 1;
+    mutableConsensus.hashMTPAnchor = anchor.GetHash();
+    registrationBlock.fChecked = false;
+    transferBlock.fChecked = false;
+    BOOST_REQUIRE(ProcessNewBlock(::Params(), std::make_shared<const CBlock>(registrationBlock), true, nullptr));
+    BOOST_REQUIRE(ProcessNewBlock(::Params(), std::make_shared<const CBlock>(transferBlock), true, nullptr));
+    BOOST_CHECK(chainActive.Tip() == prefixTip);
+    BOOST_CHECK(!IsSparkNamePresent("xfername"));
+
+    CValidationState anchorState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({anchor}, anchorState, ::Params()));
+    CValidationState activateState;
+    BOOST_REQUIRE(ActivateBestChain(activateState, ::Params()));
+    BOOST_CHECK(chainActive.Tip() == transferIndex);
+    mutableConsensus.nMTPAnchorHeight = 0;
+    mutableConsensus.hashMTPAnchor.SetNull();
 
     // Verify name is now at address B
     BOOST_CHECK(IsSparkNamePresent("xfername"));
