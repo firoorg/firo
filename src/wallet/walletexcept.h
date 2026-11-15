@@ -41,4 +41,11 @@ public:
     explicit SparkFundsFragmented(const std::string& what);
 };
 
+/** The spend was created, then commit or broadcast failed. */
+class SparkSpendCommitFailed : public WalletError
+{
+public:
+    explicit SparkSpendCommitFailed(const std::string& what);
+};
+
 #endif // FIRO_WALLET_WALLETEXCEPT_H

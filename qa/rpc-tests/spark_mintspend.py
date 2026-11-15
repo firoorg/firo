@@ -61,7 +61,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
         try:
             res = self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}})
         except JSONRPCException as ex:
-            assert ex.error['message'] == 'Spark spend creation failed.'
+            assert ex.error['message'].startswith('Spark spend creation failed: '), ex.error['message']
 
         assert not res, 'Did not raise spend exception, but should be.'
 

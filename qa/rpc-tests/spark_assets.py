@@ -207,15 +207,17 @@ class SparkAssetTest(BitcoinTestFramework):
         assert_equal(self.asset("NFTITM")["kind"], "nft")
         unspent = self.nodes[0].listunspentspatsmints(cents_type, 0)
         assert_equal(len(unspent), 1)
-        assert_equal(unspent[0]["amount"], Decimal("0.00000200"))
-        assert_equal(len(self.nodes[0].listunspentspatsmints(nft_type, 7)), 1)
+        assert_equal(unspent[0]["amount"], "2.00")
+        assert_equal(self.nodes[0].listunspentspatsmints(whole_type, 0)[0]["amount"], "1000000000")
+        assert_equal(self.nodes[0].listunspentspatsmints(fine_type, 0)[0]["amount"], "0.00000001")
+        assert_equal(self.nodes[0].listunspentspatsmints(nft_type, 7)[0]["amount"], "1")
 
-        assert_raises_message(JSONRPCException, "rejected", self.mint, "CENTSS", "1.00", 1)
-        assert_raises_message(JSONRPCException, "rejected", self.mint, "NFTITM", "1", 0)
-        assert_raises_message(JSONRPCException, "rejected", self.mint, "NFTITM", "1", 7)
+        assert_raises_message(JSONRPCException, "CheckSpatsMintTransaction : nft value must be 1", self.mint, "CENTSS", "1.00", 1)
+        assert_raises_message(JSONRPCException, "spats-mint-wrong-identifier", self.mint, "NFTITM", "1", 0)
+        assert_raises_message(JSONRPCException, "spats-nft-already-minted", self.mint, "NFTITM", "1", 7)
         assert_equal(self.asset("NFTITM")["circulatingSupply"], "1")
         assert_raises_message(
-            JSONRPCException, "Spark spend creation failed",
+            JSONRPCException, "Spark spend creation failed: Burning is allowed only for fungible assets.",
             self.nodes[0].spendspark,
             {"burn": ["1", nft_type, 7]})
 
@@ -237,6 +239,33 @@ class SparkAssetTest(BitcoinTestFramework):
         assert_equal(self.asset("CENTSS", node=1)["balance"], "0.50")
         assert_equal(self.asset("WHOLEU")["balance"], "1000000000")
         assert_equal(self.asset("FINEII")["balance"], "0.00000001")
+
+        symbols = {"WHOLEU", "CENTSS", "FINEII", "NFTITM"}
+        firo_mints = self.nodes[0].listsparkmints()
+        assert not any(m["memo"] in symbols for m in firo_mints)
+        firo_tags = {m["lTagHash"] for m in firo_mints}
+        spends = self.nodes[0].listsparkspends()
+        assert spends
+        assert all(s["lTagHash"] in firo_tags for s in spends)
+        assert not any(c["memo"] == "CENTSS" for c in self.nodes[0].getsparkcoinaddr(cents_mint))
+        assert_raises_message(
+            JSONRPCException, "Use listunspentsparkmints",
+            self.nodes[0].listunspentspatsmints, 0, 0)
+        assert_raises_message(
+            JSONRPCException, "Asset is not registered",
+            self.nodes[0].listunspentspatsmints, cents_type + 1000000, 0)
+
+        cents_coins = self.nodes[0].listspatsmints(cents_type, 0)
+        assert_equal(sorted((c["amount"], c["isUsed"]) for c in cents_coins),
+                     [("1.25", False), ("1.50", True), ("2.00", True)])
+        unspent_tag = next(c["lTagHash"] for c in cents_coins if not c["isUsed"])
+        self.nodes[0].setsparkmintstatus(unspent_tag, True)
+        assert_equal(self.nodes[0].listunspentspatsmints(cents_type, 0), [])
+        self.nodes[0].setsparkmintstatus(unspent_tag, False)
+        assert_equal(self.nodes[0].listunspentspatsmints(cents_type, 0)[0]["amount"], "1.25")
+        assert_raises_message(
+            JSONRPCException, "Use listsparkmints",
+            self.nodes[0].listspatsmints, 0, 0)
 
         name_txid = self.nodes[0].modifysparkassetname({"symbol": "WHOLEU", "name": "Renamed"})
         assert_equal(self.sent_category(name_txid), "spatsmodify")

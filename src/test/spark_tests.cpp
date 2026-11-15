@@ -1756,7 +1756,7 @@ BOOST_AUTO_TEST_CASE(spats_asset_rpcs)
     const bool previousBroadcast = pwalletMain->GetBroadcastTransactions();
     pwalletMain->SetBroadcastTransactions(true);
     const std::size_t walletSize = pwalletMain->mapWallet.size();
-    expectError(::mintspats, mintParams("989", wholeType, 0), "rejected");
+    expectError(::mintspats, mintParams("989", wholeType, 0), "spats-mint-exceeds-max-supply");
     BOOST_CHECK_EQUAL(pwalletMain->mapWallet.size(), walletSize);
     pwalletMain->SetBroadcastTransactions(previousBroadcast);
 
@@ -4379,10 +4379,15 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
 
     const std::size_t walletSizeBeforeRejection =
         pwalletMain->mapWallet.size();
-    BOOST_CHECK_THROW(
+    BOOST_CHECK_EXCEPTION(
         pwalletMain->SpendAndStoreSpark(
             {{script, COIN, false}}, {}, fee, &conflictingControl),
-        std::runtime_error);
+        SparkSpendCommitFailed,
+        [](const SparkSpendCommitFailed& e) {
+            const std::string message(e.what());
+            return message.find("txn-mempool-conflict") != std::string::npos &&
+                   message.find("Spark spend creation failed") == std::string::npos;
+        });
     BOOST_CHECK_EQUAL(
         pwalletMain->mapWallet.size(), walletSizeBeforeRejection);
     BOOST_CHECK(mempool.exists(accepted.GetHash()));
@@ -4468,6 +4473,14 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_persists_outputs_before_mempool)
     const std::size_t walletSizeBefore = pwalletMain->mapWallet.size();
 
     CWallet::SetSparkOutputWriteFailureForTesting(1);
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->CommitWalletTransaction(spend),
+        std::runtime_error,
+        [](const std::runtime_error& e) {
+            const std::string message(e.what());
+            return message.find("Unable to save Spark transaction output") != std::string::npos &&
+                   message.find("rejected") == std::string::npos;
+        });
     {
         CValidationState state;
         CReserveKey reserveKey(pwalletMain);

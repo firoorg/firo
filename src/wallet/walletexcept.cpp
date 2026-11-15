@@ -51,3 +51,9 @@ SparkFundsFragmented::SparkFundsFragmented(const char *what) : WalletError(what)
 SparkFundsFragmented::SparkFundsFragmented(const std::string& what) : WalletError(what)
 {
 }
+
+// SparkSpendCommitFailed
+
+SparkSpendCommitFailed::SparkSpendCommitFailed(const std::string& what) : WalletError(what)
+{
+}

@@ -197,6 +197,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "spendsparksplit", 1, {} },
     { "listunspentspatsmints", 0, {} },
     { "listunspentspatsmints", 1, {} },
+    { "listspatsmints", 0, {} },
+    { "listspatsmints", 1, {} },
     { "mintspats", 1, {} },
     { "createsparkasset", 0, {} },
     { "modifysparkassetname", 0, {} },

@@ -68,6 +68,23 @@ struct CSparkMintMeta
         return spark::GetSpatsScalarAsUint64(iota.isZero() ? coin.iota : iota);
     }
 
+    /**
+     * Whether this coin belongs in a mint list for \p assetType and \p identifier.
+     * Both zero selects FIRO coins. An asset id stored only on the coin still counts.
+     */
+    bool MatchesMintList(const Scalar& assetType, const Scalar& identifier) const
+    {
+        if (assetType.isZero() && identifier.isZero())
+            return !IsSpats();
+        if (!IsSpats())
+            return false;
+        const auto type = GetAssetType();
+        const auto id = GetIdentifier();
+        const auto wantType = spark::GetSpatsScalarAsUint64(assetType);
+        const auto wantId = spark::GetSpatsScalarAsUint64(identifier);
+        return type && id && wantType && wantId && *type == *wantType && *id == *wantId;
+    }
+
     bool operator==(const CSparkMintMeta& other) const
     {
         return this->k == other.k;

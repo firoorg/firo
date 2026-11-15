@@ -1140,7 +1140,7 @@ public:
      */
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
 
-    /** Commit and broadcast; on failure wraps nested exception (default message or \p rejectMessage). */
+    /** Commit and broadcast. On failure, throws with the specific reason if there is one, otherwise \p rejectMessage. */
     void CommitWalletTransaction(CWalletTx& wtx);
     void CommitWalletTransaction(CWalletTx& wtx, const std::string& rejectMessage);
 

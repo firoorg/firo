@@ -260,6 +260,12 @@ BOOST_AUTO_TEST_CASE(mempool)
     // because there is active spork at the tip spark mint shouldn't get into the mempool
     BOOST_ASSERT(!CommitToMempool(sparkMints[1]));
 
+    // a wallet mint reports the mempool's reject reason
+    std::vector<std::pair<CWalletTx, CAmount>> rejectedMint;
+    const std::string mintError = pwalletMain->MintAndStoreSpark(
+        {{pwalletMain->sparkWallet->getDefaultAddress(), static_cast<uint64_t>(COIN), ""}}, rejectedMint, false, false);
+    BOOST_CHECK_MESSAGE(mintError.find("txn-spark-disabled") != std::string::npos, mintError);
+
     for (int n=chainActive.Height(); n<1075; n++)
         CreateAndProcessBlock({}, coinbaseKey);
 

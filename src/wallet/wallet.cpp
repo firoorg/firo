@@ -4005,6 +4005,12 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 }
 
 static std::atomic<int> g_sparkOutputWriteFailAfter{-1};
+static const char* const SPARK_OUTPUT_SAVE_ERROR = "Unable to save Spark transaction output";
+
+static bool IsSparkOutputSaveFailure(const CValidationState& state)
+{
+    return state.IsError() && state.GetRejectReason() == SPARK_OUTPUT_SAVE_ERROR;
+}
 
 void CWallet::SetSparkOutputWriteFailureForTesting(int failAfterWrites)
 {
@@ -4090,8 +4096,8 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
                 strWalletFile,
                 wtxNew.pendingSparkOutputRecords,
                 persistedSparkOutputScripts)) {
-            LogPrintf("CommitTransaction(): Unable to save Spark transaction output\n");
-            return state.Error("Unable to save Spark transaction output");
+            LogPrintf("CommitTransaction(): %s\n", SPARK_OUTPUT_SAVE_ERROR);
+            return state.Error(SPARK_OUTPUT_SAVE_ERROR);
         }
 
         // When fCheckTransaction is set, validate against the mempool before adding
@@ -4146,6 +4152,19 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
     return true;
 }
 
+/** The specific failure in \p state, or \p fallback when there is none.
+ *  A local Spark output save failure is not a rejection.
+ */
+static std::string CommitFailureMessage(const CValidationState& state, const std::string& fallback)
+{
+    const std::string reason = state.GetRejectReason();
+    if (reason.empty())
+        return fallback;
+    if (IsSparkOutputSaveFailure(state))
+        return strprintf(_("Error: %s"), reason);
+    return strprintf(_("Error: The transaction was rejected! Reason given: %s"), reason);
+}
+
 void CWallet::CommitWalletTransaction(CWalletTx& wtx)
 {
     CommitWalletTransaction(wtx,
@@ -4157,14 +4176,14 @@ void CWallet::CommitWalletTransaction(CWalletTx& wtx)
 
 void CWallet::CommitWalletTransaction(CWalletTx& wtx, const std::string& rejectMessage)
 {
+    CValidationState state;
     try {
-        CValidationState state;
         CReserveKey reserveKey(this);
         // Broadcast requires mempool acceptance. -walletbroadcast=0 still stores the tx.
         if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state, fBroadcastTransactions))
             throw std::runtime_error("CommitTransaction returned false");
     } catch (const std::exception&) {
-        std::throw_with_nested(std::runtime_error(rejectMessage));
+        std::throw_with_nested(std::runtime_error(CommitFailureMessage(state, rejectMessage)));
     }
 }
 
@@ -4242,13 +4261,23 @@ std::string CWallet::MintAndStoreSpark(
     for(size_t i = 0; i < wtxAndFee.size(); i++) {
         if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state, true)) {
             if (i > 0) {
-                return strprintf(
+                if (IsSparkOutputSaveFailure(state)) {
+                    return strprintf(
+                        _("Error: %s after %u of %u mint transactions were already sent. Do not retry the whole mint."),
+                        state.GetRejectReason(),
+                        i,
+                        wtxAndFee.size());
+                }
+                std::string error = strprintf(
                     _("Error: The transaction was rejected after %u of %u mint transactions were already sent. Do not retry the whole mint."),
                     i,
                     wtxAndFee.size());
+                if (!state.GetRejectReason().empty())
+                    error += " " + strprintf(_("Reason given: %s"), state.GetRejectReason());
+                return error;
             }
-            return _(
-                    "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+            return CommitFailureMessage(state, _(
+                    "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here."));
         } else {
             LogPrintf("CommitTransaction success!\n");
         }
@@ -4466,8 +4495,8 @@ CWalletTx CWallet::SpendAndStoreSpark(
     auto result = CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, burnAsset, coinControl);
 
     // commit
+    CValidationState state;
     try {
-        CValidationState state;
         CReserveKey reserveKey(this);
         if (!CommitTransaction(
                 result,
@@ -4485,7 +4514,7 @@ CWalletTx CWallet::SpendAndStoreSpark(
                 "marked as spent here."
         );
 
-        std::throw_with_nested(std::runtime_error(error));
+        std::throw_with_nested(SparkSpendCommitFailed(CommitFailureMessage(state, error)));
     }
     return result;
 }

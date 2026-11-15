@@ -541,6 +541,8 @@ static int RegisteredAssetPrecision(const Scalar& assetType)
     return entry->precision;
 }
 
+static std::string FormatAssetAmount(std::uint64_t amount, int precision);
+
 /** Parse an asset amount in that asset's registered decimal precision. */
 static CAmount AmountFromAssetValue(const UniValue& value, int precision)
 {
@@ -653,7 +655,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         throw std::runtime_error(
             "sendtoaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "or\n"
-            "sendtoaddress {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
+            "sendtoaddress '{\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}'\n"
             "\nSend an amount to a given address. Supports transparent, Spark addresses and Spark names.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments (simple format):\n"
@@ -688,11 +690,11 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             + HelpExampleCli("sendtoaddress", "\"@alice\" 0.1")
             + HelpExampleRpc("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\", 0.1, \"donation\", \"seans outpost\"")
             + "\nExamples (JSON format for multiple addresses):\n"
-            + HelpExampleCli("sendtoaddress", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtoaddress", "\"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtoaddress", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false, \\\"comment\\\":\\\"rent\\\"}, \\\"sr1hk87...\\\":{\\\"amount\\\":0.02, \\\"memo\\\":\\\"secret\\\", \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtoaddress", "\"{\\\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
-            + HelpExampleRpc("sendtoaddress", "\"{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
+            + HelpExampleCli("sendtoaddress", "'{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}}'")
+            + HelpExampleCli("sendtoaddress", "'{\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}'")
+            + HelpExampleCli("sendtoaddress", "'{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false, \"comment\":\"rent\"}, \"sr1hk87...\":{\"amount\":0.02, \"memo\":\"secret\", \"subtractFee\": false}}'")
+            + HelpExampleCli("sendtoaddress", "'{\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\":{\"amount\":0.01, \"subtractFee\": false}}'")
+            + HelpExampleRpc("sendtoaddress", "{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}")
         );
 
     EnsureWalletIsUnlocked(pwallet);
@@ -1276,7 +1278,7 @@ UniValue sendtransparent(const JSONRPCRequest& request)
         throw std::runtime_error(
             "sendtransparent \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "or\n"
-            "sendtransparent {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
+            "sendtransparent '{\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}'\n"
             "\nSend an amount to a given address. Supports transparent, Spark addresses and Spark names.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments (simple format):\n"
@@ -1311,11 +1313,11 @@ UniValue sendtransparent(const JSONRPCRequest& request)
             + HelpExampleCli("sendtransparent", "\"@alice\" 0.1")
             + HelpExampleRpc("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\", 0.1, \"donation\", \"seans outpost\"")
             + "\nExamples (JSON format for multiple addresses):\n"
-            + HelpExampleCli("sendtransparent", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtransparent", "\"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtransparent", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false, \\\"comment\\\":\\\"rent\\\"}, \\\"sr1hk87...\\\":{\\\"amount\\\":0.02, \\\"memo\\\":\\\"secret\\\", \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtransparent", "\"{\\\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
-            + HelpExampleRpc("sendtransparent", "\"{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
+            + HelpExampleCli("sendtransparent", "'{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}}'")
+            + HelpExampleCli("sendtransparent", "'{\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}'")
+            + HelpExampleCli("sendtransparent", "'{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false, \"comment\":\"rent\"}, \"sr1hk87...\":{\"amount\":0.02, \"memo\":\"secret\", \"subtractFee\": false}}'")
+            + HelpExampleCli("sendtransparent", "'{\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\":{\"amount\":0.01, \"subtractFee\": false}}'")
+            + HelpExampleRpc("sendtransparent", "{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}")
         );
 
     // Create a new request and call sendtoaddress
@@ -1927,7 +1929,7 @@ UniValue sendmany(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw std::runtime_error(
-            "sendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+            "sendmany \"fromaccount\" '{\"address\":amount,...}' ( minconf \"comment\" '[\"address\",...]' )\n"
             "\nSend multiple times from transparent balance to various address types. Amounts are double-precision floating point numbers."
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
@@ -1952,11 +1954,11 @@ UniValue sendmany(const JSONRPCRequest& request)
             "                                    the number of addresses.\n"
             "\nExamples:\n"
             "\nSend amounts to different address types:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\"") +
+            + HelpExampleCli("sendmany", "\"\" '{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":0.01,\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":0.02}'") +
             "\nSend to transparent and Spark addresses with confirmation and comment:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"@alice\\\":0.02}\" 6 \"testing\"") +
+            + HelpExampleCli("sendmany", "\"\" '{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":0.01,\"@alice\":0.02}' 6 \"testing\"") +
             "\nSend amounts with fee subtracted from specific addresses:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\" 1 \"\" \"[\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\"]\"") +
+            + HelpExampleCli("sendmany", "\"\" '{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":0.01,\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":0.02}' 1 \"\" '[\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\"]'") +
             "\nAs a json rpc call\n"
             + HelpExampleRpc("sendmany", "\"\", \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\", 6, \"testing\"")
         );
@@ -3939,7 +3941,7 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, const CWallet* pwallet)
+UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, const CWallet* pwallet, std::optional<int> assetPrecision = std::nullopt)
 {
     UniValue results(UniValue::VARR);
     std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins(identifier);
@@ -3959,7 +3961,10 @@ UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, cons
         script << (coin.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINT);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
-        entry.push_back(Pair("amount", ValueFromAmount(coin.v)));
+        if (assetPrecision)
+            entry.push_back(Pair("amount", FormatAssetAmount(coin.v, *assetPrecision)));
+        else
+            entry.push_back(Pair("amount", ValueFromAmount(coin.v)));
         entry.push_back(Pair("coin", coin.coin.getHash().GetHex()));
         results.push_back(entry);
     }
@@ -4019,23 +4024,23 @@ UniValue listunspentspatsmints(const JSONRPCRequest& request) {
         throw std::runtime_error(
                 "listunspentspatsmints a iota\n"
                 "\nList this wallet's unspent private coins of one registered Spark asset.\n"
+                "FIRO coins are not included; use listunspentsparkmints for those.\n"
                 "The wallet must be unlocked. Mint those coins with mintspats.\n"
                 "Spend them with spendspark, passing the same a and iota. There is no separate SPATS spend call.\n"
                 "a is assetType and iota is identifier from listsparkassets.\n"
                 "iota is 0 for a fungible asset and the NFT identifier otherwise.\n"
-                "amount is the raw coin value shown with 8 decimal places, not the\n"
-                "asset's display precision. listsparkassets shows the display balance.\n"
+                "amount uses that asset's precision, the same amount mintspats, spendspark, and listsparkassets use.\n"
                 "\nArguments:\n"
                 "1. a                   (numeric, required) Asset type\n"
                 "2. iota                (numeric, required) Asset identifier\n"
                 "\nResult:\n"
                 "[\n"
                 "  {\n"
-                "    \"txid\": \"hex\",          (string) Mint transaction id\n"
+                "    \"txid\": \"hex\",           (string) Mint transaction id\n"
                 "    \"nHeight\": n,            (numeric) Block height of the confirmed coin\n"
                 "    \"memo\": \"text\",          (string)\n"
                 "    \"scriptPubKey\": \"hex\",   (string)\n"
-                "    \"amount\": n,             (numeric) Raw value with 8 decimal places\n"
+                "    \"amount\": \"x.xx\",        (string) Amount in the asset's registered precision\n"
                 "    \"coin\": \"hex\"            (string) Coin hash\n"
                 "  },\n"
                 "  ...\n"
@@ -4062,60 +4067,24 @@ UniValue listunspentspatsmints(const JSONRPCRequest& request) {
     Scalar a(request.params[0].get_uint64());
     Scalar iota(request.params[1].get_uint64());
 
+    if (a.isZero())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "a must be a Spark asset type, not 0. Use listunspentsparkmints for FIRO coins.");
+
     std::pair<Scalar, Scalar> identifier = std::make_pair(a, iota);
-    return listunspentsparkmints(identifier, pwallet);
+    return listunspentsparkmints(identifier, pwallet, RegisteredAssetPrecision(a));
 }
 
-UniValue listsparkmints(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() > 0) {
-        throw std::runtime_error(
-                "listsparkmints\n"
-                "\nList every private coin in this wallet, including spent coins and Spark assets.\n"
-                "The wallet must be unlocked. a and iota are hex scalars; both zero means FIRO.\n"
-                "amount is shown with 8 decimal places. For a Spark asset that is the raw\n"
-                "value, not the asset's display precision.\n"
-                "\nResult:\n"
-                "[\n"
-                "  {\n"
-                "    \"txid\": \"hex\",          (string)\n"
-                "    \"nHeight\": n,            (numeric) Block height, -1 if unconfirmed\n"
-                "    \"nId\": n,                (numeric) Coin id in its anonymity set\n"
-                "    \"isUsed\": true|false,    (boolean)\n"
-                "    \"lTagHash\": \"hex\",       (string) Key for setsparkmintstatus\n"
-                "    \"memo\": \"text\",          (string)\n"
-                "    \"a\": \"hex\",              (string) Asset type scalar\n"
-                "    \"iota\": \"hex\",           (string) Asset identifier scalar\n"
-                "    \"scriptPubKey\": \"hex\",   (string)\n"
-                "    \"amount\": n              (numeric) Value with 8 decimal places\n"
-                "  },\n"
-                "  ...\n"
-                "]\n"
-                "\nExamples:\n"
-                + HelpExampleCli("listsparkmints", "")
-                + HelpExampleRpc("listsparkmints", "")
-        );
-    }
-
-    if (pwallet->IsLocked()) {
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
-                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
-    }
-
-    EnsureSparkWalletIsAvailable();
-
-
-    UniValue results(UniValue::VARR);;
-    assert(pwallet != NULL);
-
+UniValue listsparkmints(const std::pair<Scalar, Scalar>& identifier, const CWallet* pwallet, std::optional<int> assetPrecision = std::nullopt)
+{
+    UniValue results(UniValue::VARR);
     std::unordered_map<uint256, CSparkMintMeta> coins_ = pwallet->sparkWallet->getMintMap();
 
     // sort the result so you can easily compare when testing
-    std::vector<std::pair<uint256, CSparkMintMeta> > coins(coins_.begin(), coins_.end());
+    std::vector<std::pair<uint256, CSparkMintMeta> > coins;
+    for (const auto& coin : coins_) {
+        if (coin.second.MatchesMintList(identifier.first, identifier.second))
+            coins.push_back(coin);
+    }
     sort(coins.begin(), coins.end(),
          [](decltype(coins)::const_reference m1, decltype(coins)::const_reference m2)->bool {
              CDataStream ds1(SER_DISK, CLIENT_VERSION), ds2(SER_DISK, CLIENT_VERSION);
@@ -4133,21 +4102,120 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
         entry.push_back(Pair("isUsed", coin.second.isUsed));
         entry.push_back(Pair("lTagHash", coin.first.GetHex()));
         entry.push_back(Pair("memo", SanitizeString(coin.second.memo)));
-        entry.push_back(Pair("a", coin.second.a.GetHex()));
-        entry.push_back(Pair("iota", coin.second.iota.GetHex()));
 
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
         serialized << pwallet->sparkWallet->getCoinFromMeta(coin.second);
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << (coin.second.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINT);
+        script << (identifier.first.isZero() ? OP_SPARKMINT : OP_SPATSMINT);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
-        entry.push_back(Pair("amount", ValueFromAmount(coin.second.v)));
+        if (assetPrecision)
+            entry.push_back(Pair("amount", FormatAssetAmount(coin.second.v, *assetPrecision)));
+        else
+            entry.push_back(Pair("amount", ValueFromAmount(coin.second.v)));
         results.push_back(entry);
     }
 
     return results;
+}
+
+UniValue listsparkmints(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 0) {
+        throw std::runtime_error(
+                "listsparkmints\n"
+                "\nList every private FIRO coin in this wallet, including spent coins.\n"
+                "The wallet must be unlocked. Spark asset coins are not included;\n"
+                "use listspatsmints for those.\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"hex\",          (string)\n"
+                "    \"nHeight\": n,            (numeric) Block height, -1 if unconfirmed\n"
+                "    \"nId\": n,                (numeric) Coin id in its anonymity set\n"
+                "    \"isUsed\": true|false,    (boolean)\n"
+                "    \"lTagHash\": \"hex\",       (string) Key for setsparkmintstatus\n"
+                "    \"memo\": \"text\",          (string)\n"
+                "    \"scriptPubKey\": \"hex\",   (string)\n"
+                "    \"amount\": n              (numeric) FIRO amount\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("listsparkmints", "")
+                + HelpExampleRpc("listsparkmints", "")
+        );
+    }
+
+    if (pwallet->IsLocked()) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    }
+
+    EnsureSparkWalletIsAvailable();
+    assert(pwallet != NULL);
+
+    std::pair<Scalar, Scalar> identifier = std::make_pair(Scalar(uint64_t(0)), Scalar(uint64_t(0)));
+    return listsparkmints(identifier, pwallet);
+}
+
+UniValue listspatsmints(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2) {
+        throw std::runtime_error(
+                "listspatsmints a iota\n"
+                "\nList every private coin of one registered Spark asset in this wallet, including spent coins.\n"
+                "FIRO coins are not included; use listsparkmints for those.\n"
+                "The wallet must be unlocked. a is assetType and iota is identifier from listsparkassets.\n"
+                "amount uses that asset's precision.\n"
+                "\nArguments:\n"
+                "1. a                   (numeric, required) Asset type\n"
+                "2. iota                (numeric, required) Asset identifier\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"hex\",          (string)\n"
+                "    \"nHeight\": n,            (numeric) Block height, -1 if unconfirmed\n"
+                "    \"nId\": n,                (numeric) Coin id in its anonymity set\n"
+                "    \"isUsed\": true|false,    (boolean)\n"
+                "    \"lTagHash\": \"hex\",       (string) Key for setsparkmintstatus\n"
+                "    \"memo\": \"text\",          (string)\n"
+                "    \"scriptPubKey\": \"hex\",   (string)\n"
+                "    \"amount\": \"x.xx\",        (string) Amount in the asset's registered precision\n"
+                "  },\n"
+                "  ...\n"
+                "]\n"
+                "\nExamples:\n"
+                "\nList every coin of asset type 1, fungible identifier 0:\n"
+                + HelpExampleCli("listspatsmints", "1 0")
+                + HelpExampleRpc("listspatsmints", "1, 0")
+        );
+    }
+
+    if (pwallet->IsLocked()) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    }
+
+    EnsureSparkWalletIsAvailable();
+
+    Scalar a(request.params[0].get_uint64());
+    Scalar iota(request.params[1].get_uint64());
+
+    if (a.isZero())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "a must be a Spark asset type, not 0. Use listsparkmints for FIRO coins.");
+
+    std::pair<Scalar, Scalar> identifier = std::make_pair(a, iota);
+    return listsparkmints(identifier, pwallet, RegisteredAssetPrecision(a));
 }
 
 UniValue getsparkdefaultaddress(const JSONRPCRequest& request) {
@@ -4260,14 +4328,14 @@ UniValue listsparkspends(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
                 "listsparkspends\n"
-                "\nList Spark spend records stored by this wallet.\n"
+                "\nList Spark spend records stored by this wallet. Spark asset spends are not included.\n"
                 "\nResult:\n"
                 "[\n"
                 "  {\n"
                 "    \"txid\": \"hex\",       (string) Spend transaction id\n"
                 "    \"lTagHash\": \"hex\",   (string)\n"
                 "    \"lTag\": \"hex\",       (string) Link tag\n"
-                "    \"amount\": n          (numeric) Raw coin value. FIRO is in the smallest unit; a Spark asset is the raw amount, not the display amount\n"
+                "    \"amount\": n          (numeric) Coin value in the smallest FIRO unit\n"
                 "  },\n"
                 "  ...\n"
                 "]\n"
@@ -4284,6 +4352,9 @@ UniValue listsparkspends(const JSONRPCRequest& request) {
 
     UniValue results(UniValue::VARR);
     for (auto &itr : spends) {
+        if (pwallet->sparkWallet->getMintMeta(itr.lTagHash).IsSpats())
+            continue;
+
         UniValue entry(UniValue::VOBJ);
         entry.push_back(Pair("txid", itr.hashTx.GetHex()));
         entry.push_back(Pair("lTagHash", itr.lTagHash.GetHex()));
@@ -4425,7 +4496,8 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
                 "setsparkmintstatus \"lTagHash\" isused\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nMark one Spark mint used or unused.\n"
-                "lTagHash comes from listsparkmints. Unknown hashes are ignored.\n"
+                "lTagHash comes from listsparkmints, or from listspatsmints for a Spark asset coin.\n"
+                "Unknown hashes are ignored.\n"
                 "\nArguments:\n"
                 "1. \"lTagHash\"        (string, required) Mint link-tag hash\n"
                 "2. isused            (boolean, required) true marks the mint used\n"
@@ -4466,7 +4538,7 @@ UniValue mintspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() == 0 || request.params.size() > 3)
         throw std::runtime_error(
-            "mintspark {\"address\":{\"amount\":n,\"memo\":\"...\"},...} ( subtractFeeFromAmount [\"fromAddress\",...] )\n"
+            "mintspark '{\"address\":{\"amount\":n,\"memo\":\"...\"},...}' ( subtractFeeFromAmount '[\"fromAddress\",...]' )\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nMint transparent funds to Spark addresses. This converts transparent " + CURRENCY_UNIT + " into private Spark coins.\n"
             "\nArguments:\n"
@@ -4491,11 +4563,11 @@ UniValue mintspark(const JSONRPCRequest& request)
             "]\n"
             "\nExamples:\n"
             "\nMint 0.01 " + CURRENCY_UNIT + " to a Spark address with a memo:\n"
-            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01,\\\"memo\\\":\\\"test_memo\\\"}}\"") +
+            + HelpExampleCli("mintspark", "'{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":0.01,\"memo\":\"test_memo\"}}'") +
             "\nMint to multiple Spark addresses:\n"
-            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01,\\\"memo\\\":\\\"memo1\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.02,\\\"memo\\\":\\\"\\\"}}\"") +
+            + HelpExampleCli("mintspark", "'{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":0.01,\"memo\":\"memo1\"},\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.02,\"memo\":\"\"}}'") +
             "\nMint with fee subtracted from amount and using specific source addresses:\n"
-            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.5,\\\"memo\\\":\\\"\\\"}}\" true \"[\\\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\\\"]\"") +
+            + HelpExampleCli("mintspark", "'{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":0.5,\"memo\":\"\"}}' true '[\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\"]'") +
             "\nJSON-RPC example:\n"
             + HelpExampleRpc("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":1,\\\"memo\\\":\\\"test\\\"}}\"")
         );
@@ -4597,12 +4669,12 @@ UniValue mintspats(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
-            "mintspats \"address\" {\"amount\":amount, \"a\":n, \"iota\":n, \"memo\":\"memo\"}\n"
+            "mintspats \"address\" '{\"amount\":amount, \"a\":n, \"iota\":n, \"memo\":\"memo\"}'\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nCreate one private coin of a registered Spark asset. This wallet must control the asset's admin.\n"
             "Spend it with spendspark, using the same a and iota. There is no separate SPATS spend call.\n"
             "amount uses the asset precision from listsparkassets. listunspentspatsmints shows\n"
-            "that same coin as a raw value with 8 decimal places.\n"
+            "that same amount.\n"
             "A Spark admin authorizes the mint with a Spark spend. A transparent admin authorizes\n"
             "it by spending one transparent output of that admin address.\n"
             "\nArguments:\n"
@@ -4618,7 +4690,7 @@ UniValue mintspats(const JSONRPCRequest& request)
             "\"txid\"               (string) The transaction id. One transaction is created.\n"
             "\nExamples:\n"
             "\nMint 0.01 units of asset type 1 to a Spark address:\n"
-            + HelpExampleCli("mintspats", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\" \"{\\\"amount\\\":0.01,\\\"a\\\":1,\\\"iota\\\":0,\\\"memo\\\":\\\"test_memo\\\"}\"")
+            + HelpExampleCli("mintspats", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\" '{\"amount\":0.01,\"a\":1,\"iota\":0,\"memo\":\"test_memo\"}'")
             + HelpExampleRpc("mintspats", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\", {\"amount\":0.01, \"a\":1, \"iota\":0, \"memo\":\"test_memo\"}")
         );
     EnsureWalletIsUnlocked(pwallet);
@@ -5374,7 +5446,7 @@ UniValue listsparkassets(const JSONRPCRequest& request)
             "\nList every registered Spark asset.\n"
             "Amounts use the asset precision. maxSupply \"0\" means there is no cap.\n"
             "assetType and identifier are the numbers for mintspats, spendspark, and listunspentspatsmints.\n"
-            "listunspentspatsmints shows those coins as raw values instead.\n"
+            "listunspentspatsmints shows each coin in this same precision.\n"
             "balance is this wallet's spendable amount. isAdmin is true when this wallet controls the admin address.\n"
             "\nResult:\n"
             "[\n"
@@ -5511,7 +5583,7 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendspark {\"address\":{...},...}\n"
+                "spendspark '{\"address\":{...},...}'\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nSpend private coins in one transaction.\n"
                 "Each key is a transparent address, a Spark address, or @sparkname.\n"
@@ -5710,8 +5782,10 @@ UniValue spendspark(const JSONRPCRequest& request)
     } catch (const SparkFundsFragmented& e) {
         throw JSONRPCError(RPC_WALLET_ERROR,
             std::string(e.what()) + " Use spendsparksplit instead.");
-    } catch (const std::exception &) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
+    } catch (const SparkSpendCommitFailed& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Spark spend creation failed: %s", e.what()));
     }
 
     return wtx.GetHash().GetHex();
@@ -5726,7 +5800,7 @@ UniValue spendsparksplit(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendsparksplit {\"address\":{...},...}\n"
+                "spendsparksplit '{\"address\":{...},...}'\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nSpend private FIRO, splitting the payment across single-input transactions\n"
                 "when no one Spark coin can fund it. This does not spend Spark assets.\n"
@@ -5897,7 +5971,7 @@ UniValue sendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "sendspark {\"address\":{...},...}\n"
+                "sendspark '{\"address\":{...},...}'\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nSame arguments and result as spendspark.\n"
                 "Each key is a transparent address, a Spark address, or @sparkname.\n"
@@ -5942,7 +6016,7 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
         throw std::runtime_error(
-            "sendsparkmany \"fromaccount\" {\"address\":amount,...} ( \"comment\" [\"address\",...] )\n"
+            "sendsparkmany \"fromaccount\" '{\"address\":amount,...}' ( \"comment\" '[\"address\",...]' )\n"
             "\nSpend private FIRO to several addresses. This does not spend Spark assets."
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
@@ -5964,11 +6038,11 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
             "                                    the number of addresses.\n"
             "\nExamples:\n"
             "\nSend amounts to different address types using Spark balance:\n"
-            + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\\\":0.001}\"") +
+            + HelpExampleCli("sendsparkmany", "\"\" '{\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\":0.001,\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\":0.001}'") +
             "\nSend to transparent and Spark addresses with comment:\n"
-            + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"st172la2wfu5npkcunze9ufx0n7d4p65xmv7ktqy0ethw4ynl838yr3esd3rmg933prnlga8uhn0p4gn8r9hm4wjj2yd0xzerrvp6zlmn5e9w2jdgns2nlmyd9vzue7p85c0kpxsxsnmerqk\\\":0.002}\" \"test payment\"") +
+            + HelpExampleCli("sendsparkmany", "\"\" '{\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\":0.001,\"st172la2wfu5npkcunze9ufx0n7d4p65xmv7ktqy0ethw4ynl838yr3esd3rmg933prnlga8uhn0p4gn8r9hm4wjj2yd0xzerrvp6zlmn5e9w2jdgns2nlmyd9vzue7p85c0kpxsxsnmerqk\":0.002}' \"test payment\"") +
             "\nSend amounts with fee subtracted from specific addresses:\n"
-            + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\" \"[\\\"TH8UvVbGXZGVjbqKqrJVNtBP\\\"]\"") +
+            + HelpExampleCli("sendsparkmany", "\"\" '{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":0.01,\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":0.02}' '[\"TH8UvVbGXZGVjbqKqrJVNtBP\"]'") +
             "\nAs a json rpc call\n"
             + HelpExampleRpc("sendsparkmany", "\"\", \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\\\":0.001}\", \"test payment\"")
         );
@@ -6420,8 +6494,8 @@ UniValue getsparkcoinaddr(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "getsparkcoinaddr \"txid\"\n"
-                "\nReturn private coins from this wallet that were created by txid.\n"
-                "amount is shown with 8 decimal places. For a Spark asset that is the raw value.\n"
+                "\nReturn private FIRO coins from this wallet that were created by txid.\n"
+                "Spark asset coins are not included.\n"
                 "\nArguments:\n"
                 "1. \"txid\"            (string, required) Transaction id\n"
                 "\nResult:\n"
@@ -6429,7 +6503,7 @@ UniValue getsparkcoinaddr(const JSONRPCRequest& request)
                 "  {\n"
                 "    \"address\": \"xxx\",  (string) Spark address that received the coin\n"
                 "    \"memo\": \"text\",    (string)\n"
-                "    \"amount\": n        (numeric) Value with 8 decimal places\n"
+                "    \"amount\": n        (numeric) FIRO amount\n"
                 "  },\n"
                 "  ...\n"
                 "]\n"
@@ -6455,7 +6529,7 @@ UniValue getsparkcoinaddr(const JSONRPCRequest& request)
 
     for (const auto& coin : coins)
     {
-        if (txHash == coin.second.txid) {
+        if (txHash == coin.second.txid && !coin.second.IsSpats()) {
             spark::Address address = pwallet->sparkWallet->getAddress(coin.second.i);
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("address", address.encode(network)));
@@ -7156,6 +7230,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false, {} },
     { "wallet",             "listunspentspatsmints",  &listunspentspatsmints,  false },
     { "wallet",             "listsparkmints",         &listsparkmints,         false, {} },
+    { "wallet",             "listspatsmints",         &listspatsmints,         false },
     { "wallet",             "listsparkspends",        &listsparkspends,        false, {} },
     { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false, {} },
     { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false, {} },

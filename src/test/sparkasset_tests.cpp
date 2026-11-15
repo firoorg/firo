@@ -763,4 +763,28 @@ BOOST_AUTO_TEST_CASE(asset_type_from_scalar_fails_closed)
     BOOST_CHECK(!meta.GetAssetType());
 }
 
+BOOST_AUTO_TEST_CASE(mint_list_uses_asset_id_stored_on_the_coin)
+{
+    const Scalar firo(uint64_t(0));
+    const Scalar asset(uint64_t(1));
+
+    CSparkMintMeta plain;
+    plain.type = spark::COIN_TYPE_MINT_V2;
+    plain.a = firo;
+    plain.iota = firo;
+    BOOST_CHECK(plain.MatchesMintList(firo, firo));
+    BOOST_CHECK(!plain.MatchesMintList(asset, firo));
+
+    CSparkMintMeta tagged = plain;
+    tagged.a = asset;
+    BOOST_CHECK(!tagged.MatchesMintList(firo, firo));
+    BOOST_CHECK(tagged.MatchesMintList(asset, firo));
+
+    CSparkMintMeta onCoin = plain;
+    onCoin.coin.a = asset;
+    BOOST_CHECK(onCoin.IsSpats());
+    BOOST_CHECK(!onCoin.MatchesMintList(firo, firo));
+    BOOST_CHECK(onCoin.MatchesMintList(asset, firo));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
