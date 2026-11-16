@@ -113,8 +113,9 @@ public:
      * Coins the chain index does not contain are left unchanged.
      * A height is published only while the chain and mempool spend sets from
      * that read are still held. A spent coin is marked spent, and the spend
-     * is recorded when that transaction is known, preferring one already in a block.
-     * A coin already marked spent stays spent.
+     * is recorded when that transaction is known, preferring one in the active chain.
+     * A coin spent on chain stays spent. A pool-only spend that is gone on the
+     * second read is cleared.
      * @param[in] txid If not null, only coins from this transaction are considered.
      */
     void ConfirmCachedMints(const uint256* txid = nullptr);
@@ -249,6 +250,11 @@ private:
 
     IdentifiedMint IdentifyMint(spark::Coin coin, const uint256& txHash) const;
     void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
+    /**
+     * @param[in] nAttempts Try-lock count for cs_main. Below 1 retries until the
+     * lock is acquired or shutdown is requested. Callers that hold cs_wallet pass 1.
+     */
+    void ConfirmCachedMints(const uint256* txid, int nAttempts);
 
     std::string strWalletFile;
     // this is latest used diversifier
