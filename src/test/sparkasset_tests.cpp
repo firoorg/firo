@@ -772,6 +772,8 @@ BOOST_AUTO_TEST_CASE(mint_list_uses_asset_id_stored_on_the_coin)
     plain.type = spark::COIN_TYPE_MINT_V2;
     plain.a = firo;
     plain.iota = firo;
+    plain.coin.a = firo;
+    plain.coin.iota = firo;
     BOOST_CHECK(plain.MatchesMintList(firo, firo));
     BOOST_CHECK(!plain.MatchesMintList(asset, firo));
 
@@ -782,9 +784,47 @@ BOOST_AUTO_TEST_CASE(mint_list_uses_asset_id_stored_on_the_coin)
 
     CSparkMintMeta onCoin = plain;
     onCoin.coin.a = asset;
+    onCoin.nHeight = 2;
+    onCoin.v = 5;
     BOOST_CHECK(onCoin.IsSpats());
     BOOST_CHECK(!onCoin.MatchesMintList(firo, firo));
     BOOST_CHECK(onCoin.MatchesMintList(asset, firo));
+    BOOST_CHECK(onCoin.MatchesAvailableCoins(asset, firo));
+    BOOST_CHECK(!onCoin.MatchesAvailableCoins(firo, firo));
+
+    CSparkMintMeta unconfirmed = onCoin;
+    unconfirmed.nHeight = 0;
+    BOOST_CHECK(!unconfirmed.MatchesAvailableCoins(asset, firo));
+
+    CSparkMintMeta zeroValue = onCoin;
+    zeroValue.v = 0;
+    BOOST_CHECK(!zeroValue.MatchesAvailableCoins(asset, firo));
+
+    tagged.nHeight = 2;
+    tagged.v = 5;
+    BOOST_CHECK(tagged.MatchesAvailableCoins(asset, firo));
+    BOOST_CHECK(plain.EffectiveAssetType() == firo);
+    BOOST_CHECK(plain.EffectiveIdentifier() == firo);
+    BOOST_CHECK(tagged.EffectiveAssetType() == asset);
+    BOOST_CHECK(tagged.EffectiveIdentifier() == firo);
+    BOOST_CHECK(onCoin.EffectiveAssetType() == asset);
+    BOOST_CHECK(onCoin.EffectiveIdentifier() == firo);
+
+    const Scalar nft(uint64_t(7));
+    CSparkMintMeta onCoinNft = onCoin;
+    onCoinNft.coin.iota = nft;
+    BOOST_CHECK(onCoinNft.MatchesMintList(asset, nft));
+    BOOST_CHECK(!onCoinNft.MatchesMintList(asset, firo));
+    BOOST_CHECK(onCoinNft.EffectiveAssetType() == asset);
+    BOOST_CHECK(onCoinNft.EffectiveIdentifier() == nft);
+
+    // Both mint-list RPCs choose the mint opcode from IsSpats().
+    CScript spatsScript;
+    spatsScript << (onCoin.IsSpats() ? OP_SPATSMINT : OP_SPARKMINT);
+    BOOST_CHECK(spatsScript.IsSpatsMint());
+    CScript firoScript;
+    firoScript << (plain.IsSpats() ? OP_SPATSMINT : OP_SPARKMINT);
+    BOOST_CHECK(firoScript.IsSparkMint());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

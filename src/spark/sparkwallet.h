@@ -257,13 +257,17 @@ public:
         const CCoinControl *coinControl,
         size_t additionalTxSize = 0);
 
+    /**
+     * Select coins for one asset. (0, 0) is FIRO.
+     * Coins for any other asset are ignored, including under coin control.
+     */
     bool GetCoinsToSpend(
         CAmount required,
         std::vector<CSparkMintMeta>& coinsToSpend_out,
         std::list<CSparkMintMeta> coins,
         int64_t& changeToMint,
         const CCoinControl *coinControl,
-        bool fSpats = false);
+        const std::pair<Scalar, Scalar>& identifier = std::pair<Scalar, Scalar>(ZERO, ZERO));
 
     /**
      * Build a Spark name transaction using the next block's activation rules

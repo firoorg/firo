@@ -3946,7 +3946,6 @@ UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, cons
     UniValue results(UniValue::VARR);
     std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins(identifier);
 
-    LogPrintf("coins.size()=%d\n", coins.size());
     BOOST_FOREACH(const auto& coin, coins)
     {
         UniValue entry(UniValue::VOBJ);
@@ -3958,7 +3957,8 @@ UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, cons
         serialized << coin.coin;
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << (coin.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINT);
+        // Asset id may be stored only on the coin, so meta.a alone is not the kind.
+        script << (coin.IsSpats() ? OP_SPATSMINT : OP_SPARKMINT);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         if (assetPrecision)
@@ -4107,7 +4107,8 @@ UniValue listsparkmints(const std::pair<Scalar, Scalar>& identifier, const CWall
         serialized << pwallet->sparkWallet->getCoinFromMeta(coin.second);
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << (identifier.first.isZero() ? OP_SPARKMINT : OP_SPATSMINT);
+        // Asset id may be stored only on the coin, so the query identifier is not the kind.
+        script << (coin.second.IsSpats() ? OP_SPATSMINT : OP_SPARKMINT);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         if (assetPrecision)

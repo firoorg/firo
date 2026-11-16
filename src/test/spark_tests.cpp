@@ -1792,16 +1792,18 @@ BOOST_AUTO_TEST_CASE(spats_coin_control_selects_fungibles)
 {
     CSparkMintMeta fungible;
     fungible.v = 40 * 10000;
+    fungible.type = COIN_TYPE_MINT_V2;
     fungible.a = Scalar(uint64_t(2));
     fungible.iota = Scalar(uint64_t(0));
 
     CCoinControl coinControl;
     coinControl.Select(COutPoint(uint256S("1"), 0));
+    const std::pair<Scalar, Scalar> assetId(Scalar(uint64_t(2)), Scalar(uint64_t(0)));
 
     int64_t change = 0;
     std::vector<CSparkMintMeta> selected;
     BOOST_REQUIRE(pwalletMain->sparkWallet->GetCoinsToSpend(
-        fungible.v, selected, {fungible}, change, &coinControl, true));
+        fungible.v, selected, {fungible}, change, &coinControl, assetId));
     BOOST_REQUIRE_EQUAL(selected.size(), 1u);
     BOOST_CHECK_EQUAL(selected[0].v, fungible.v);
     BOOST_CHECK(selected[0].iota.isZero());
@@ -1809,10 +1811,52 @@ BOOST_AUTO_TEST_CASE(spats_coin_control_selects_fungibles)
 
     CSparkMintMeta sparkCoin;
     sparkCoin.v = 10 * COIN;
+    sparkCoin.type = COIN_TYPE_MINT;
+    sparkCoin.a = Scalar(uint64_t(0));
+    sparkCoin.iota = Scalar(uint64_t(0));
+    sparkCoin.coin.a = Scalar(uint64_t(0));
+    sparkCoin.coin.iota = Scalar(uint64_t(0));
     selected.clear();
     BOOST_CHECK_THROW(
         pwalletMain->sparkWallet->GetCoinsToSpend(
-            1, selected, {sparkCoin}, change, &coinControl, true),
+            1, selected, {sparkCoin}, change, &coinControl, assetId),
+        InsufficientFunds);
+
+    CSparkMintMeta otherAsset;
+    otherAsset.v = 30 * 10000;
+    otherAsset.type = COIN_TYPE_MINT_V2;
+    otherAsset.a = Scalar(uint64_t(9));
+    otherAsset.iota = Scalar(uint64_t(0));
+    selected.clear();
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->GetCoinsToSpend(
+            1, selected, {fungible, otherAsset}, change, &coinControl,
+            std::make_pair(Scalar(uint64_t(9)), Scalar(uint64_t(1)))),
+        InsufficientFunds);
+    selected.clear();
+    BOOST_REQUIRE(pwalletMain->sparkWallet->GetCoinsToSpend(
+        fungible.v, selected, {fungible, otherAsset}, change, &coinControl, assetId));
+    BOOST_REQUIRE_EQUAL(selected.size(), 1u);
+    BOOST_CHECK(selected[0].a == fungible.a);
+
+    // Asset id published on the coin, with metadata fields still zero.
+    CSparkMintMeta onCoin;
+    onCoin.v = 25 * 10000;
+    onCoin.type = COIN_TYPE_MINT_V2;
+    onCoin.a = Scalar(uint64_t(0));
+    onCoin.iota = Scalar(uint64_t(0));
+    onCoin.coin.a = Scalar(uint64_t(2));
+    onCoin.coin.iota = Scalar(uint64_t(0));
+    BOOST_REQUIRE(onCoin.IsSpats());
+    selected.clear();
+    BOOST_REQUIRE(pwalletMain->sparkWallet->GetCoinsToSpend(
+        onCoin.v, selected, {onCoin}, change, &coinControl, assetId));
+    BOOST_REQUIRE_EQUAL(selected.size(), 1u);
+    BOOST_CHECK_EQUAL(selected[0].v, onCoin.v);
+    selected.clear();
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->GetCoinsToSpend(
+            1, selected, {onCoin}, change, &coinControl),
         InsufficientFunds);
 }
 

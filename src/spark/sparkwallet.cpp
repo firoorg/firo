@@ -2188,8 +2188,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 identifiedCoinData.memo = coin.memo;
                 spark::RecoveredCoinData recoveredCoinData = coin.coin.recover(fullViewKeySnapshot, identifiedCoinData);
 
-                inputCoinData.a = coin.a;
-                inputCoinData.iota = coin.iota;
+                inputCoinData.a = coin.EffectiveAssetType();
+                inputCoinData.iota = coin.EffectiveIdentifier();
                 inputCoinData.T = recoveredCoinData.T;
                 inputCoinData.s = recoveredCoinData.s;
                 inputs.push_back(inputCoinData);
@@ -2787,8 +2787,12 @@ bool CSparkWallet::GetCoinsToSpend(
         std::list<CSparkMintMeta> coins,
         int64_t& changeToMint,
         const CCoinControl *coinControl,
-        bool fSpats)
+        const std::pair<Scalar, Scalar>& identifier)
 {
+    coins.remove_if([&identifier](const CSparkMintMeta& meta) {
+        return !meta.MatchesMintList(identifier.first, identifier.second);
+    });
+
     // isUsed is set on the Spark worker after the linking tag is already spent.
     // Skip those coins unless the caller selected them explicitly.
     if (coinControl == nullptr || !coinControl->HasSelected()) {
@@ -2831,11 +2835,6 @@ bool CSparkWallet::GetCoinsToSpend(
         if (coinControl->HasSelected()) {
             auto coinIt = coins.rbegin();
             for (; coinIt != coins.rend(); coinIt++) {
-                const bool matching = fSpats
-                    ? coinIt->a != ZERO
-                    : coinIt->a == ZERO && coinIt->iota == ZERO;
-                if (!matching)
-                    continue;
                 coinsToSpend.push_back(*coinIt);
                 spend_val += coinIt->v;
             }
@@ -3005,7 +3004,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
     int64_t sChangeToMint = 0;
     if (spatsRequired > 0) {
         std::list<CSparkMintMeta> spatsCoins = GetAvailableSparkCoins(identifier, coinControl);
-            if (!GetCoinsToSpend(spatsRequired, spatsSpendCoins, spatsCoins, sChangeToMint, coinControl, true)) {
+            if (!GetCoinsToSpend(spatsRequired, spatsSpendCoins, spatsCoins, sChangeToMint, coinControl, identifier)) {
                 throw std::invalid_argument(_("Unable to select spats coins for spend"));
             }
     }
@@ -3066,8 +3065,7 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
     std::list<CSparkMintMeta> coins;
     // get all unused coins from spark wallet
     VisitUnusedCoinMetasWhere([&] (const CSparkMintMeta& meta) {
-            return meta.IsConfirmed() && meta.a == identifier.first && meta.iota == identifier.second &&
-                   meta.v != 0; // ignore 0 mints which were created to increase privacy
+            return meta.MatchesAvailableCoins(identifier.first, identifier.second);
         },
         [&coins] (const CSparkMintMeta& meta) { coins.push_back(meta); });
 

@@ -59,13 +59,31 @@ struct CSparkMintMeta
                !(a.isZero() && coin.a.isZero());
     }
 
+    /**
+     * Asset type bound into a spend. FIRO is zero.
+     * A non-zero metadata value wins; otherwise the value stored on the coin is used.
+     */
+    const Scalar& EffectiveAssetType() const
+    {
+        if (!IsSpats() || !a.isZero())
+            return a;
+        return coin.a;
+    }
+    /** Identifier bound into a spend. Same precedence as EffectiveAssetType(). */
+    const Scalar& EffectiveIdentifier() const
+    {
+        if (!IsSpats() || !iota.isZero())
+            return iota;
+        return coin.iota;
+    }
+
     std::optional<std::uint64_t> GetAssetType() const
     {
-        return spark::GetSpatsScalarAsUint64(a.isZero() ? coin.a : a);
+        return spark::GetSpatsScalarAsUint64(EffectiveAssetType());
     }
     std::optional<std::uint64_t> GetIdentifier() const
     {
-        return spark::GetSpatsScalarAsUint64(iota.isZero() ? coin.iota : iota);
+        return spark::GetSpatsScalarAsUint64(EffectiveIdentifier());
     }
 
     /**
@@ -83,6 +101,15 @@ struct CSparkMintMeta
         const auto wantType = spark::GetSpatsScalarAsUint64(assetType);
         const auto wantId = spark::GetSpatsScalarAsUint64(identifier);
         return type && id && wantType && wantId && *type == *wantType && *id == *wantId;
+    }
+
+    /**
+     * Confirmed non-zero coin for GetAvailableSparkCoins, before chain and lock checks.
+     * Both zero selects FIRO. An asset id stored only on the coin still counts.
+     */
+    bool MatchesAvailableCoins(const Scalar& assetType, const Scalar& identifier) const
+    {
+        return IsConfirmed() && v != 0 && MatchesMintList(assetType, identifier);
     }
 
     bool operator==(const CSparkMintMeta& other) const
