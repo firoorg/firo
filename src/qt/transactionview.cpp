@@ -444,7 +444,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     contextMenu->addAction(resendAction);
     contextMenu->addAction(spendProofAction);
 
-    connect(dateWidget,        qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
+    connect(dateWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
     connect(typeWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseType);
     connect(watchOnlyWidget,    qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
     connect(instantsendWidget,  qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
