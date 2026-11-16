@@ -4512,12 +4512,12 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "spendspark {\"address\":{amount,subtractFee...}, \"address\":{amount,memo,subtractFee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "1. recipients              (string, required) A json object with addresses and amounts\n"
                                                      "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractFee (bool, required) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "  ,...\n"
                                                      " }\n"
                                                      "\nResult:\n"
@@ -4573,14 +4573,14 @@ UniValue spendsparksplit(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendsparksplit {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "spendsparksplit {\"address\":{amount,subtractFee...}, \"address\":{amount,memo,subtractFee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "Temporary helper that splits a Spark payment across multiple single-input\n"
                                                      "transactions when no single Spark coin can fund the payment alone.\n"
                                                      "\nArguments:\n"
                                                      "1. recipients              (string, required) A json object with addresses and amounts\n"
                                                      "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractFee (bool, required) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "  ,...\n"
                                                      " }\n"
                                                      "\nResult:\n"
@@ -4640,11 +4640,11 @@ UniValue sendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "sendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "sendspark {\"address\":{amount,subtractFee...}, \"address\":{amount,memo,subtractFee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "{\n"
-                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractFee (bool, required) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "  ,...\n"
                                                      " }\n"
                                                      "\nResult:\n"
