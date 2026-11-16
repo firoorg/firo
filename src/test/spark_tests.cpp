@@ -4453,6 +4453,7 @@ BOOST_AUTO_TEST_CASE(spend_proof)
     // Only confirmed Spark spends can be proven; a mint is neither.
     BOOST_CHECK_THROW(createProof(mintTransactions[0].GetHash(), message), std::runtime_error);
 
+    std::string singleInputProof;
     for (const bool chaumV2 : {false, true}) {
         if (chaumV2) {
             const int activationHeight = chainActive.Height() + 1;
@@ -4493,7 +4494,22 @@ BOOST_AUTO_TEST_CASE(spend_proof)
         BOOST_CHECK(VerifySpendProof(proof, message + "!", named) == SpendProofResult::Mismatch);
         BOOST_CHECK(VerifySpendProof(proof + "00", message, named) == SpendProofResult::Malformed);
         BOOST_CHECK(VerifySpendProof("not hex", message, named) == SpendProofResult::Malformed);
+        if (!chaumV2)
+            singleInputProof = proof;
     }
+
+    // A proof is checked against the transaction it names. Moved under the id of another
+    // confirmed spend with the same number of inputs, it must not verify.
+    const CTransaction otherTx = GenerateSparkSpend({COIN / 10}, {}, nullptr);
+    BOOST_REQUIRE_EQUAL(GetSpendInputs(otherTx), size_t(1));
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(otherTx)}));
+    const uint256 otherTxid = otherTx.GetHash();
+    // The envelope is a version byte, the txid and the claim.
+    const std::string moved = singleInputProof.substr(0, 2) + HexStr(otherTxid.begin(), otherTxid.end()) + singleInputProof.substr(66);
+    uint256 named;
+    BOOST_CHECK(VerifySpendProof(moved, message, named) == SpendProofResult::Mismatch);
+    BOOST_CHECK(named == otherTxid);
 
     mempool.clear();
     sparkState->Reset();
