@@ -13,6 +13,7 @@
 #include "../sync.h"
 #include "../chain.h"
 
+#include <atomic>
 #include <map>
 #include <optional>
 
@@ -249,6 +250,14 @@ public:
     void WaitForPendingTasks();
     void FinishTasks();
     uint64_t GetMintWorkGeneration() const;
+    /**
+     * The database now holds other keys than this wallet runs with. Until the restart
+     * that loads them, the wallet records no more coins and the Spark RPCs refuse to
+     * work (EnsureSparkWalletIsAvailable), so that nothing is handed out or stored
+     * under the keys the wallet is leaving.
+     */
+    void SetKeysReplaced() { fKeysReplaced = true; }
+    bool KeysReplaced() const { return fKeysReplaced; }
 
 public:
     // Protects lastDiversifier, addresses, and coinMeta.
@@ -278,6 +287,7 @@ private:
     // or a group next to the wallet's own coins, means scanning per key set.
     std::optional<spark::MultisigKey> multisigKey;
     uint64_t mintWorkGeneration = 0; // queued under cs_main
+    std::atomic<bool> fKeysReplaced{false};
 
     // map diversifier to address.
     std::unordered_map<int32_t, spark::Address> addresses GUARDED_BY(cs_spark_wallet);

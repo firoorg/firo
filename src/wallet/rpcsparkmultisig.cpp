@@ -641,6 +641,8 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
     // The Spark wallet uses one immutable key set until restart. Drain earlier
     // scans, then check under cs_main that no new scans were queued while waiting.
     // A second final setup call in the same RPC batch must also see the saved key.
+    // Once the keys are saved the running wallet stops using the ones it has: the
+    // node stops, but not before another call or the next block can arrive.
     bool fSaved = false;
     for (int attempt = 0; attempt < 3 && !fSaved; ++attempt) {
         uint64_t generation;
@@ -686,6 +688,7 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             }
             if (!fSaved)
                 throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to save the Spark multisig key");
+            pwallet->sparkWallet->SetKeysReplaced();
             StartShutdown();
         }
     }

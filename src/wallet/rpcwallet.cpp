@@ -69,6 +69,11 @@ void EnsureSparkWalletIsAvailable()
     if (!pwalletMain || !pwalletMain->sparkWallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet is not available for this wallet (legacy or disabled)");
     }
+    // The node is stopping, but a later call of the same batch or of another thread
+    // still gets here. It would work with the keys the wallet had before the setup.
+    if (pwalletMain->sparkWallet->KeysReplaced()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "This wallet already completed Spark multisig setup. Restart it to use the saved group.");
+    }
 }
 
 void EnsureWalletIsUnlocked(CWallet * const pwallet)

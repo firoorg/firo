@@ -77,9 +77,12 @@ class SparkMultisigTest(BitcoinTestFramework):
             rounds.append((keys, remote_second))
         calls = [dict(method='addsparkmultisigaddress', params=[2, keys, [data]], id=i)
                  for i, (keys, data) in enumerate(rounds)]
+        # Nor does a later call of the batch get an address from the keys the wallet is leaving
+        calls.append(dict(method='getnewsparkaddress', params=[], id=len(calls)))
         replies = n[4].auth_service_proxy_instance._batch(calls)
         assert replies[0]['error'] is None and replies[0]['result']['complete'] is True
         assert 'already completed' in replies[1]['error']['message']
+        assert replies[2]['error'] and 'already completed' in replies[2]['error']['message'], replies[2]
         group_address = replies[0]['result']['address']
         self.competing_keys = rounds[0][0]
         wait_node(4)
