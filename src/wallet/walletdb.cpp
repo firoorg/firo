@@ -674,6 +674,16 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
         }
+        else if (strType == "sparkMultisigKey") {
+            // CSparkWallet loads this record itself. It is parsed here so that a
+            // key-only salvage drops one that cannot be read, which would otherwise
+            // keep the wallet from starting after the salvage too. The participant
+            // then repeats the setup with the data of the others.
+            strErr = "Error reading wallet database: the Spark multisig key cannot be read";
+            spark::MultisigKey key;
+            ssValue >> key;
+            strErr.clear();
+        }
     } catch (...)
     {
         return false;

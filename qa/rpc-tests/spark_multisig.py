@@ -108,6 +108,30 @@ class SparkMultisigTest(BitcoinTestFramework):
         assert_equal(n[4].getsparkdefaultaddress()[0], group_address)
         assert n[4].addsparkmultisigaddress(2, self.competing_keys)['complete'] is True
 
+        # With a group key record that cannot be read the wallet does not start. Salvage
+        # drops such a record, which leaves a wallet that can repeat the setup. The
+        # record's value sits in front of its key and starts with version 1, 2 required,
+        # 2 participants.
+        stop_node(n[4], 4)
+        path = os.path.join(self.options.tmpdir, "node4", "regtest", "wallet.dat")
+        with open(path, "rb") as f:
+            data = bytearray(f.read())
+        damaged = 0
+        key_at = data.find(b"sparkMultisigKey")
+        while key_at >= 0:
+            value_at = data.rfind(b"\x01\x02\x00\x00\x00\x02", max(0, key_at - 1024), key_at)
+            if value_at >= 0:
+                data[value_at] = 0xff
+                damaged += 1
+            key_at = data.find(b"sparkMultisigKey", key_at + 1)
+        assert damaged > 0
+        with open(path, "wb") as f:
+            f.write(data)
+        self.restart(4, ['-salvagewallet'])
+        self.reconnect()
+        assert n[4].getsparkdefaultaddress()[0] != group_address
+        assert n[4].addsparkmultisigaddress(2, self.competing_keys)['complete'] is False
+
     def funded_setup_is_rejected(self):
         """A pending incoming mint must be seen before replacing the wallet's keys."""
         n = self.nodes
