@@ -447,6 +447,8 @@ void BitcoinGUI::createActions()
     verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Firo addresses"));
     verifySpendProofAction = new QAction(tr("Verify spend &proof..."), this);
     verifySpendProofAction->setStatusTip(tr("Verify a proof that someone holds the spending keys of a Spark transaction"));
+    // Verifying reads chain state, so setClientModel enables this only while the node is up.
+    verifySpendProofAction->setEnabled(false);
 
     openRPCConsoleAction = new QAction(tr("&Debug window"), this);
     openRPCConsoleAction->setStatusTip(tr("Open debugging and diagnostic console"));
@@ -1426,6 +1428,10 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         // Propagate cleared model to child objects
         rpcConsole->setClientModel(nullptr);
 #ifdef ENABLE_WALLET
+        // Hiding the main window leaves these open, and they would act on chain
+        // state and a wallet model that shutdown is about to delete.
+        for (SpendProofDialog* dialog : findChildren<SpendProofDialog*>())
+            dialog->close();
         if (walletFrame)
         {
             walletFrame->setClientModel(nullptr);
@@ -1433,6 +1439,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(nullptr);
     }
+    verifySpendProofAction->setEnabled(_clientModel != nullptr);
     updateConsolidationAction();
 }
 

@@ -1230,10 +1230,17 @@ void WalletUiTests::synchronizationProgress()
     QVERIFY(node.progressBarLabel->isHidden());
     QVERIFY(node.progressBar->isHidden());
 
-    // Verifying a spend proof needs only the chain, so the walletless window offers it too.
+    // Verifying a spend proof needs only the chain, so the walletless window offers it too,
+    // but only while a client model is attached: the dialog reads chain state.
     QVERIFY(node.appMenuBar->actions().constFirst()->menu()->actions().contains(node.verifySpendProofAction));
+    QVERIFY(!node.verifySpendProofAction->isEnabled());
+    node.verifySpendProofAction->setEnabled(true); // as setClientModel does once the node is up
     node.verifySpendProofAction->trigger();
-    QVERIFY(node.findChild<SpendProofDialog*>());
+    const QPointer<SpendProofDialog> spendProofDialog = node.findChild<SpendProofDialog*>();
+    QVERIFY(spendProofDialog && spendProofDialog->isVisible());
+    node.setClientModel(nullptr);
+    QVERIFY(!spendProofDialog || !spendProofDialog->isVisible());
+    QVERIFY(!node.verifySpendProofAction->isEnabled());
 }
 
 void WalletUiTests::synchronizationEstimates()
