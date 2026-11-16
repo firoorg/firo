@@ -68,6 +68,17 @@ class SparkMultisigTest(BitcoinTestFramework):
         """One RPC batch cannot finalize two different groups for the same wallet."""
         n = self.nodes
         shared = n[4].validateaddress(n[4].getnewaddress())['pubkey']
+
+        # A node that is still downloading blocks cannot tell whether its wallet holds
+        # Spark coins. Two days ahead of its chain tip, node 4 takes itself for one.
+        stop_node(n[4], 4)
+        self.restart(4, ['-mocktime=%d' % (int(time.time()) + 2 * 24 * 60 * 60)])
+        remote = n[0].validateaddress(n[0].getnewaddress())['pubkey']
+        assert_raises_jsonrpc(-10, "downloading blocks", n[4].addsparkmultisigaddress, 2, [shared, remote])
+        stop_node(n[4], 4)
+        self.restart(4)
+        self.reconnect()
+
         rounds = []
         for other in (0, 1):
             remote = n[other].validateaddress(n[other].getnewaddress())['pubkey']

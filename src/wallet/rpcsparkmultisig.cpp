@@ -561,6 +561,12 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
         if (pwallet->IsLocked()) {
             return result;
         }
+    } else if (IsInitialBlockDownload()) {
+        // The check below sees only the coins in blocks this node already has
+        // ponytail: a node that is a few blocks behind is not in initial download and
+        // passes. Compare the height with the wallet's own scan if that ever matters;
+        // a coin missed this way stays reachable from the mnemonic in another wallet.
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Firo is downloading blocks. Set up Spark multisig once it is synchronized: until then the wallet cannot tell whether it holds Spark coins.");
     } else if (!pwallet->sparkWallet->getMintMap().empty()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "This wallet holds Spark coins, which it would lose sight of. Set up Spark multisig in a new wallet.");
     }
