@@ -1489,8 +1489,9 @@ UniValue createsparkspendproof(const JSONRPCRequest& request)
     EnsureSparkWalletIsAvailable();
 
     const uint256 txid = ParseHashV(request.params[0], "txid");
+    const std::string message = request.params[1].get_str();
     try {
-        return pwallet->sparkWallet->CreateSpendProof(txid, request.params[1].get_str());
+        return pwallet->sparkWallet->CreateSpendProof(txid, message);
     } catch (const WalletLocked&) {
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
     } catch (const std::exception& e) {
