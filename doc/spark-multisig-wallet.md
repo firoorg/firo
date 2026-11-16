@@ -36,11 +36,15 @@ addsparkmultisigaddress 2 '["<keyA>","<keyB>","<keyC>"]' '["<B round 1>","<C rou
 addsparkmultisigaddress 2 '["<keyA>","<keyB>","<keyC>"]' '["<B round 2>","<C round 2>"]' -> {"complete": true, "address": "..."}
 ```
 
-The order of the keys does not matter. The calls keep no state: repeating one
-returns the same result, and the wallet has to be unlocked for them. The third
+A group has 2 to 16 participants, and the order of their keys does not matter.
+The calls keep no state: repeating one returns the same result, and the wallet has
+to be unlocked for them. The node has to be synchronized, because a wallet that
+is still downloading blocks cannot tell whether it holds Spark coins. The third
 call stores the group's keys and stops the server, as `encryptwallet` does;
-after a restart the wallet is the multisig wallet. From then on the call answers
-with the address, and an unlocked wallet also returns its data again.
+after a restart the wallet is the multisig wallet. Between the third call and the
+restart the wallet's Spark calls are refused: it would still answer them with the
+keys it had before. From then on the call answers with the address, and an
+unlocked wallet also returns its data again.
 
 Before the address receives funds, the participants confirm that each of them
 completed the third call and obtained the same address. The address is derived
@@ -154,6 +158,10 @@ gives its data only for the round one data its group was set up with, and the
 participant that rejoins checks that it arrives at the group's address, as at the
 first setup. As long as `nrequired` participants have their wallets, the funds can
 also simply be moved.
+
+A wallet whose stored group keys can no longer be read does not start. Starting it
+once with `-salvagewallet` drops them and keeps the wallet's own keys, after which
+the participant rejoins in the same way.
 
 ## Implementation notes
 

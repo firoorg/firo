@@ -491,7 +491,7 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             "1. nrequired        (numeric, required) The number of participants needed to spend. With 1, every\n"
             "                    participant holds the whole spend key.\n"
             "2. \"keys\"           (string, required) A json array of the hex-encoded compressed public keys of all\n"
-            "                    participants, in any order. Exactly one must belong to this wallet: take it from\n"
+            "                    participants, 2 to 16 of them in any order. Exactly one must belong to this wallet: take it from\n"
             "                    getnewaddress and validateaddress.\n"
             "     [\n"
             "       \"key\"        (string) public key\n"
@@ -698,8 +698,10 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             StartShutdown();
         }
     }
+    // Every block with Spark coins and every Spark transaction entering the mempool
+    // queues a scan, whether or not it pays this wallet
     if (!fSaved)
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet received new coins during setup. Retry after it finishes scanning.");
+        throw JSONRPCError(RPC_WALLET_ERROR, "New blocks or Spark transactions kept arriving for the wallet to scan during setup. Try again.");
 
     result.push_back(Pair("complete", true));
     result.push_back(Pair("address", spark::Address(spark::IncomingViewKey(key->get_full_view_key(params)), 0).encode(spark::GetNetworkType())));
@@ -716,14 +718,14 @@ UniValue createsparkmultisigspend(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
-            "createsparkmultisigspend {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+            "createsparkmultisigspend {\"address\":{amount,subtractFee...}, \"address\":{amount,memo,subtractFee...}}\n"
             "\nCreate a spend from this Spark multisig wallet for its participants to sign.\n"
             "The recipients are given as for spendspark. Any participant can create a spend; it takes\n"
             "no key, so the wallet may stay locked. The result goes to approvesparkmultisigspend.\n"
             "\nArguments:\n"
             "1. recipients       (string, required) A json object with addresses and amounts\n"
             "{\n"
-            "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Firo or Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractFee (bool, required) The Firo or Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
             "  ,...\n"
             "}\n"
             "\nResult:\n"
@@ -948,7 +950,8 @@ UniValue decodesparkmultisigspend(const JSONRPCRequest& request)
             "  \"outputs\" : [               (array) The Spark outputs. Change returns to an address of the wallet.\n"
             "    { \"address\" : \"value\", \"amount\" : n, \"memo\" : \"value\", \"ismine\" : true|false }, ...\n"
             "  ],\n"
-            "  \"transparent_outputs\" : [   (array) The transparent outputs\n"
+            "  \"transparent_outputs\" : [   (array) The transparent outputs. One that pays no address has\n"
+            "                              \"script\" : \"hex\" in place of the address.\n"
             "    { \"address\" : \"value\", \"amount\" : n }, ...\n"
             "  ],\n"
             "  \"nrequired\" : n,            (numeric) The number of signers the spend takes\n"
