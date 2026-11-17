@@ -268,6 +268,28 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
 {
     const spark::Params* params = spark::Params::get_default();
     CSparkMultisigSpendInfo info = CheckSpend(pwallet, key, package);
+
+    // Record where the outputs go, as the wallet does for its own spends. Only the
+    // spend tells: the chain shows the wallet neither the recipient nor the amount
+    // of an output to someone else. It comes first, and all of it or nothing, so that
+    // the wallet does not sign or complete a spend whose recipients it failed to keep.
+    // ponytail: the record of a spend that is never sent stays in the wallet file;
+    // erase it with the abandoned spend if such records ever add up.
+    std::vector<std::pair<CScript, CSparkOutputTx>> records;
+    for (const CTxOut& out : package.tx.vout) {
+        if (out.scriptPubKey.IsSparkSMint()) {
+            const CSparkMultisigOutput& output = package.outputs.at(records.size());
+            CSparkOutputTx record;
+            record.address = output.address;
+            record.amount = output.amount;
+            record.memo = output.memo;
+            records.emplace_back(out.scriptPubKey, record);
+        }
+    }
+    if (!pwallet->WriteSparkOutputTxs(records)) {
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to save the recipients of this spend");
+    }
+
     const Scalar mu = info.spend.getBindingHash();
     const spark::ChaumV2Context context = info.spend.getChaumContext();
     const std::vector<GroupElement>& S = info.spend.getS1();
@@ -350,22 +372,6 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
         CValidationState state;
         if (!spark::CheckSparkTransaction(*signedTx, state, signedTx->GetHash(), false, INT_MAX, false, true, nullptr)) {
             throw JSONRPCError(RPC_VERIFY_REJECTED, "The signed transaction is not valid: " + state.GetRejectReason());
-        }
-    }
-
-    // Record where the outputs go, as the wallet does for its own spends
-    if (fSign || fComplete) {
-        CWalletDB walletdb(pwallet->strWalletFile);
-        std::size_t j = 0;
-        for (const CTxOut& out : package.tx.vout) {
-            if (out.scriptPubKey.IsSparkSMint()) {
-                const CSparkMultisigOutput& output = package.outputs.at(j++);
-                CSparkOutputTx record;
-                record.address = output.address;
-                record.amount = output.amount;
-                record.memo = output.memo;
-                walletdb.WriteSparkOutputTx(out.scriptPubKey, record);
-            }
         }
     }
 
@@ -723,6 +729,9 @@ UniValue combinesparkmultisigspend(const JSONRPCRequest& request)
             "\nMerge copies of one Spark multisig spend that different participants have signed.\n"
             "Signers who work in parallel use this after each pass of signsparkmultisigspend. Any\n"
             "participant can combine; it takes no key.\n"
+            "\nLike signsparkmultisigspend, the call records in the wallet where the outputs of the spend go.\n"
+            "A participant that does not sign a spend passes its copy here, at any stage, for the wallet's\n"
+            "transaction history to show the recipients. The chain alone does not tell them.\n"
             "\nArguments:\n"
             "1. \"txs\"            (string, required) A json array of results of signsparkmultisigspend\n"
             "     [\n"

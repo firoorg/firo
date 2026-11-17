@@ -81,6 +81,17 @@ its signature share leaves the wallet. A signer that is restarted in between can
 no longer sign that spend. Create the spend again in that case, and to replace a
 signer who does not respond.
 
+### History
+
+`signsparkmultisigspend` and `combinesparkmultisigspend` record in the wallet
+where the Spark outputs of a spend go, before anything is signed, and fail if that
+cannot be saved. The wallet's transaction history shows the recipients from this
+record. The chain does not carry them: a participant that took no part in a spend
+sees the transaction and its total, but for an output to someone else the entry in
+`listtransactions` and `gettransaction` has no address and an amount of 0. For a
+complete history, pass that participant the spend, at any stage of signing, and
+have it call `combinesparkmultisigspend` with it.
+
 ## What travels between the participants
 
 All `hex` values can be sent over any channel. The setup data carries secrets only

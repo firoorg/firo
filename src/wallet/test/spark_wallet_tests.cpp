@@ -996,6 +996,29 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     BOOST_REQUIRE_EQUAL(spend.outputs.size(), 2); // the payment and the change
     BOOST_REQUIRE(!spend.tx.vout[0].scriptPubKey.IsSparkSMint());
 
+    // The wallet saves where the outputs go before it does anything else with a
+    // spend. If it cannot, it stops there and keeps no part of the record.
+    UniValue copies(UniValue::VARR);
+    copies.push_back(hex);
+    CSparkOutputTx record;
+    for (const int failAfterWrites : {0, 1}) {
+        CWallet::SetSparkOutputWriteFailureForTesting(failAfterWrites);
+        BOOST_CHECK(MultisigError(signsparkmultisigspend, hex).find("Unable to save") != std::string::npos);
+        BOOST_CHECK(MultisigError(combinesparkmultisigspend, copies).find("Unable to save") != std::string::npos);
+        for (const CTxOut& out : spend.tx.vout) {
+            BOOST_CHECK(!pwalletMain->GetSparkOutputTx(out.scriptPubKey, record));
+        }
+    }
+    CWallet::SetSparkOutputWriteFailureForTesting(-1);
+
+    // Combining is how a participant that does not sign records them
+    BOOST_CHECK_EQUAL(MultisigError(combinesparkmultisigspend, copies), "");
+    for (std::size_t j = 0; j < spend.outputs.size(); ++j) {
+        BOOST_REQUIRE(pwalletMain->GetSparkOutputTx(spend.tx.vout[j + 1].scriptPubKey, record));
+        BOOST_CHECK_EQUAL(record.address, spend.outputs[j].address);
+        BOOST_CHECK_EQUAL(record.amount, static_cast<int64_t>(spend.outputs[j].amount));
+    }
+
     const auto rejects = [&](const CSparkMultisigSpend& bad, const std::string& reason) {
         for (const auto rpc : {decodesparkmultisigspend, signsparkmultisigspend}) {
             const std::string error = MultisigError(rpc, SealMultisigSpend(key, bad));
@@ -1065,8 +1088,12 @@ BOOST_AUTO_TEST_CASE(multisig_signer_checks_the_spend)
     // The attempt used up the nonce
     BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, session)).find("no longer holds the nonce") != std::string::npos);
 
-    // Left alone, the spend gets the wallet's signature share, once
+    // Left alone, the spend gets the wallet's signature share, once. A failure to
+    // save the outputs comes before the nonce is touched and does not cost it.
     const CSparkMultisigSpend again = commit();
+    CWallet::SetSparkOutputWriteFailureForTesting(0);
+    BOOST_CHECK(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again)).find("Unable to save") != std::string::npos);
+    CWallet::SetSparkOutputWriteFailureForTesting(-1);
     UniValue signedSpend;
     BOOST_REQUIRE_EQUAL(MultisigError(signsparkmultisigspend, SealMultisigSpend(key, again), &signedSpend), "");
     BOOST_CHECK(!signedSpend["complete"].get_bool());

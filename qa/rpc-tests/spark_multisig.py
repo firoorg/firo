@@ -180,10 +180,11 @@ class SparkMultisigTest(BitcoinTestFramework):
         self.fails(self.nodes[0].signmessagewithsparkaddress, self.group_addr, "message")
 
     def finish(self, hexstr):
-        """Broadcast a complete spend from the outsider, mine it, return nothing."""
-        self.nodes[3].sendrawtransaction(hexstr)
+        """Broadcast a complete spend from the outsider, mine it and return its txid."""
+        txid = self.nodes[3].sendrawtransaction(hexstr)
         sync_mempools(self.nodes)
         self.mine(1)
+        return txid
 
     def spend_a(self):
         n = self.nodes
@@ -214,7 +215,7 @@ class SparkMultisigTest(BitcoinTestFramework):
         assert r['complete'] is False
         r = n[0].signsparkmultisigspend(r['hex'])
         assert r['complete'] is True
-        self.finish(r['hex'])
+        txid = self.finish(r['hex'])
 
         assert_equal(n[3].getreceivedbyaddress(t_addr), Decimal(2))
         deadline = time.time() + 60
@@ -222,6 +223,22 @@ class SparkMultisigTest(BitcoinTestFramework):
             time.sleep(0.5)
         assert_equal(n[3].getsparkbalance()['availableBalance'], spark3_before + COIN)
         self.total = self.balances(self.total - 3 * COIN - fee)  # includes node 2, who never saw the spend
+
+        # The signers recorded whom the spend pays. Node 2 has the chain to go by, which
+        # shows it the total but not the Spark recipient, until it is given the spend.
+        def payment(node):
+            details = [d for d in node.gettransaction(txid)['details'] if d['category'] == 'spend' and d.get('address') != t_addr]
+            assert_equal(len(details), 1)
+            return details[0]
+        for i in (0, 1):
+            p = payment(n[i])
+            assert p['address'] == self.spark3 and p['amount'] == Decimal(-1), p
+        assert_equal(n[2].gettransaction(txid)['amount'], n[0].gettransaction(txid)['amount'])
+        p = payment(n[2])
+        assert 'address' not in p and p['amount'] == 0, p
+        assert n[2].combinesparkmultisigspend([hexstr])['complete'] is False
+        p = payment(n[2])
+        assert p['address'] == self.spark3 and p['amount'] == Decimal(-1), p
 
     def spend_b(self):
         n = self.nodes
