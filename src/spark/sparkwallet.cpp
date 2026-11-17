@@ -13,6 +13,7 @@
 #include "sparkname.h"
 #include "../chain.h"
 #include "../init.h"
+#include "../utiltime.h"
 #include <boost/format.hpp>
 #include <algorithm>
 #include <string>
@@ -109,6 +110,12 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         }
 
     }
+
+    // Coins saved while unconfirmed stay at nHeight < 1 after their block is
+    // already connected. Promote those before balance queries see them.
+    // cs_main is only try-locked. Wait until it is free so a long critical
+    // section cannot leave these coins pending until a later rescan.
+    ConfirmCachedMints(nullptr, 0);
 
     // One worker so mint jobs posted before a spend of those coins run first.
     threadPool = new ParallelOpThreadPool<void>(1);
@@ -936,6 +943,230 @@ void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb)
     // Preserve the confirmed spend's txid when neither pool contains it.
     if (!spendTxHash.IsNull()) {
         UpdateSpendState(mint.lTag, lTagHash, spendTxHash, false);
+    }
+}
+
+void CSparkWallet::ConfirmCachedMints(const uint256* txid)
+{
+    ConfirmCachedMints(txid, 1);
+}
+
+void CSparkWallet::ConfirmCachedMints(const uint256* txid, int nAttempts)
+{
+    struct BlockSpend {
+        uint256 txid;
+        uint256 hashBlock;
+        int nIndex;
+    };
+    struct StaleMint {
+        uint256 lTagHash;
+        spark::Coin coin;
+        uint256 parentTx;
+        bool fOnChain;
+        bool fHaveTag;
+        GroupElement lTag;
+        bool fSpent;
+        bool fPoolOnlyAtFirstRead;
+        uint256 spendTx;
+        std::vector<BlockSpend> blockSpends;
+    };
+    std::vector<StaleMint> stale;
+    {
+        LOCK(cs_spark_wallet);
+        for (const auto& entry : coinMeta) {
+            if (entry.second.nHeight >= 1)
+                continue;
+            if (txid && entry.second.txid != *txid)
+                continue;
+            // A default coin cannot be matched to the chain index, and it
+            // cannot be stored: deserialization rejects an empty payload.
+            if (entry.second.coin == spark::Coin())
+                continue;
+            StaleMint item;
+            item.lTagHash = entry.first;
+            item.coin = entry.second.coin;
+            item.parentTx = entry.second.txid;
+            item.fOnChain = false;
+            item.fHaveTag = false;
+            item.fSpent = false;
+            item.fPoolOnlyAtFirstRead = false;
+            stale.push_back(std::move(item));
+        }
+    }
+    if (stale.empty())
+        return;
+
+    auto* sparkState = spark::CSparkState::GetState();
+    bool fAnyOnChain = false;
+    for (auto& item : stale) {
+        const auto heightAndId = sparkState->GetMintedCoinHeightAndId(item.coin);
+        if (heightAndId.first < 1)
+            continue;
+        item.fOnChain = true;
+        fAnyOnChain = true;
+        try {
+            const auto identified = IdentifyMint(item.coin, item.parentTx);
+            if (primitives::GetLTagHash(identified.lTag) == item.lTagHash) {
+                item.lTag = identified.lTag;
+                item.fHaveTag = true;
+            }
+        } catch (const std::exception&) {
+        }
+    }
+    if (!fAnyOnChain)
+        return;
+
+    // Run only while this function holds cs_main. Chain spends live in
+    // usedLTags under that lock, and mempool acceptance asserts it too, so this
+    // observation stays valid until the lock is released.
+    auto readSpends = [&](bool fRecordPoolTx) {
+        for (auto& item : stale) {
+            if (!item.fOnChain || !item.fHaveTag)
+                continue;
+            const bool fChainSpent = sparkState->IsUsedLTag(item.lTag);
+            uint256 poolTx;
+            bool fPoolSpent = false;
+            if (!fChainSpent) {
+                for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
+                    LOCK(pool->cs);
+                    if (!pool->sparkState.HasLTag(item.lTag))
+                        continue;
+                    fPoolSpent = true;
+                    if (fRecordPoolTx)
+                        poolTx = pool->sparkState.GetMempoolConflictingTxHash(item.lTag);
+                    break;
+                }
+            }
+            item.fSpent = fChainSpent || fPoolSpent;
+            if (!fRecordPoolTx)
+                item.fPoolOnlyAtFirstRead = !fChainSpent && fPoolSpent;
+            else if (!poolTx.IsNull())
+                item.spendTx = poolTx;
+        }
+    };
+
+    // Callers such as AddToWallet already hold cs_wallet, so blocking on cs_main
+    // would invert the lock order. A missed read leaves the coin pending.
+    // The raw try-lock is not tracked by DEBUG_LOCKORDER, so code under it
+    // must not use AssertLockHeld(cs_main).
+    auto acquireMain = [&](boost::unique_lock<CCriticalSection>& spendLock) {
+        int attempt = 0;
+        while (true) {
+            spendLock = boost::unique_lock<CCriticalSection>(cs_main, boost::try_to_lock);
+            if (spendLock.owns_lock())
+                return true;
+            if (ShutdownRequested())
+                return false;
+            // nAttempts below 1 waits out a long cs_main holder. Callers that
+            // already hold cs_wallet pass 1 and do not sleep.
+            if (nAttempts >= 1 && ++attempt >= nAttempts)
+                return false;
+            MilliSleep(20);
+        }
+    };
+
+    {
+        boost::unique_lock<CCriticalSection> spendLock;
+        if (!acquireMain(spendLock)) {
+            LogPrintf("CSparkWallet::%s: left Spark coins pending; chain spend set was busy\n", __func__);
+            return;
+        }
+        readSpends(false);
+    }
+
+    if (pwalletMain) {
+        bool fNeedTx = false;
+        for (const auto& item : stale) {
+            if (item.fSpent) {
+                fNeedTx = true;
+                break;
+            }
+        }
+        if (fNeedTx) {
+            LOCK(pwalletMain->cs_wallet);
+            for (const auto& wtx : pwalletMain->mapWallet) {
+                if (!wtx.second.tx || !wtx.second.tx->IsSparkSpend() || wtx.second.isAbandoned())
+                    continue;
+                // hashBlock alone is not confirmation; checked under cs_main below.
+                const bool fHasBlock = !wtx.second.hashUnset();
+                for (const auto& tag : spark::GetSparkUsedTags(*wtx.second.tx)) {
+                    const uint256 hash = primitives::GetLTagHash(tag);
+                    for (auto& item : stale) {
+                        if (!item.fSpent || item.lTagHash != hash)
+                            continue;
+                        if (!fHasBlock) {
+                            if (item.spendTx.IsNull())
+                                item.spendTx = wtx.first;
+                        } else {
+                            item.blockSpends.push_back({wtx.first, wtx.second.hashBlock, wtx.second.nIndex});
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Read the spend sets again and publish the height before releasing them.
+    // A tag added after the first read is included. A pool-only tag that is
+    // gone is cleared.
+    {
+        boost::unique_lock<CCriticalSection> spendLock;
+        if (!acquireMain(spendLock)) {
+            LogPrintf("CSparkWallet::%s: left Spark coins pending; chain spend set was busy\n", __func__);
+            return;
+        }
+        readSpends(true);
+
+        auto resolveSpendTx = [&](const StaleMint& item) {
+            for (const auto& candidate : item.blockSpends) {
+                if (candidate.nIndex < 0)
+                    continue;
+                auto it = mapBlockIndex.find(candidate.hashBlock);
+                if (it == mapBlockIndex.end() || !it->second || !chainActive.Contains(it->second))
+                    continue;
+                return candidate.txid;
+            }
+            if (sparkState->IsUsedLTag(item.lTag))
+                return uint256();
+            return item.spendTx;
+        };
+
+        LOCK(cs_spark_wallet);
+        CWalletDB walletdb(strWalletFile);
+        int nConfirmed = 0;
+        for (const auto& item : stale) {
+            if (!item.fOnChain || !item.fHaveTag)
+                continue;
+            auto it = coinMeta.find(item.lTagHash);
+            if (it == coinMeta.end() || it->second.nHeight >= 1)
+                continue;
+            if (it->second.coin != item.coin)
+                continue;
+
+            const auto heightAndId = sparkState->GetMintedCoinHeightAndId(item.coin);
+            if (heightAndId.first < 1)
+                continue;
+
+            CSparkMintMeta mint = it->second;
+            mint.nHeight = heightAndId.first;
+            mint.nId = heightAndId.second;
+            if (item.fSpent)
+                mint.isUsed = true;
+            else if (item.fPoolOnlyAtFirstRead)
+                mint.isUsed = false;
+            addOrUpdateMint(mint, item.lTagHash, walletdb);
+            if (!item.fSpent && item.fPoolOnlyAtFirstRead)
+                walletdb.EraseSparkSpendEntry(item.lTag);
+            const uint256 spendTx = resolveSpendTx(item);
+            if (item.fSpent && !spendTx.IsNull())
+                UpdateSpendState(item.lTag, item.lTagHash, spendTx, false);
+            ++nConfirmed;
+        }
+
+        if (nConfirmed > 0) {
+            LogPrintf("CSparkWallet::%s: confirmed %d Spark coin%s already in the chain\n",
+                __func__, nConfirmed, nConfirmed == 1 ? "" : "s");
+        }
     }
 }
 
