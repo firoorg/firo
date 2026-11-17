@@ -5415,6 +5415,9 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
     }
+    // -newwallet and -rescan are for the startup scan only; left set, later rescans (import RPCs, BIP47) are skipped or ignore their start block.
+    ForceSetArg("-newwallet", "0");
+    ForceSetArg("-rescan", "0");
 
     // -wcdate is only for the initial restore scan; later rescans must use their own start block.
     ForceSetArg("-wcdate", "");
