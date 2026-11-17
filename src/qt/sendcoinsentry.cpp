@@ -294,6 +294,7 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
     ui->messageTextLabel->setVisible(isSparkAddress);
 
     updateSparkNameResolution();
+    updateSubtractFeeFromAmountControls();
 }
 
 void SendCoinsEntry::updateSparkNameResolution()
@@ -346,23 +347,34 @@ void SendCoinsEntry::clearRosenBridgeData()
     Q_EMIT rosenBridgeChanged();
 }
 
+void SendCoinsEntry::updateSubtractFeeFromAmountControls()
+{
+    RosenBridge::Metadata metadata;
+    const bool rosenMetadataPresent =
+        !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+    bool subtractFeeAllowed = !rosenMetadataPresent;
+    if (subtractFeeAllowed && model && fAnonymousMode &&
+        model->validateExchangeAddress(ui->payTo->text())) {
+        subtractFeeAllowed = false;
+    }
+
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
+    if (!subtractFeeAllowed) {
+        ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    }
+}
+
 void SendCoinsEntry::updateRosenBridgeDisplay()
 {
     RosenBridge::Metadata metadata;
     const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
-
-    const bool subtractFeeAllowed =
-        (!fAnonymousMode || (model && model->versionedSparkSpendsAllowed())) && !valid;
 
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);
     ui->rosenBridgeRow->setVisible(valid);
     ui->payAmount->setReadOnly(valid);
 
-    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
-    if (!subtractFeeAllowed) {
-        ui->checkboxSubtractFeeFromAmount->setChecked(false);
-    }
+    updateSubtractFeeFromAmountControls();
 
     if (!valid) {
         ui->rosenBridgeDetails->clear();
@@ -487,6 +499,11 @@ bool SendCoinsEntry::validate()
         }
     }
 
+    if (retval && fAnonymousMode && model->validateExchangeAddress(ui->payTo->text()) &&
+        ui->checkboxSubtractFeeFromAmount->isChecked()) {
+        retval = false;
+    }
+
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
     bool isSparkAddress = model->validateSparkAddress(ui->payTo->text());
 
@@ -590,7 +607,9 @@ void SendCoinsEntry::setAddress(const QString &address)
 
 void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
 {
-    ui->checkboxSubtractFeeFromAmount->setCheckState(enable && recipient.opReturnData.empty() ? Qt::Checked : Qt::Unchecked);
+    const bool canSubtract = recipient.opReturnData.empty() &&
+        !(model && fAnonymousMode && model->validateExchangeAddress(ui->payTo->text()));
+    ui->checkboxSubtractFeeFromAmount->setCheckState(enable && canSubtract ? Qt::Checked : Qt::Unchecked);
 }
 
 bool SendCoinsEntry::isClear()
