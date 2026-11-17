@@ -160,8 +160,9 @@ static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::str
 
 #ifdef ENABLE_WALLET
 
+// Returns the position of the change in tx.vout, -1 if there is no change.
 template<typename SpecialTxPayload>
-static void FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const SpecialTxPayload& payload, const CTxDestination& fundDest)
+static int FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const SpecialTxPayload& payload, const CTxDestination& fundDest)
 {
     assert(pwallet != NULL);
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -227,7 +228,10 @@ static void FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const Speci
         auto it = std::find(tx.vout.begin(), tx.vout.end(), dummyTxOut);
         assert(it != tx.vout.end());
         tx.vout.erase(it);
+        nChangePos = 0;
     }
+
+    return nChangePos;
 }
 
 template<typename SpecialTxPayload>
@@ -493,18 +497,14 @@ UniValue protx_register(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + request.params[paramIdx + 6].get_str());
     }
 
-    FundSpecialTx(pwallet, tx, ptx, fundAddress.Get());
+    int nChangePos = FundSpecialTx(pwallet, tx, ptx, fundAddress.Get());
     UpdateSpecialTxInputsHash(tx, ptx);
 
     if (isFundRegister) {
-        uint32_t collateralIndex = (uint32_t) -1;
-        for (uint32_t i = 0; i < tx.vout.size(); i++) {
-            if (tx.vout[i].nValue == collateralAmount) {
-                collateralIndex = i;
-                break;
-            }
-        }
-        assert(collateralIndex != (uint32_t) -1);
+        // The collateral is the only recipient, so only the change can come before it.
+        // The amount can't tell them apart: the change may be exactly the collateral amount.
+        uint32_t collateralIndex = nChangePos == 0 ? 1 : 0;
+        assert(tx.vout[collateralIndex].nValue == collateralAmount);
         ptx.collateralOutpoint.n = collateralIndex;
 
         SetTxPayload(tx, ptx);
