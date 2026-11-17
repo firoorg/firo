@@ -20,8 +20,10 @@ on top of the protocol in [spark-multisig.md](https://github.com/firoorg/firo/bl
 | Each signer signs and passes it on | `signrawtransaction hex` | `signsparkmultisigspend hex`, two passes |
 | Broadcast once `complete` is true | `sendrawtransaction hex` | the same |
 
-The extra passes exist because the spend key is generated jointly and is never
-assembled, neither at setup nor when signing.
+The extra passes exist because the participants generate the spend key together
+and each keeps a share of it. With `nrequired` of 2 or more the key is never
+assembled, neither at setup nor when signing. With `nrequired` 1 a share is the
+key: every participant holds all of it, as that policy implies.
 
 ### Setup
 

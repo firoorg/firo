@@ -21,7 +21,8 @@
 
 // Spark multisig follows the shape of transparent multisig. The cosigners exchange
 // public keys and each of them runs addsparkmultisigaddress, which here takes three
-// passes because the spend key is generated jointly and never exists in one place.
+// passes because they generate the spend key together and each keeps a share of it.
+// Unless one signer is enough, the key itself never exists in one place.
 // A spend is created by anyone, passed among the signers with signsparkmultisigspend
 // until it is complete, and sent with sendrawtransaction.
 
@@ -405,7 +406,8 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             "third call stops the server; restart it to use the multisig wallet.\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
-            "1. nrequired        (numeric, required) The number of participants needed to spend.\n"
+            "1. nrequired        (numeric, required) The number of participants needed to spend. With 1, every\n"
+            "                    participant holds the whole spend key.\n"
             "2. \"keys\"           (string, required) A json array of the hex-encoded compressed public keys of all\n"
             "                    participants, in any order. Exactly one must belong to this wallet: take it from\n"
             "                    getnewaddress and validateaddress.\n"
