@@ -55,6 +55,27 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 CAmount GetSparkSpendFee(const CTransaction& tx);
 
+/**
+ * Off-chain Spark spend proofs: evidence that the prover knows the spending
+ * keys behind every input of a confirmed Spark spend, bound to a message.
+ * See SpendTransaction::proveClaim and CSparkWallet::CreateSpendProof.
+ */
+enum class SpendProofResult { Ok, Mismatch, Malformed, TxNotFound, TxNotConfirmed, NotSparkSpend };
+/** English description of a result, for RPC and exception text. */
+const char* SpendProofResultMessage(SpendProofResult result);
+/**
+ * Load a confirmed Spark spend with the verification context that
+ * CheckSparkSpendTransaction restored for it. Requires cs_main.
+ */
+SpendProofResult GetConfirmedSparkSpend(const uint256& txid, spark::SpendTransaction& spend);
+/** Hex encoding of a spend proof for txid. */
+std::string EncodeSpendProof(const uint256& txid, const spark::ChaumProofV2& claim);
+/**
+ * Verify a hex spend proof against this node's chain. txid is set whenever
+ * the proof decodes, so callers can show which transaction it names.
+ */
+SpendProofResult VerifySpendProof(const std::string& hexProof, const std::string& message, uint256& txid);
+
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 

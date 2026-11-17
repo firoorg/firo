@@ -414,6 +414,51 @@ std::string CSparkWallet::SignMessage(const spark::Address& address, const std::
     return HexStr(proofStream.begin(), proofStream.end());
 }
 
+std::string CSparkWallet::CreateSpendProof(const uint256& txid, const std::string& message)
+{
+    const spark::Params* params = spark::Params::get_default();
+
+    spark::SpendTransaction spend(params);
+    const spark::SpendProofResult found = spark::GetConfirmedSparkSpend(txid, spend);
+    if (found != spark::SpendProofResult::Ok)
+        throw std::runtime_error(spark::SpendProofResultMessage(found));
+
+    // The serial number of each spent coin, in input order; only the wallet that owns the coins can recover them
+    std::vector<secp_primitives::Scalar> serials;
+    {
+        LOCK(cs_spark_wallet);
+        for (const GroupElement& lTag : spend.getUsedLTags()) {
+            const auto meta = coinMeta.find(primitives::GetLTagHash(lTag));
+            if (meta == coinMeta.end())
+                throw std::runtime_error("Transaction does not spend coins from this wallet");
+            spark::IdentifiedCoinData identifiedCoinData;
+            identifiedCoinData.i = meta->second.i;
+            identifiedCoinData.d = meta->second.d;
+            identifiedCoinData.v = meta->second.v;
+            identifiedCoinData.k = meta->second.k;
+            identifiedCoinData.memo = meta->second.memo;
+            serials.emplace_back(meta->second.coin.recover(fullViewKey, identifiedCoinData).s);
+        }
+    }
+
+    const spark::SpendKey spendKey = generateSpendKey(params); // throws WalletLocked
+
+    spark::ChaumProofV2 claim;
+    try {
+        spark::SpendTransaction::proveClaim(
+            fullViewKey,
+            spendKey,
+            spend,
+            serials,
+            std::vector<unsigned char>(txid.begin(), txid.end()),
+            std::vector<unsigned char>(message.begin(), message.end()),
+            claim);
+    } catch (const std::invalid_argument&) {
+        throw std::runtime_error("This wallet's keys do not open the transaction's inputs");
+    }
+    return spark::EncodeSpendProof(txid, claim);
+}
+
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {
     std::vector<CSparkMintMeta> setMints;
     LOCK(cs_spark_wallet);

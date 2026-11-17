@@ -43,8 +43,23 @@ Wallet GUI
   Oversized transparent sends and Make Private transactions explain how to
   access consolidation.
 
+- **Generate spend proof...** in a transaction's context menu proves that this
+  wallet holds the spending keys of one of its confirmed Spark spends, without
+  revealing the keys or which coins were spent. The proof is bound to a
+  message, which the verifier should choose afresh for each request.
+  **File > Verify spend proof...** checks a proof against the node's own chain
+  and needs no wallet. Anyone holding a proof can link its creator to the
+  transaction.
+
 RPC
 ---
+
+- `createsparkspendproof "txid" "message"` and
+  `verifysparkspendproof "proof" "message"`: create and verify an off-chain
+  proof that a wallet knows the spending keys behind every input of a
+  confirmed Spark spend, bound to `message`. Creating one needs the wallet
+  unlocked; verifying needs no wallet and returns `valid` and the `txid` the
+  proof names. A proof says nothing about the amount or recipient.
 
 - `consolidateaddress "address" (dryrun)`: previews one affordable batch within
   transaction limits, returning confirmed transparent funds to the same
