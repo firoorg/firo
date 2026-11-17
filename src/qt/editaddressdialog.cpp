@@ -161,10 +161,10 @@ bool EditAddressDialog::saveCurrentRow()
         break;
     case EditSparkReceivingAddress:
     case EditSparkSendingAddress:
-        if(mapper->submit())
-        {
-            address = ui->addressEdit->text();
-        }
+        // QDataWidgetMapper does not propagate model setData() failures.
+        if (!model->editSparkAddress(mapper->currentIndex(), ui->labelEdit->text(), ui->addressEdit->text()))
+            return false;
+        address = ui->addressEdit->text();
         break;
     }
     return !address.isEmpty();
@@ -208,6 +208,11 @@ void EditAddressDialog::accept()
         case AddressTableModel::KEY_GENERATION_FAILURE:
             QMessageBox::critical(this, windowTitle(),
                 tr("New key generation failed."),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case AddressTableModel::DATABASE_ERROR:
+            QMessageBox::critical(this, windowTitle(),
+                tr("Could not save the address to the address book."),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::PCODE_VALIDATION_FAILURE:

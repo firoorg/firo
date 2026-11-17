@@ -1294,7 +1294,10 @@ QString WalletModel::generateSparkAddress()
         address = wallet->sparkWallet->generateNewAddress();
         unsigned char network = spark::GetNetworkType();
 
-        wallet->SetSparkAddressBook(address.encode(network), "", "receive");
+        if (!wallet->SetSparkAddressBook(address.encode(network), "", "receive")) {
+            Q_EMIT message(tr("Address creation failed"), tr("Could not save the Spark address to the address book."), CClientUIInterface::MSG_ERROR);
+            return QString();
+        }
         return QString::fromStdString(address.encode(network));
     }
 }
