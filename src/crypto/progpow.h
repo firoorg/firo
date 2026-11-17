@@ -42,6 +42,12 @@ public:
 /* Performs a full progpow hash (DAG loops implied) provided header already hash nHeight valued */
 uint256 progpow_hash_full(const CProgPowHeader& header, uint256& mix_hash);
 
+/** Precompute the nonce-independent input. Refresh after changing any serialized header field. */
+ethash::hash256 progpow_header_hash(const CProgPowHeader& header);
+
+/** Hash one nonce using the managed light cache. Height must match the precomputed header. */
+uint256 progpow_hash_full(const ethash::hash256& header_hash, uint32_t height, uint64_t nonce, uint256& mix_hash);
+
 /* Performs a light progpow hash (DAG loops excluded) provided header has mix_hash */
 uint256 progpow_hash_light(const CProgPowHeader& header);
 
