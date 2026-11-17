@@ -583,6 +583,7 @@ void BitcoinApplication::initializeResult(int retval)
         QTimer::singleShot(100, paymentServer, &PaymentServer::uiReady);
 #endif
     } else {
+        Q_EMIT splashFinished(window);
         quit(); // Exit main loop
     }
 }
