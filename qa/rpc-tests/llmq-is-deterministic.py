@@ -244,6 +244,7 @@ class LLMQ_IS_Deterministic(EvoZnodeTestFramework):
 
         txid_hex = self.nodes[1].sendrawtransaction(rawtx)
         assert(self.wait_for_instantlock(txid_hex, self.nodes[1], do_assert=True))
+        assert(wait_until(lambda: txid_hex in self.nodes[0].getrawmempool(), timeout=30))
 
     def quorum_score(self, quorum_hash, request_id):
         # see CSigningManager::SelectQuorumForSigning, the lowest score wins and uint256 compares like memcmp
