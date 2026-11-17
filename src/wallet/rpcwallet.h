@@ -5,8 +5,16 @@
 #ifndef BITCOIN_WALLET_RPCWALLET_H
 #define BITCOIN_WALLET_RPCWALLET_H
 
+#include <string>
+#include <utility>
+#include <vector>
+
 class CRPCTable;
+class CWallet;
 class JSONRPCRequest;
+class UniValue;
+struct CRecipient;
+namespace spark { struct OutputCoinData; }
 
 void RegisterWalletRPCCommands(CRPCTable &t);
 
@@ -21,5 +29,17 @@ CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request);
 std::string HelpRequiringPassphrase(CWallet *);
 void EnsureWalletIsUnlocked(CWallet *);
 bool EnsureWalletIsAvailable(CWallet *, bool avoidException);
+void EnsureSparkWalletIsAvailable();
+
+/**
+ * Parse the recipients argument of the Spark spend RPCs: an object, or a string
+ * holding one, that maps each address to its amount, memo and subtractFee flag.
+ * @param[out] recipients Transparent recipients.
+ * @param[out] privateRecipients Spark recipients and whether each pays the fee.
+ */
+void ParseSparkSpendRecipients(
+        const UniValue& value,
+        std::vector<CRecipient>& recipients,
+        std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients);
 
 #endif //BITCOIN_WALLET_RPCWALLET_H

@@ -15,6 +15,8 @@
 #include "../scalar_impl.h"
 #include "../ecmult.h"
 #include "../ecmult_impl.h"
+#include "../ecmult_const.h"
+#include "../ecmult_const_impl.h"
 
 #include <openssl/rand.h>
 
@@ -273,6 +275,17 @@ GroupElement& GroupElement::operator*=(const Scalar& multiplier)
     secp256k1_scalar_set_int(&ng,0);
     secp256k1_ecmult(&ctx,g,g, reinterpret_cast<const secp256k1_scalar *>(multiplier.get_value()),&ng);
     return *this;
+}
+
+GroupElement GroupElement::multiplyConstantTime(const Scalar& multiplier) const
+{
+    const secp256k1_ge base = gej_to_ge(*reinterpret_cast<secp256k1_gej *>(g_));
+    if (secp256k1_ge_is_infinity(&base)) {
+        throw std::invalid_argument("GroupElement: constant-time multiplication of the point at infinity");
+    }
+    secp256k1_gej result;
+    secp256k1_ecmult_const(&result, &base, reinterpret_cast<const secp256k1_scalar *>(multiplier.get_value()));
+    return &result;
 }
 
 GroupElement GroupElement::operator+(const GroupElement &other) const

@@ -59,6 +59,15 @@ public:
         const std::vector<GroupElement>& T,
         const ChaumProofV2& proof
     );
+    // Public so that threshold signers can derive the same challenge (see multisig.h)
+    Scalar challenge_v2(
+        const Scalar& mu,
+        const ChaumV2Context& context,
+        const std::vector<GroupElement>& S,
+        const std::vector<GroupElement>& T,
+        const std::vector<GroupElement>& A1,
+        const std::vector<GroupElement>& A2
+    );
 
 private:
     Scalar challenge_v1(
@@ -66,14 +75,6 @@ private:
         const std::vector<GroupElement>& S,
         const std::vector<GroupElement>& T,
         const GroupElement& A1,
-        const std::vector<GroupElement>& A2
-    );
-    Scalar challenge_v2(
-        const Scalar& mu,
-        const ChaumV2Context& context,
-        const std::vector<GroupElement>& S,
-        const std::vector<GroupElement>& T,
-        const std::vector<GroupElement>& A1,
         const std::vector<GroupElement>& A2
     );
     const GroupElement& F;

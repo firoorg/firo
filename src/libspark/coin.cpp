@@ -122,6 +122,12 @@ bool Coin::validate(
         return false;
 	}
 
+	// The diversifier is whatever the sender encrypted. One of another length belongs
+	// to no address of this key, and decrypting it throws what no caller expects.
+	if (data.d.size() != AES_BLOCKSIZE) {
+		return false;
+	}
+
 	// Check serial commitment
 	data.i = incoming_view_key.get_diversifier(data.d);
 

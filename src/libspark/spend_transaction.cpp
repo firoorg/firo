@@ -32,6 +32,37 @@ SpendTransaction::SpendTransaction(
     SpendTransactionVersion version,
     const uint256& extension_commitment,
     const std::map<uint64_t, uint256>& block_hashes
+) : SpendTransaction(params, full_view_key, &spend_key, inputs, cover_set_data, cover_sets, f, vout, outputs, version, extension_commitment, block_hashes, nullptr) {
+}
+
+SpendTransaction::SpendTransaction(
+	const Params* params,
+	const FullViewKey& full_view_key,
+	const std::vector<InputCoinData>& inputs,
+    const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+    const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+	const uint64_t f,
+	const uint64_t vout,
+	const std::vector<OutputCoinData>& outputs,
+    const std::map<uint64_t, uint256>& block_hashes,
+    std::vector<Scalar>& output_nonces
+) : SpendTransaction(params, full_view_key, nullptr, inputs, cover_set_data, cover_sets, f, vout, outputs, SpendTransactionVersion::V2, uint256(), block_hashes, &output_nonces) {
+}
+
+SpendTransaction::SpendTransaction(
+	const Params* params,
+	const FullViewKey& full_view_key,
+	const SpendKey* spend_key,
+	const std::vector<InputCoinData>& inputs,
+    const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+    const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+	const uint64_t f,
+	const uint64_t vout,
+	const std::vector<OutputCoinData>& outputs,
+    SpendTransactionVersion version,
+    const uint256& extension_commitment,
+    const std::map<uint64_t, uint256>& block_hashes,
+    std::vector<Scalar>* output_nonces
 ) {
 	this->params = params;
 	this->version = version;
@@ -151,7 +182,9 @@ SpendTransaction::SpendTransaction(
 
 		// Chaum data
 		chaum_x.emplace_back(inputs[u].s);
-		chaum_y.emplace_back(spend_key.get_r());
+		if (spend_key) {
+			chaum_y.emplace_back(spend_key->get_r());
+		}
 		chaum_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
 	}
 
@@ -185,6 +218,9 @@ SpendTransaction::SpendTransaction(
 		range_v.emplace_back(outputs[j].v);
 		range_r.emplace_back(SparkUtils::hash_val(k.back()));
 		range_C.emplace_back(this->out_coins.back().C);
+	}
+	if (output_nonces) {
+		*output_nonces = k;
 	}
 
 	// Generate range proof
@@ -235,6 +271,17 @@ SpendTransaction::SpendTransaction(
 		this->out_coins,
 		this->f + vout
 	);
+
+	if (!spend_key) {
+		// The threshold signers supply the proof through setChaumProof. Fill the
+		// fixed-size V2 layout with values that serialize canonically and do not verify.
+		this->chaum_proof_v2.A1.assign(w, this->params->get_G());
+		this->chaum_proof_v2.A2.assign(w, this->params->get_G());
+		this->chaum_proof_v2.t1.assign(w, Scalar());
+		this->chaum_proof_v2.t2.assign(w, Scalar());
+		this->chaum_proof_v2.t3.assign(w, Scalar());
+		return;
+	}
 
 	// Compute the authorizing Chaum proof
 	Chaum chaum(
@@ -302,6 +349,24 @@ ChaumV2Context SpendTransaction::GetChaumV2Context(
         context.serialized_outputs.emplace_back(encoded.begin(), encoded.end());
     }
     return context;
+}
+
+Scalar SpendTransaction::getBindingHash() const {
+    return hash_bind(
+        hash_bind_inner(cover_set_representations, S1, C1, T, grootle_proofs, balance_proof, range_proof),
+        out_coins,
+        f + vout);
+}
+
+ChaumV2Context SpendTransaction::getChaumContext() const {
+    return GetChaumV2Context(out_coins, f, vout, extension_commitment, cover_set_ids, set_id_blockHash);
+}
+
+void SpendTransaction::setChaumProof(const ChaumProofV2& proof) {
+    if (version != SpendTransactionVersion::V2) {
+        throw std::invalid_argument("Only a Spark V2 spend takes a V2 Chaum proof");
+    }
+    chaum_proof_v2 = proof;
 }
 
 uint64_t SpendTransaction::getFee() {

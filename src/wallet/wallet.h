@@ -1415,6 +1415,8 @@ public:
     bool validateAddress(const std::string& address);
     bool validateSparkAddress(const std::string& address) const;
     bool GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output) const;
+    /** Save where Spark outputs go, all of them or none, as CommitTransaction does. */
+    bool WriteSparkOutputTxs(const std::vector<std::pair<CScript, CSparkOutputTx>>& records);
 };
 
 /** A key allocated from the key pool. */
