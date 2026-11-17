@@ -1,0 +1,2324 @@
+name: SQLite Wallet Platform Evidence
+
+on:
+  push:
+    branches:
+      - 'goethe/sqlite-wallet'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sqlite-wallet-platform-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-mingw-wallet-tests:
+    name: Build MinGW SQLite wallet tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install MinGW build tools
+        run: |
+          set -exo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            automake \
+            binutils-mingw-w64-x86-64 \
+            build-essential \
+            ccache \
+            cmake \
+            g++-mingw-w64-x86-64 \
+            gcc-mingw-w64-x86-64 \
+            libtool \
+            meson \
+            mingw-w64-common \
+            mingw-w64-x86-64-dev \
+            ninja-build \
+            pkg-config \
+            unzip \
+            wget
+
+      - name: Select POSIX MinGW runtime
+        run: |
+          set -exo pipefail
+          sudo update-alternatives --set \
+            x86_64-w64-mingw32-gcc \
+            /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set \
+            x86_64-w64-mingw32-g++ \
+            /usr/bin/x86_64-w64-mingw32-g++-posix
+
+      - name: Configure build parallelism and ccache
+        run: |
+          set -exo pipefail
+          EVIDENCE_JOBS=$(nproc)
+          if [ "$EVIDENCE_JOBS" -gt 20 ]; then
+            EVIDENCE_JOBS=20
+          fi
+          echo "EVIDENCE_JOBS=$EVIDENCE_JOBS" >> "$GITHUB_ENV"
+          ccache --set-config=max_size=5G
+          ccache --set-config=compression=true
+          echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+
+      - name: Cache deterministic dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            depends/built
+            depends/sources
+            depends/work
+          key: sqlite-wallet-evidence-mingw-${{ hashFiles('depends/packages/*.mk', 'depends/patches/**', 'depends/hosts/*.mk', 'depends/builders/*.mk', 'depends/Makefile', 'depends/funcs.mk', 'depends/toolchain.cmake.in') }}
+          restore-keys: |
+            sqlite-wallet-evidence-mingw-
+            depends-windows-x86_64-w64-mingw32-
+
+      - name: Download scoped MinGW dependencies
+        run: |
+          set -exo pipefail
+          rm -rf depends/sources/download-stamps
+          attempt=1
+          max=5
+          until make -C depends download-one \
+              HOST=x86_64-w64-mingw32 \
+              NO_QT=1 \
+              NO_QR=1 \
+              NO_ZMQ=1; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "MinGW dependency download failed after $attempt attempts"
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+            attempt=$((attempt + 1))
+          done
+
+      - name: Fix MinGW headers
+        shell: bash
+        run: |
+          set -euxo pipefail
+          MINGW_INC="/usr/x86_64-w64-mingw32/include"
+          if ! grep -q \
+              "NLM_INTERNET_CONNECTIVITY_WEBHIJACK" \
+              "$MINGW_INC/netlistmgr.h"; then
+            sudo bash -c "cat >> '$MINGW_INC/netlistmgr.h' <<'EOF'
+
+          #ifndef NLM_INTERNET_CONNECTIVITY_WEBHIJACK
+          #define NLM_INTERNET_CONNECTIVITY_WEBHIJACK 0x1
+          #endif
+          EOF"
+          fi
+
+      - name: Build dual BDB and SQLite wallet tests
+        run: |
+          set -exo pipefail
+          HOST_TRIPLET=x86_64-w64-mingw32
+          make -C depends -j"$EVIDENCE_JOBS" \
+            HOST="$HOST_TRIPLET" \
+            NO_QT=1 \
+            NO_QR=1 \
+            NO_ZMQ=1
+
+          SQLITE_HEADER="depends/$HOST_TRIPLET/include/sqlite3.h"
+          SQLITE_ARCHIVE="depends/$HOST_TRIPLET/lib/libsqlite3.a"
+          test -e "$SQLITE_HEADER"
+          test -e "$SQLITE_ARCHIVE"
+          grep -Eq \
+            '^#define[[:space:]]+SQLITE_VERSION[[:space:]]+"3\.50\.4"$' \
+            "$SQLITE_HEADER"
+          grep -q '#define SQLITE_VERSION_NUMBER 3050004' "$SQLITE_HEADER"
+          grep -q \
+            '4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3' \
+            "$SQLITE_HEADER"
+          test "$(x86_64-w64-mingw32-ar -t "$SQLITE_ARCHIVE")" = "sqlite3.o"
+
+          env \
+            PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$(realpath depends/$HOST_TRIPLET/toolchain.cmake)" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=ON \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_CRASH_HOOKS=ON \
+              -DENABLE_SQLITE_WALLET=ON \
+              -DWITH_BDB=ON \
+              -DWITH_QRENCODE=OFF \
+              -DWITH_ZMQ=OFF \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$(realpath .)" \
+              -B"$(realpath build-windows-dual)"
+
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
+            "$PWD/build-windows-dual/src/config/bitcoin-config.h" \
+            "$PWD/build-windows-dual/config/bitcoin-config.h"
+          grep -Fqx '#define USE_SQLITE 1' \
+            "$PWD/build-windows-dual/src/config/bitcoin-config.h"
+          cmake --build build-windows-dual \
+            --target test_firo firod \
+            --parallel "$EVIDENCE_JOBS"
+
+          DUAL_AUDIT_DIR=$(mktemp -d)
+          x86_64-w64-mingw32-ar -t \
+            build-windows-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-members"
+          x86_64-w64-mingw32-nm -C \
+            build-windows-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-symbols"
+          x86_64-w64-mingw32-objdump -p \
+            build-windows-dual/bin/test_firo.exe \
+            > "$DUAL_AUDIT_DIR/test-firo-pe"
+          grep -Eiq 'sqlite\.cpp' \
+            "$DUAL_AUDIT_DIR/wallet-members"
+          grep -Eiq 'win32_file_lifecycle' \
+            "$DUAL_AUDIT_DIR/wallet-members"
+          grep -Eq \
+            'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+            "$DUAL_AUDIT_DIR/wallet-symbols"
+          if grep -Eiq 'DLL Name:.*sqlite' \
+              "$DUAL_AUDIT_DIR/test-firo-pe"; then
+            echo "Dual Windows test executable imports SQLite dynamically"
+            exit 1
+          fi
+
+      - name: Build true BDB-only wallet tests
+        run: |
+          set -exo pipefail
+          HOST_TRIPLET=x86_64-w64-mingw32
+          make -C depends -j"$EVIDENCE_JOBS" \
+            HOST="$HOST_TRIPLET" \
+            NO_QT=1 \
+            NO_QR=1 \
+            NO_ZMQ=1 \
+            NO_SQLITE=1
+
+          test ! -e "depends/$HOST_TRIPLET/include/sqlite3.h"
+          test ! -e "depends/$HOST_TRIPLET/include/sqlite3ext.h"
+          test ! -e "depends/$HOST_TRIPLET/lib/libsqlite3.a"
+          test ! -e "depends/$HOST_TRIPLET/lib/pkgconfig/sqlite3.pc"
+
+          env \
+            PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$(realpath depends/$HOST_TRIPLET/toolchain.cmake)" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=ON \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_CRASH_HOOKS=ON \
+              -DENABLE_SQLITE_WALLET=OFF \
+              -DWITH_BDB=ON \
+              -DWITH_QRENCODE=OFF \
+              -DWITH_ZMQ=OFF \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$(realpath .)" \
+              -B"$(realpath build-windows-bdb-only)"
+
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
+            "$PWD/build-windows-bdb-only/src/config/bitcoin-config.h" \
+            "$PWD/build-windows-bdb-only/config/bitcoin-config.h"
+          grep -Fqx '/* #undef USE_SQLITE */' \
+            "$PWD/build-windows-bdb-only/src/config/bitcoin-config.h"
+          cmake --build build-windows-bdb-only \
+            --target test_firo firod \
+            --parallel "$EVIDENCE_JOBS"
+
+          BDB_AUDIT_DIR=$(mktemp -d)
+          x86_64-w64-mingw32-ar -t \
+            build-windows-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-members"
+          x86_64-w64-mingw32-nm -C \
+            build-windows-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-symbols"
+          x86_64-w64-mingw32-objdump -p \
+            build-windows-bdb-only/bin/test_firo.exe \
+            > "$BDB_AUDIT_DIR/test-firo-pe"
+          if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
+              "$BDB_AUDIT_DIR/wallet-members"; then
+            echo "BDB-only Windows wallet archive contains a SQLite wallet object"
+            exit 1
+          fi
+          if grep -Eq \
+              'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+              "$BDB_AUDIT_DIR/wallet-symbols"; then
+            echo "BDB-only Windows wallet archive contains a SQLite wallet symbol"
+            exit 1
+          fi
+          if grep -Eiq 'DLL Name:.*sqlite' \
+              "$BDB_AUDIT_DIR/test-firo-pe"; then
+            echo "BDB-only Windows test executable imports SQLite"
+            exit 1
+          fi
+
+      - name: Stage wallet test executables
+        run: |
+          set -exo pipefail
+          mkdir -p \
+            sqlite-wallet-platform-evidence/dual \
+            sqlite-wallet-platform-evidence/bdb-only
+          cp \
+            build-windows-dual/bin/test_firo.exe \
+            build-windows-dual/bin/firod.exe \
+            sqlite-wallet-platform-evidence/dual/
+          cp \
+            build-windows-bdb-only/bin/test_firo.exe \
+            build-windows-bdb-only/bin/firod.exe \
+            sqlite-wallet-platform-evidence/bdb-only/
+
+      - name: Upload wallet test executables
+        uses: actions/upload-artifact@v6
+        with:
+          name: sqlite-wallet-platform-evidence-${{ github.sha }}
+          path: sqlite-wallet-platform-evidence
+          if-no-files-found: error
+          retention-days: 1
+
+  run-native-windows-wallet-tests:
+    name: Run SQLite wallet tests on native Windows NTFS
+    needs: build-mingw-wallet-tests
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install native Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Download wallet test executables
+        uses: actions/download-artifact@v7
+        with:
+          name: sqlite-wallet-platform-evidence-${{ github.sha }}
+          path: wallet-tests
+
+      - name: Run wallet database tests
+        shell: pwsh
+        working-directory: wallet-tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          $testTemp = Join-Path $env:LOCALAPPDATA "FiroSQLiteWalletTests-$PID"
+          New-Item -ItemType Directory -Path $testTemp | Out-Null
+          $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+          $identityBefore = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+          try {
+            $tokenOwnerBefore = $identityBefore.Owner
+          } finally {
+            $identityBefore.Dispose()
+          }
+          $tokenOwnerBeforeCategory = if (
+            $null -ne $tokenOwnerBefore -and
+            $tokenOwnerBefore.Equals($currentSid)
+          ) {
+            'current-user'
+          } else {
+            'non-current-user'
+          }
+
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Collections.Generic;
+          using System.ComponentModel;
+          using System.IO;
+          using System.Runtime.InteropServices;
+          using System.Security.Principal;
+          using System.Text;
+          using Microsoft.Win32.SafeHandles;
+
+          public static class FiroTestTokenOwner
+          {
+              private const uint TOKEN_ADJUST_DEFAULT = 0x0080;
+              private const int TOKEN_OWNER_CLASS = 4;
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct TokenOwner
+              {
+                  public IntPtr Owner;
+              }
+
+              [DllImport("kernel32.dll")]
+              private static extern IntPtr GetCurrentProcess();
+
+              [DllImport("advapi32.dll", SetLastError = true)]
+              private static extern bool OpenProcessToken(
+                  IntPtr process,
+                  uint desiredAccess,
+                  out SafeAccessTokenHandle token);
+
+              [DllImport("advapi32.dll", SetLastError = true)]
+              private static extern bool SetTokenInformation(
+                  SafeAccessTokenHandle token,
+                  int informationClass,
+                  ref TokenOwner information,
+                  int informationLength);
+
+              public static void SetCurrentUserAsDefaultOwner()
+              {
+                  SafeAccessTokenHandle token;
+                  if (!OpenProcessToken(
+                          GetCurrentProcess(),
+                          TOKEN_ADJUST_DEFAULT,
+                          out token)) {
+                      throw new Win32Exception(
+                          Marshal.GetLastWin32Error(),
+                          "OpenProcessToken(TOKEN_ADJUST_DEFAULT) failed");
+                  }
+
+                  using (token)
+                  using (WindowsIdentity identity = WindowsIdentity.GetCurrent()) {
+                      SecurityIdentifier user = identity.User;
+                      if (user == null) {
+                          throw new InvalidOperationException(
+                              "The current process token has no user SID.");
+                      }
+                      byte[] userBytes = new byte[user.BinaryLength];
+                      user.GetBinaryForm(userBytes, 0);
+                      GCHandle pinnedUser = GCHandle.Alloc(
+                          userBytes,
+                          GCHandleType.Pinned);
+                      try {
+                          TokenOwner owner = new TokenOwner {
+                              Owner = pinnedUser.AddrOfPinnedObject()
+                          };
+                          if (!SetTokenInformation(
+                                  token,
+                                  TOKEN_OWNER_CLASS,
+                                  ref owner,
+                                  Marshal.SizeOf(typeof(TokenOwner)))) {
+                              throw new Win32Exception(
+                                  Marshal.GetLastWin32Error(),
+                                  "SetTokenInformation(TokenOwner) failed");
+                          }
+                      } finally {
+                          pinnedUser.Free();
+                      }
+                  }
+              }
+          }
+
+          public static class FiroMoveFileProbe
+          {
+              private const uint GENERIC_READ = 0x80000000;
+              private const uint GENERIC_WRITE = 0x40000000;
+              private const uint DELETE = 0x00010000;
+              private const uint READ_CONTROL = 0x00020000;
+              private const uint FILE_READ_ATTRIBUTES = 0x00000080;
+              private const uint FILE_SHARE_READ = 0x00000001;
+              private const uint FILE_SHARE_WRITE = 0x00000002;
+              private const uint FILE_SHARE_DELETE = 0x00000004;
+              private const uint OPEN_EXISTING = 3;
+              private const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
+              private const uint FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+              private const uint FILE_FLAG_WRITE_THROUGH = 0x80000000;
+              private const uint MOVEFILE_REPLACE_EXISTING = 0x00000001;
+              private const uint MOVEFILE_WRITE_THROUGH = 0x00000008;
+              private const int FILE_RENAME_INFO_EX = 22;
+              private const uint FILE_RENAME_REPLACE_IF_EXISTS = 0x00000001;
+              private const uint FILE_RENAME_POSIX_SEMANTICS = 0x00000002;
+              private const int ERROR_FILE_NOT_FOUND = 2;
+              private const int ERROR_PATH_NOT_FOUND = 3;
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct FileTime
+              {
+                  public uint Low;
+                  public uint High;
+              }
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct ByHandleFileInformation
+              {
+                  public uint Attributes;
+                  public FileTime CreationTime;
+                  public FileTime LastAccessTime;
+                  public FileTime LastWriteTime;
+                  public uint VolumeSerial;
+                  public uint SizeHigh;
+                  public uint SizeLow;
+                  public uint LinkCount;
+                  public uint FileIndexHigh;
+                  public uint FileIndexLow;
+              }
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct FileStandardInformation
+              {
+                  public long AllocationSize;
+                  public long EndOfFile;
+                  public uint LinkCount;
+                  [MarshalAs(UnmanagedType.U1)]
+                  public bool DeletePending;
+                  [MarshalAs(UnmanagedType.U1)]
+                  public bool Directory;
+              }
+
+              private struct Identity
+              {
+                  public bool Valid;
+                  public uint Volume;
+                  public ulong Index;
+              }
+
+              [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+              private static extern SafeFileHandle CreateFileW(
+                  string path,
+                  uint access,
+                  uint share,
+                  IntPtr security,
+                  uint creation,
+                  uint flags,
+                  IntPtr template);
+
+              [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+              private static extern bool MoveFileExW(
+                  string existingPath,
+                  string newPath,
+                  uint flags);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool GetFileInformationByHandle(
+                  SafeFileHandle file,
+                  out ByHandleFileInformation information);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool GetFileInformationByHandleEx(
+                  SafeFileHandle file,
+                  int informationClass,
+                  out FileStandardInformation information,
+                  uint size);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool SetFileInformationByHandle(
+                  SafeFileHandle file,
+                  int informationClass,
+                  IntPtr information,
+                  uint size);
+
+              private static SafeFileHandle OpenRetained(
+                  string path,
+                  bool grantDelete,
+                  bool writeThrough,
+                  bool shareDelete)
+              {
+                  uint access =
+                      GENERIC_READ |
+                      GENERIC_WRITE |
+                      FILE_READ_ATTRIBUTES |
+                      READ_CONTROL;
+                  if (grantDelete) {
+                      access |= DELETE;
+                  }
+                  uint flags =
+                      FILE_ATTRIBUTE_NORMAL |
+                      FILE_FLAG_OPEN_REPARSE_POINT;
+                  if (writeThrough) {
+                      flags |= FILE_FLAG_WRITE_THROUGH;
+                  }
+                  uint share =
+                      FILE_SHARE_READ |
+                      FILE_SHARE_WRITE;
+                  if (shareDelete) {
+                      share |= FILE_SHARE_DELETE;
+                  }
+                  SafeFileHandle file = CreateFileW(
+                      path,
+                      access,
+                      share,
+                      IntPtr.Zero,
+                      OPEN_EXISTING,
+                      flags,
+                      IntPtr.Zero);
+                  if (file.IsInvalid) {
+                      int error = Marshal.GetLastWin32Error();
+                      file.Dispose();
+                      throw new Win32Exception(error);
+                  }
+                  return file;
+              }
+
+              private static bool TryIdentity(
+                  SafeFileHandle file,
+                  out Identity identity,
+                  out int error)
+              {
+                  identity = new Identity();
+                  error = 0;
+                  if (file == null || file.IsInvalid) {
+                      return false;
+                  }
+                  ByHandleFileInformation information;
+                  if (!GetFileInformationByHandle(
+                          file,
+                          out information)) {
+                      error = Marshal.GetLastWin32Error();
+                      return false;
+                  }
+                  identity.Valid = true;
+                  identity.Volume = information.VolumeSerial;
+                  identity.Index =
+                      ((ulong)information.FileIndexHigh << 32) |
+                      information.FileIndexLow;
+                  return true;
+              }
+
+              private static bool TryPathIdentity(
+                  string path,
+                  out Identity identity,
+                  out int error)
+              {
+                  identity = new Identity();
+                  error = 0;
+                  using (SafeFileHandle file = CreateFileW(
+                      path,
+                      FILE_READ_ATTRIBUTES,
+                      FILE_SHARE_READ |
+                          FILE_SHARE_WRITE |
+                          FILE_SHARE_DELETE,
+                      IntPtr.Zero,
+                      OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL |
+                          FILE_FLAG_OPEN_REPARSE_POINT,
+                      IntPtr.Zero)) {
+                      if (file.IsInvalid) {
+                          error = Marshal.GetLastWin32Error();
+                          return false;
+                      }
+                      return TryIdentity(
+                          file,
+                          out identity,
+                          out error);
+                  }
+              }
+
+              private static bool Same(
+                  Identity first,
+                  Identity second)
+              {
+                  return first.Valid &&
+                      second.Valid &&
+                      first.Volume == second.Volume &&
+                      first.Index == second.Index;
+              }
+
+              private static string IdentityCategory(
+                  Identity identity,
+                  Identity source,
+                  Identity destination)
+              {
+                  if (!identity.Valid) {
+                      return "invalid";
+                  }
+                  if (Same(identity, source)) {
+                      return "source";
+                  }
+                  if (Same(identity, destination)) {
+                      return "destination";
+                  }
+                  return "other";
+              }
+
+              private static string PathCategory(
+                  string path,
+                  Identity source,
+                  Identity destination)
+              {
+                  Identity identity;
+                  int error;
+                  if (TryPathIdentity(
+                          path,
+                          out identity,
+                          out error)) {
+                      return IdentityCategory(
+                          identity,
+                          source,
+                          destination);
+                  }
+                  if (error == ERROR_FILE_NOT_FOUND ||
+                      error == ERROR_PATH_NOT_FOUND) {
+                      return "absent";
+                  }
+                  return "error-" + error;
+              }
+
+              private static string HandleCategory(
+                  SafeFileHandle file,
+                  Identity source,
+                  Identity destination)
+              {
+                  if (file == null) {
+                      return "none";
+                  }
+                  Identity identity;
+                  int error;
+                  if (!TryIdentity(
+                          file,
+                          out identity,
+                          out error)) {
+                      return "error-" + error;
+                  }
+                  return IdentityCategory(
+                      identity,
+                      source,
+                      destination);
+              }
+
+              private static string DeletePending(
+                  SafeFileHandle file)
+              {
+                  if (file == null) {
+                      return "none";
+                  }
+                  FileStandardInformation information;
+                  if (!GetFileInformationByHandleEx(
+                          file,
+                          1,
+                          out information,
+                          (uint)Marshal.SizeOf(
+                              typeof(FileStandardInformation)))) {
+                      return "error-" +
+                          Marshal.GetLastWin32Error();
+                  }
+                  return information.DeletePending ?
+                      "true" :
+                      "false";
+              }
+
+              private static bool Equal(
+                  byte[] first,
+                  byte[] second)
+              {
+                  if (first.Length != second.Length) {
+                      return false;
+                  }
+                  for (int index = 0;
+                       index < first.Length;
+                       ++index) {
+                      if (first[index] != second[index]) {
+                          return false;
+                      }
+                  }
+                  return true;
+              }
+
+              private static string DestinationBytes(
+                  string path,
+                  byte[] source,
+                  byte[] destination)
+              {
+                  if (!File.Exists(path)) {
+                      return "absent";
+                  }
+                  byte[] contents;
+                  using (FileStream file = new FileStream(
+                      path, FileMode.Open, FileAccess.Read,
+                      FileShare.ReadWrite | FileShare.Delete)) {
+                      using (MemoryStream buffer = new MemoryStream()) {
+                          file.CopyTo(buffer);
+                          contents = buffer.ToArray();
+                      }
+                  }
+                  if (Equal(contents, source)) {
+                      return "source";
+                  }
+                  if (Equal(contents, destination)) {
+                      return "destination";
+                  }
+                  return "other";
+              }
+
+              private static bool RenamePosix(
+                  SafeFileHandle source,
+                  string destination,
+                  out int error)
+              {
+                  byte[] name =
+                      Encoding.Unicode.GetBytes(destination);
+                  int rootOffset =
+                      IntPtr.Size == 8 ? 8 : 4;
+                  int lengthOffset =
+                      rootOffset + IntPtr.Size;
+                  int nameOffset =
+                      lengthOffset + sizeof(uint);
+                  int size =
+                      nameOffset + name.Length + sizeof(char);
+                  IntPtr information =
+                      Marshal.AllocHGlobal(size);
+                  try {
+                      for (int offset = 0;
+                           offset < size;
+                           ++offset) {
+                          Marshal.WriteByte(
+                              information,
+                              offset,
+                              0);
+                      }
+                      Marshal.WriteInt32(
+                          information,
+                          0,
+                          (int)(
+                              FILE_RENAME_REPLACE_IF_EXISTS |
+                              FILE_RENAME_POSIX_SEMANTICS));
+                      Marshal.WriteIntPtr(
+                          information,
+                          rootOffset,
+                          IntPtr.Zero);
+                      Marshal.WriteInt32(
+                          information,
+                          lengthOffset,
+                          name.Length);
+                      Marshal.Copy(
+                          name,
+                          0,
+                          IntPtr.Add(
+                              information,
+                              nameOffset),
+                          name.Length);
+                      bool renamed =
+                          SetFileInformationByHandle(
+                              source,
+                              FILE_RENAME_INFO_EX,
+                              information,
+                              (uint)size);
+                      error = renamed ?
+                          0 :
+                          Marshal.GetLastWin32Error();
+                      return renamed;
+                  } finally {
+                      Marshal.FreeHGlobal(information);
+                  }
+              }
+
+              private static void TryDelete(string path)
+              {
+                  try {
+                      if (File.Exists(path)) {
+                          File.Delete(path);
+                      }
+                  } catch {
+                  }
+              }
+
+              private static string RunScenario(
+                  string directory,
+                  string label,
+                  bool replace,
+                  bool holdSource,
+                  bool holdDestination,
+                  bool grantDelete,
+                  bool posix,
+                  bool blockDestinationDeleteShare)
+              {
+                  string nonce =
+                      Guid.NewGuid().ToString("N");
+                  string sourcePath =
+                      Path.Combine(
+                          directory,
+                          "move-probe-" + nonce + "-source");
+                  string destinationPath =
+                      Path.Combine(
+                          directory,
+                          "move-probe-" + nonce + "-destination");
+                  byte[] sourceBytes =
+                      Encoding.ASCII.GetBytes(
+                          "source-bytes");
+                  byte[] destinationBytes =
+                      Encoding.ASCII.GetBytes(
+                          "destination-bytes");
+                  SafeFileHandle sourceFile = null;
+                  SafeFileHandle destinationFile = null;
+                  try {
+                      File.WriteAllBytes(
+                          sourcePath,
+                          sourceBytes);
+                      if (replace) {
+                          File.WriteAllBytes(
+                              destinationPath,
+                              destinationBytes);
+                      }
+
+                      Identity sourceIdentity;
+                      Identity destinationIdentity;
+                      int identityError;
+                      if (!TryPathIdentity(
+                              sourcePath,
+                              out sourceIdentity,
+                              out identityError)) {
+                          return label +
+                              "=source-identity-error-" +
+                              identityError;
+                      }
+                      if (replace) {
+                          if (!TryPathIdentity(
+                                  destinationPath,
+                                  out destinationIdentity,
+                                  out identityError)) {
+                              return label +
+                                  "=destination-identity-error-" +
+                                  identityError;
+                          }
+                      } else {
+                          destinationIdentity =
+                              new Identity();
+                      }
+
+                      if (holdSource || posix) {
+                          sourceFile = OpenRetained(
+                          sourcePath,
+                          grantDelete || posix,
+                          posix,
+                          true);
+                      }
+                      if (holdDestination) {
+                          destinationFile = OpenRetained(
+                              destinationPath,
+                              grantDelete,
+                              false,
+                              !blockDestinationDeleteShare);
+                      }
+
+                      int nativeError;
+                      bool moved;
+                      if (posix) {
+                          moved = RenamePosix(
+                              sourceFile,
+                              destinationPath,
+                              out nativeError);
+                      } else {
+                          moved = MoveFileExW(
+                              sourcePath,
+                              destinationPath,
+                              MOVEFILE_WRITE_THROUGH |
+                                  (replace ?
+                                      MOVEFILE_REPLACE_EXISTING :
+                                      0));
+                          nativeError = moved ?
+                              0 :
+                              Marshal.GetLastWin32Error();
+                      }
+
+                      return label +
+                          "=" +
+                          (moved ?
+                              "success" :
+                              "failure") +
+                          ",error=" +
+                          nativeError +
+                          ",source_path=" +
+                          PathCategory(
+                              sourcePath,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",destination_path=" +
+                          PathCategory(
+                              destinationPath,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",source_handle=" +
+                          HandleCategory(
+                              sourceFile,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",destination_handle=" +
+                          HandleCategory(
+                              destinationFile,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",destination_delete_pending=" +
+                          DeletePending(
+                              destinationFile) +
+                          ",destination_bytes=" +
+                          DestinationBytes(
+                              destinationPath,
+                              sourceBytes,
+                              destinationBytes);
+                  } catch (Win32Exception exception) {
+                      return label +
+                          "=probe-win32-error-" +
+                          exception.NativeErrorCode;
+                  } catch {
+                      return label +
+                          "=probe-exception";
+                  } finally {
+                      if (destinationFile != null) {
+                          destinationFile.Dispose();
+                      }
+                      if (sourceFile != null) {
+                          sourceFile.Dispose();
+                      }
+                      TryDelete(sourcePath);
+                      TryDelete(destinationPath);
+                  }
+              }
+
+              public static string Run(string directory)
+              {
+                  List<string> results =
+                      new List<string>();
+                  results.Add(
+                      "current_access=0xC0020080,delete_access=0xC0030080," +
+                      "current_share=0x7,blocker_share=0x3");
+                  results.Add(RunScenario(
+                      directory,
+                      "noreplace_none",
+                      false,
+                      false,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "noreplace_source",
+                      false,
+                      true,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "noreplace_source_delete",
+                      false,
+                      true,
+                      false,
+                      true,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_none",
+                      true,
+                      false,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_source",
+                      true,
+                      true,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_destination",
+                      true,
+                      false,
+                      true,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_both",
+                      true,
+                      true,
+                      true,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_both_delete",
+                      true,
+                      true,
+                      true,
+                      true,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "posix_both_delete_write_through",
+                      true,
+                      true,
+                      true,
+                      true,
+                      true,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "posix_destination_blocker",
+                      true,
+                      true,
+                      true,
+                      true,
+                      true,
+                      true));
+                  return string.Join(
+                      ";",
+                      results);
+              }
+          }
+          '@
+          [FiroTestTokenOwner]::SetCurrentUserAsDefaultOwner()
+          $identityAfter = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+          try {
+            $tokenOwnerAfter = $identityAfter.Owner
+          } finally {
+            $identityAfter.Dispose()
+          }
+          if (
+            $null -eq $tokenOwnerAfter -or
+            !$tokenOwnerAfter.Equals($currentSid)
+          ) {
+            throw 'Failed to normalize the test process token owner'
+          }
+
+          $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
+          $accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+            $currentSid,
+            [System.Security.AccessControl.FileSystemRights]::FullControl,
+            $inheritance,
+            [System.Security.AccessControl.PropagationFlags]::None,
+            [System.Security.AccessControl.AccessControlType]::Allow
+          )
+          $privateAcl = [System.Security.AccessControl.DirectorySecurity]::new()
+          $privateAcl.SetAccessRuleProtection($true, $false)
+          $privateAcl.SetOwner($currentSid)
+          $privateAcl.AddAccessRule($accessRule)
+          Set-Acl -LiteralPath $testTemp -AclObject $privateAcl
+
+          $ownerProbe = Join-Path $testTemp 'child-token-owner-probe'
+          try {
+            & "$env:SystemRoot\System32\cmd.exe" /d /c "mkdir `"$ownerProbe`""
+            if ($LASTEXITCODE -ne 0) {
+              throw "Child token-owner probe failed with exit code $LASTEXITCODE"
+            }
+            $probeOwner = (Get-Acl -LiteralPath $ownerProbe).GetOwner(
+              [System.Security.Principal.SecurityIdentifier]
+            )
+            if (!$probeOwner.Equals($currentSid)) {
+              throw 'The normalized token owner was not inherited by a child process'
+            }
+          } finally {
+            if ([System.IO.Directory]::Exists($ownerProbe)) {
+              [System.IO.Directory]::Delete($ownerProbe, $false)
+            }
+          }
+          Write-Output (
+            '::notice title=Windows test token-owner normalization::before={0}; after=current-user; child-probe=current-user' -f
+              $tokenOwnerBeforeCategory
+          )
+          $drive = (Get-Item $testTemp).PSDrive.Name
+          $testVolume = Get-Volume -DriveLetter $drive
+          if ($testVolume.FileSystem -ne 'NTFS') {
+            throw "SQLite Windows tests require NTFS"
+          }
+          $moveFileProbe = [FiroMoveFileProbe]::Run($testTemp)
+          if ($moveFileProbe.Length -ge 5000) {
+            throw 'Internal MoveFileEx retained-handle probe limit exceeded'
+          }
+          Write-Output `
+            "::notice title=Windows retained-handle replacement probe::filesystem=NTFS;$moveFileProbe"
+
+          $env:TEMP = $testTemp
+          $env:TMP = $env:TEMP
+          $env:FIRO_TEST_REQUIRE_WIN32_REPARSE = '1'
+
+          function ConvertTo-WorkflowCommandValue([string]$Value) {
+            return $Value.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+          }
+
+          function Invoke-FiroTest(
+            [string]$Executable,
+            [string]$Filter,
+            [switch]$DiagnosticOnly,
+            [string]$LogLevel = 'test_suite'
+          ) {
+            $testOutput = @(
+              & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=$LogLevel" "--" "DEBUG_LOG_OUT" 2>&1
+            )
+            $exitCode = $LASTEXITCODE
+            $script:FiroTestSequence += 1
+            $logDirectory = Join-Path $PWD 'wallet-test-logs'
+            New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+            $logPath = Join-Path $logDirectory "test-$script:FiroTestSequence.log"
+            @("$Executable $Filter (exit $exitCode)") + $testOutput |
+              Set-Content -LiteralPath $logPath -Encoding utf8
+            $testOutput | ForEach-Object { Write-Output $_ }
+
+            $summaryLines = @(
+              $testOutput |
+                Where-Object { "$_" -match 'Running [0-9]+ test cases|No errors detected' }
+            )
+            if ($summaryLines.Count -gt 0) {
+              $summaryText = (
+                "$Executable $Filter`n" + ($summaryLines -join "`n")
+              )
+              if ($summaryText.Length -gt 12000) {
+                $summaryText = $summaryText.Substring(0, 12000)
+              }
+              $summary = ConvertTo-WorkflowCommandValue $summaryText
+              Write-Output "::notice title=Firo wallet test summary::$summary"
+            }
+
+            if ($exitCode -ne 0) {
+              $diagnosticLines = @(
+                $testOutput |
+                  Where-Object { "$_" -notmatch 'is skipped because disabled' }
+              )
+              $firstFailures = @(
+                $diagnosticLines |
+                  Where-Object {
+                    "$_" -match 'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert'
+                  } |
+                  Select-Object -First 20
+              ) -join "`n"
+              if ($firstFailures.Length -gt 5000) {
+                $firstFailures = $firstFailures.Substring(0, 5000)
+              }
+              $firstFailures = ConvertTo-WorkflowCommandValue $firstFailures
+              Write-Output "::error title=Firo wallet first failures::$firstFailures"
+              $crashContext = (
+                ($diagnosticLines | Select-Object -Last 40) -join "`n"
+              )
+              if ($crashContext.Length -gt 5000) {
+                $crashContext = $crashContext.Substring($crashContext.Length - 5000)
+              }
+              $crashContext = ConvertTo-WorkflowCommandValue $crashContext
+              Write-Output "::error title=Firo wallet terminal context::$crashContext"
+              $failureLines = @(
+                $diagnosticLines | Select-Object -Last 40
+                $diagnosticLines |
+                  Where-Object {
+                    "$_" -match 'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert'
+                  }
+              )
+              $failureBody = (
+                ($failureLines | Select-Object -Last 60) -join "`n"
+              )
+              if ($failureBody.Length -gt 3000) {
+                $failureBody = $failureBody.Substring($failureBody.Length - 3000)
+              }
+              $failureText = "$Executable $Filter (exit $exitCode)`n$failureBody"
+              $failureTail = ConvertTo-WorkflowCommandValue $failureText
+              Write-Output "::error title=Firo wallet test failure::$failureTail"
+              if (!$DiagnosticOnly) {
+                throw "$Executable failed for $Filter with exit code $exitCode"
+              }
+            }
+          }
+
+          $trustedInstallerSid = [System.Security.Principal.SecurityIdentifier]::new(
+            'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+          )
+
+          function Get-TrusteeCategory(
+            [System.Security.Principal.IdentityReference]$Identity
+          ) {
+            try {
+              $sid = $Identity.Translate(
+                [System.Security.Principal.SecurityIdentifier]
+              )
+            } catch {
+              return 'other'
+            }
+
+            if ($sid.Equals($currentSid)) {
+              return 'current-user'
+            }
+            if ($sid.Equals($trustedInstallerSid)) {
+              return 'trusted-installer'
+            }
+
+            foreach (
+              $wellKnownType in [Enum]::GetValues(
+                [System.Security.Principal.WellKnownSidType]
+              )
+            ) {
+              try {
+                if ($sid.IsWellKnown($wellKnownType)) {
+                  return "well-known:$wellKnownType"
+                }
+              } catch {
+                continue
+              }
+            }
+
+            return 'other'
+          }
+
+          $driveRoot = "$drive`:\"
+          $driveAcl = Get-Acl -LiteralPath $driveRoot
+          $driveOwner = $driveAcl.GetOwner(
+            [System.Security.Principal.SecurityIdentifier]
+          )
+          $driveOwnerCategory = Get-TrusteeCategory $driveOwner
+          $driveRules = @(
+            $driveAcl.GetAccessRules(
+              $true,
+              $true,
+              [System.Security.Principal.SecurityIdentifier]
+            )
+          )
+          $normalizedRules = @(
+            $driveRules |
+              ForEach-Object {
+                $mask = [BitConverter]::ToUInt32(
+                  [BitConverter]::GetBytes([int]$_.FileSystemRights),
+                  0
+                )
+                [PSCustomObject]@{
+                  Trustee = Get-TrusteeCategory $_.IdentityReference
+                  Rights = $_.FileSystemRights.ToString()
+                  Mask = $mask
+                  Inheritance = $_.InheritanceFlags.ToString()
+                  Propagation = $_.PropagationFlags.ToString()
+                  IsInherited = $_.IsInherited
+                  AccessType = $_.AccessControlType.ToString()
+                }
+              } |
+              Sort-Object `
+                IsInherited, AccessType, Trustee, Mask, Inheritance, Propagation
+          )
+
+          $aceLines = @(
+            $normalizedRules |
+              Select-Object -First 32 |
+              ForEach-Object {
+                $delete = [uint32]($_.Mask -band [uint32]0x00010000)
+                $deleteChild = [uint32]($_.Mask -band [uint32]0x00000040)
+                $writeDac = [uint32]($_.Mask -band [uint32]0x00040000)
+                $writeOwner = [uint32]($_.Mask -band [uint32]0x00080000)
+                (
+                  'ace trustee={0}; rights={1}; mask=0x{2:X8}; inheritance={3}; propagation={4}; inherited={5}; type={6}; DELETE=0x{7:X8}; FILE_DELETE_CHILD=0x{8:X8}; WRITE_DAC=0x{9:X8}; WRITE_OWNER=0x{10:X8}' -f
+                    $_.Trustee,
+                    $_.Rights,
+                    $_.Mask,
+                    $_.Inheritance,
+                    $_.Propagation,
+                    $_.IsInherited,
+                    $_.AccessType,
+                    $delete,
+                    $deleteChild,
+                    $writeDac,
+                    $writeOwner
+                )
+              }
+          )
+
+          $requestedPrivileges = @(
+            'SeCreateSymbolicLinkPrivilege',
+            'SeRestorePrivilege',
+            'SeTakeOwnershipPrivilege',
+            'SeManageVolumePrivilege'
+          )
+          $whoamiPrivilegeOutput = @(
+            & whoami.exe /priv /fo csv /nh 2>$null
+          )
+          $whoamiPrivilegeExit = $LASTEXITCODE
+          if ($whoamiPrivilegeExit -ne 0) {
+            throw "whoami /priv failed with exit code $whoamiPrivilegeExit"
+          }
+          $whoamiPrivileges = @(
+            $whoamiPrivilegeOutput |
+              ConvertFrom-Csv -Header Name, Description, State
+          )
+          $privilegeStates = @(
+            foreach ($privilegeName in $requestedPrivileges) {
+              $privilegeMatch = @(
+                $whoamiPrivileges |
+                  Where-Object { $_.Name -eq $privilegeName }
+              )
+              $privilegeState = if ($privilegeMatch.Count -gt 0) {
+                $privilegeMatch[0].State
+              } else {
+                'absent'
+              }
+              "$privilegeName=$privilegeState"
+            }
+          )
+
+          $selectedAceLines = [System.Collections.Generic.List[string]]::new()
+          foreach ($aceLine in $aceLines) {
+            $prospectiveCount = $selectedAceLines.Count + 1
+            $noticeHeader = (
+              'root={0}; owner={1}; daclProtected={2}; accessRuleCount={3}; aceShown={4}; aceLimit=32' -f
+                $driveRoot,
+                $driveOwnerCategory,
+                $driveAcl.AreAccessRulesProtected,
+                $driveRules.Count,
+                $prospectiveCount
+            )
+            $prospectiveNotice = @(
+              $noticeHeader
+              "privileges: $($privilegeStates -join '; ')"
+              $selectedAceLines
+              $aceLine
+            ) -join "`n"
+            $prospectiveEscaped = ConvertTo-WorkflowCommandValue `
+              $prospectiveNotice
+            if (
+              $prospectiveNotice.Length -ge 2600 -or
+              $prospectiveEscaped.Length -ge 2900
+            ) {
+              break
+            }
+            $selectedAceLines.Add($aceLine)
+          }
+
+          $noticeHeader = (
+            'root={0}; owner={1}; daclProtected={2}; accessRuleCount={3}; aceShown={4}; aceLimit=32' -f
+              $driveRoot,
+              $driveOwnerCategory,
+              $driveAcl.AreAccessRulesProtected,
+              $driveRules.Count,
+              $selectedAceLines.Count
+          )
+          $driveNoticeText = @(
+            $noticeHeader
+            "privileges: $($privilegeStates -join '; ')"
+            $selectedAceLines
+          ) -join "`n"
+          if ($driveNoticeText.Length -ge 2600) {
+            throw 'Internal drive diagnostic raw notice limit exceeded'
+          }
+          $driveNotice = ConvertTo-WorkflowCommandValue $driveNoticeText
+          if ($driveNotice.Length -ge 2900) {
+            throw 'Internal drive diagnostic escaped notice limit exceeded'
+          }
+          Write-Output `
+            "::notice title=Windows drive-root ACL and privilege diagnostics::$driveNotice"
+
+          Invoke-FiroTest `
+            '.\dual\test_firo.exe' `
+            'wallet_database_tests/sqlite_win32_migration_retained_destination_preserves_backup' `
+            -DiagnosticOnly
+          Invoke-FiroTest `
+            '.\dual\test_firo.exe' `
+            'wallet_database_tests/sqlite_win32_replace_reconciles_retained_identities' `
+            -DiagnosticOnly
+          foreach ($case in @(
+            'wallet_database_migration_candidate_is_one_shot',
+            'sqlite_batch_transaction_rewrite_backup_contract',
+            'sqlite_post_publish_failure_cleanup',
+            'sqlite_key_only_salvage_rejects_hot_journal_identity'
+          )) {
+            Invoke-FiroTest '.\dual\test_firo.exe' "wallet_database_tests/$case" -DiagnosticOnly
+          }
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/wallet_record_logical_parity' -DiagnosticOnly -LogLevel all
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests' -LogLevel all
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+          Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+
+          foreach ($backend in @('dual', 'bdb-only')) {
+            $env:FIROD = (Resolve-Path ".\$backend\firod.exe").Path
+            $functionalRoot = Join-Path $testTemp "functional-$backend"
+            $functionalLog = Join-Path $testTemp "functional-$backend.stdout"
+            $functionalErrors = Join-Path $testTemp "functional-$backend.stderr"
+            $script = Join-Path $env:GITHUB_WORKSPACE 'qa/rpc-tests/wallet-database-format.py'
+            $arguments = "-u `"$script`" `"--tmpdir=$functionalRoot`" --nocleanup"
+            $process = Start-Process -FilePath (Get-Command python).Source `
+              -ArgumentList $arguments -PassThru -NoNewWindow `
+              -RedirectStandardOutput $functionalLog `
+              -RedirectStandardError $functionalErrors
+            if (!$process.WaitForExit(900000)) {
+              & taskkill.exe /PID $process.Id /T /F
+              throw "Native $backend wallet lifecycle exceeded 900 seconds"
+            }
+            Get-Content -LiteralPath $functionalLog
+            Get-Content -LiteralPath $functionalErrors
+            if ($process.ExitCode -ne 0) {
+              $failure = ConvertTo-WorkflowCommandValue (
+                (Get-Content -LiteralPath $functionalLog -Tail 40) -join "`n"
+              )
+              Write-Output "::error title=Native Windows wallet lifecycle failure::$failure"
+              throw "Native $backend wallet lifecycle failed with exit $($process.ExitCode)"
+            }
+
+            # The fixture inherits only the current user's full-control grant.
+            # Check native owner/DACLs instead of POSIX uid and mode bits.
+            foreach ($file in Get-ChildItem -LiteralPath $functionalRoot -File -Recurse) {
+              $fileAcl = Get-Acl -LiteralPath $file.FullName
+              if (!$fileAcl.GetOwner([System.Security.Principal.SecurityIdentifier]).Equals($currentSid)) {
+                throw "Functional fixture file has an unexpected owner: $($file.FullName)"
+              }
+              $rules = $fileAcl.GetAccessRules(
+                $true, $true, [System.Security.Principal.SecurityIdentifier]
+              )
+              $hasUserGrant = $false
+              foreach ($rule in $rules) {
+                if ($rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow) {
+                  if (!$rule.IdentityReference.Equals($currentSid)) {
+                    throw "Functional fixture file grants another user access: $($file.FullName)"
+                  }
+                  if (($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -eq [System.Security.AccessControl.FileSystemRights]::FullControl) {
+                    $hasUserGrant = $true
+                  }
+                }
+              }
+              if (!$hasUserGrant) {
+                throw "Functional fixture file lacks the current user's full control: $($file.FullName)"
+              }
+            }
+            Write-Output "::notice title=Native Windows wallet lifecycle::$backend passed with private file owners and DACLs"
+          }
+
+      - name: Upload native Windows wallet test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-wallet-windows-runtime-${{ github.sha }}
+          path: wallet-tests/wallet-test-logs/*.log
+          if-no-files-found: warn
+
+  run-native-macos-wallet-tests:
+    name: Run SQLite wallet tests on native macOS
+    runs-on: macos-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install native Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Select Xcode and install build tools
+        run: |
+          set -exo pipefail
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          brew install automake coreutils cmake make pkg-config ninja
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Configure build parallelism
+        run: |
+          set -exo pipefail
+          EVIDENCE_JOBS=$(($(sysctl -n hw.ncpu) / 2))
+          if [ "$EVIDENCE_JOBS" -lt 1 ]; then
+            EVIDENCE_JOBS=1
+          fi
+          if [ "$EVIDENCE_JOBS" -gt 20 ]; then
+            EVIDENCE_JOBS=20
+          fi
+          echo "EVIDENCE_JOBS=$EVIDENCE_JOBS" >> "$GITHUB_ENV"
+
+      - name: Download scoped macOS dependencies
+        run: |
+          set -exo pipefail
+          attempt=1
+          max=5
+          until make -C depends download-one NO_QT=1; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "macOS dependency download failed after $attempt attempts"
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+            attempt=$((attempt + 1))
+          done
+
+      - name: Prepare private physical wallet unit fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          WALLET_TEST_PARENT=$(mktemp -d)
+          WALLET_TEST_TMPDIR=$(cd "$WALLET_TEST_PARENT" && pwd -P)
+          echo "WALLET_TEST_TMPDIR=$WALLET_TEST_TMPDIR" >> "$GITHUB_ENV"
+
+      - name: Probe macOS directory synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROBE_DIRECTORY=$(mktemp -d)
+          PROBE_BINARY="$PROBE_DIRECTORY/directory-sync-probe"
+          PROBE_FILE="$PROBE_DIRECTORY/regular-file"
+          cleanup_probe() {
+            rm -f "$PROBE_FILE" "$PROBE_BINARY"
+            rmdir "$PROBE_DIRECTORY" 2>/dev/null || true
+          }
+          trap cleanup_probe EXIT
+
+          "${CC:-cc}" -Wall -Wextra -Werror -x c \
+            -o "$PROBE_BINARY" - <<'EOF'
+          #include <errno.h>
+          #include <fcntl.h>
+          #include <stdbool.h>
+          #include <stdio.h>
+          #include <unistd.h>
+
+          int main(int argc, char** argv)
+          {
+              if (argc != 3) {
+                  return 2;
+              }
+              int directory_flags = O_RDONLY;
+          #ifdef O_DIRECTORY
+              directory_flags |= O_DIRECTORY;
+          #endif
+              const int directory =
+                  open(argv[1], directory_flags);
+              const int file =
+                  open(
+                      argv[2],
+                      O_CREAT | O_EXCL | O_RDWR,
+                      0600);
+              if (directory < 0 || file < 0 ||
+                  write(file, "x", 1) != 1) {
+                  return 3;
+              }
+
+              errno = 0;
+              const int file_fullsync =
+                  fcntl(file, F_FULLFSYNC, 0);
+              const int file_fullsync_error =
+                  file_fullsync == -1 ? errno : 0;
+              errno = 0;
+              const int file_fsync =
+                  fsync(file);
+              const int file_fsync_error =
+                  file_fsync == 0 ? 0 : errno;
+              errno = 0;
+              const int directory_fullsync =
+                  fcntl(directory, F_FULLFSYNC, 0);
+              const int directory_fullsync_error =
+                  directory_fullsync == -1 ? errno : 0;
+              errno = 0;
+              const int directory_fsync =
+                  fsync(directory);
+              const int directory_fsync_error =
+                  directory_fsync == 0 ? 0 : errno;
+
+              printf(
+                  "file_fullsync=%d,file_fullsync_errno=%d,"
+                  "file_fsync=%d,file_fsync_errno=%d,"
+                  "directory_fullsync=%d,directory_fullsync_errno=%d,"
+                  "directory_fsync=%d,directory_fsync_errno=%d",
+                  file_fullsync,
+                  file_fullsync_error,
+                  file_fsync,
+                  file_fsync_error,
+                  directory_fullsync,
+                  directory_fullsync_error,
+                  directory_fsync,
+                  directory_fsync_error);
+              const int file_close = close(file);
+              const int directory_close = close(directory);
+              return file_fullsync != -1 &&
+                      file_fsync == 0 &&
+                      directory_fsync == 0 &&
+                      file_close == 0 &&
+                      directory_close == 0 ?
+                  0 :
+                  4;
+          }
+          EOF
+
+          PROBE_STATUS=0
+          PROBE_OUTPUT=$(
+            "$PROBE_BINARY" \
+              "$PROBE_DIRECTORY" \
+              "$PROBE_FILE"
+          ) || PROBE_STATUS=$?
+          echo "::notice title=macOS directory synchronization probe::$PROBE_OUTPUT"
+          exit "$PROBE_STATUS"
+
+      - name: Build and test dual BDB and SQLite wallets
+        run: |
+          set -Eexo pipefail
+          PRETEST_PHASE='initialize dual-wallet diagnostics'
+          PRETEST_ANNOTATION_ESCAPED=0
+          PRETEST_ANNOTATION_LIMIT=9000
+          PRETEST_FAILURE_ANNOTATED=0
+          PRETEST_LOG_INDEX=0
+
+          emit_pretest_annotation() {
+            local title="$1"
+            local raw="$2"
+            local escaped
+            local escaped_length
+            local remaining
+            local LC_ALL=C
+
+            escaped=${raw//'%'/'%25'}
+            escaped=${escaped//$'\r'/'%0D'}
+            escaped=${escaped//$'\n'/'%0A'}
+            remaining=$((PRETEST_ANNOTATION_LIMIT - PRETEST_ANNOTATION_ESCAPED))
+            if [ "$remaining" -le 0 ]; then
+              return 0
+            fi
+            escaped_length=${#escaped}
+            if [ "$escaped_length" -gt "$remaining" ]; then
+              escaped=${escaped:0:$remaining}
+              case "$escaped" in
+                *%)
+                  escaped=${escaped%?}
+                  ;;
+                *%0|*%2)
+                  escaped=${escaped%??}
+                  ;;
+              esac
+              escaped_length=${#escaped}
+            fi
+            PRETEST_ANNOTATION_ESCAPED=$((PRETEST_ANNOTATION_ESCAPED + escaped_length))
+            printf '::error title=%s::%s\n' "$title" "$escaped"
+          }
+
+          pretest_err_trap() {
+            local error_exit="$1"
+            local error_line="$2"
+            local error_command="$3"
+            local error_body
+
+            if [ "$PRETEST_FAILURE_ANNOTATED" -eq 0 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              error_body="phase=$PRETEST_PHASE"$'\n'"command=$error_command"$'\n'"exit=$error_exit; line=$error_line"
+              emit_pretest_annotation \
+                'macOS pre-test guard or audit failure' \
+                "$error_body"
+            fi
+            return 0
+          }
+
+          run_logged_phase() {
+            local phase="$1"
+            shift
+            local phase_command=''
+            local command_arg
+            local quoted_arg
+            local log_path
+            local producer_exit
+            local tee_exit
+            local phase_tail
+            local failure_body
+            local -a phase_status
+
+            PRETEST_PHASE="$phase"
+            for command_arg in "$@"; do
+              printf -v quoted_arg '%q' "$command_arg"
+              if [ -n "$phase_command" ]; then
+                phase_command="$phase_command $quoted_arg"
+              else
+                phase_command="$quoted_arg"
+              fi
+            done
+            PRETEST_LOG_INDEX=$((PRETEST_LOG_INDEX + 1))
+            log_path="$PRETEST_LOG_DIR/phase-$PRETEST_LOG_INDEX.log"
+
+            trap - ERR
+            set +e
+            "$@" 2>&1 | tee "$log_path"
+            phase_status=("${PIPESTATUS[@]}")
+            set -e
+            trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+
+            producer_exit="${phase_status[0]}"
+            tee_exit="${phase_status[1]}"
+            if [ "$producer_exit" -ne 0 ] || [ "$tee_exit" -ne 0 ]; then
+              if phase_tail=$(tail -c 2200 "$log_path"); then
+                :
+              else
+                phase_tail='phase log tail unavailable'
+              fi
+              failure_body="phase=$phase"$'\n'"command=$phase_command"$'\n'"producer_exit=$producer_exit; tee_exit=$tee_exit"$'\n'"tail (last at most 2200 bytes):"$'\n'"$phase_tail"
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS pre-test logged phase failure' \
+                "$failure_body"
+              if [ "$producer_exit" -ne 0 ]; then
+                return "$producer_exit"
+              fi
+              return "$tee_exit"
+            fi
+          }
+
+          trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+          PRETEST_LOG_DIR=$(mktemp -d)
+
+          run_logged_phase \
+            'dual-wallet dependency build' \
+            make -C depends -j"$EVIDENCE_JOBS" NO_QT=1
+          PRETEST_PHASE='verify dual-wallet SQLite dependency'
+          HOST_TRIPLET=$(depends/config.guess)
+          PREFIX="$PWD/depends/$HOST_TRIPLET"
+          PKG_CONFIG_DIR="$PREFIX/lib/pkgconfig"
+          SQLITE_HEADER="$PREFIX/include/sqlite3.h"
+          SQLITE_ARCHIVE="$PREFIX/lib/libsqlite3.a"
+
+          test -e "$SQLITE_HEADER"
+          test -e "$SQLITE_ARCHIVE"
+          grep -Eq \
+            '^#define[[:space:]]+SQLITE_VERSION[[:space:]]+"3\.50\.4"$' \
+            "$SQLITE_HEADER"
+          grep -q '#define SQLITE_VERSION_NUMBER 3050004' "$SQLITE_HEADER"
+          grep -q \
+            '4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3' \
+            "$SQLITE_HEADER"
+          SQLITE_MEMBERS=$(
+            ar -t "$SQLITE_ARCHIVE" \
+              | grep -Ev '^__\.SYMDEF( SORTED)?$'
+          )
+          test "$SQLITE_MEMBERS" = "sqlite3.o"
+
+          run_logged_phase \
+            'dual-wallet CMake configure' \
+            env \
+            PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
+            PKG_CONFIG_LIBDIR="$PKG_CONFIG_DIR" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$PREFIX/toolchain.cmake" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=ON \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_WALLET=ON \
+              -DENABLE_SQLITE_WALLET=ON \
+              -DWITH_BDB=ON \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$PWD" \
+              -B"$PWD/build-mac-dual"
+
+          PRETEST_PHASE='verify dual-wallet clean generated-header guards'
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
+            "$PWD/build-mac-dual/src/config/bitcoin-config.h" \
+            "$PWD/build-mac-dual/config/bitcoin-config.h"
+          grep -Fqx '#define USE_SQLITE 1' \
+            "$PWD/build-mac-dual/src/config/bitcoin-config.h"
+          run_logged_phase \
+            'dual-wallet clean generated-header CMake build' \
+            cmake --build build-mac-dual \
+              --target test_firo firod \
+              --parallel "$EVIDENCE_JOBS"
+
+          PRETEST_PHASE='audit dual-wallet static SQLite linkage'
+          DUAL_AUDIT_DIR=$(mktemp -d)
+          ar -t build-mac-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-members"
+          nm -C build-mac-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-symbols"
+          otool -L build-mac-dual/bin/test_firo \
+            > "$DUAL_AUDIT_DIR/test-firo-libraries"
+          grep -Eiq 'sqlite\.cpp' \
+            "$DUAL_AUDIT_DIR/wallet-members"
+          grep -Eq \
+            'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()' \
+            "$DUAL_AUDIT_DIR/wallet-symbols"
+          if grep -qi sqlite \
+              "$DUAL_AUDIT_DIR/test-firo-libraries"; then
+            echo "Dual macOS test executable links SQLite dynamically"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden dynamic SQLite linkage' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden dynamic SQLite reference found"
+            exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS dynamic SQLite audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
+          fi
+
+          PRETEST_PHASE='run dual-wallet Boost tests'
+          run_firo_test() {
+            local executable="$1"
+            local filter="$2"
+            local test_output
+            local test_exit
+            local summary
+            local failure
+            local context
+            local priority
+            local earliest
+            local case_list
+            local list_output
+            local list_exit
+            local case_name
+            local isolated_output
+            local isolated_exit
+            local isolated_priority
+            local isolated_failures
+            local isolated_failure_count
+
+            set +e
+            test_output=$(
+              TMPDIR="$WALLET_TEST_TMPDIR" timeout --kill-after=15s 900 \
+              "$executable" \
+                "--run_test=$filter" \
+                --catch_system_error=no \
+                --log_level=test_suite \
+                -- DEBUG_LOG_OUT 2>&1
+            )
+            test_exit=$?
+            set -e
+            printf '%s\n' "$test_output"
+
+            summary=$(
+              printf '%s\n' "$test_output" \
+                | grep -E 'Running [0-9]+ test cases|No errors detected' \
+                || true
+            )
+            if [ -n "$summary" ]; then
+              summary="$executable $filter"$'\n'"$summary"
+              summary=${summary//'%'/'%25'}
+              summary=${summary//$'\r'/'%0D'}
+              summary=${summary//$'\n'/'%0A'}
+              echo "::notice title=Firo wallet test summary::$summary"
+            fi
+
+            if [ "$test_exit" -ne 0 ]; then
+              failure=$(
+                printf '%s\n' "$test_output" \
+                  | grep -Fv 'is skipped because disabled' \
+                  || true
+              )
+              context=$(
+                printf '%s\n' "$failure" \
+                  | tail -n 40
+              )
+              priority=$(
+                printf '%s\n' "$failure" \
+                  | grep -Ei \
+                    'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
+                  || true
+              )
+              earliest=$(
+                printf '%s\n' "$priority" \
+                  | head -n 24 \
+                  | head -c 2800 \
+                  || true
+              )
+              if [ -z "$earliest" ]; then
+                earliest=$(
+                  printf '%s\n' "$failure" \
+                    | head -n 24 \
+                    | head -c 2800 \
+                    || true
+                )
+              fi
+              emit_pretest_annotation \
+                'macOS earliest wallet test failure' \
+                "$executable $filter (exit $test_exit)"$'\n'"$earliest"
+              failure=$(
+                printf '%s\n%s\n' "$context" "$priority" \
+                  | tail -n 60 \
+                  | tail -c 3000
+              )
+              failure="$executable $filter (exit $test_exit)"$'\n'"$failure"
+              failure=${failure//'%'/'%25'}
+              failure=${failure//$'\r'/'%0D'}
+              failure=${failure//$'\n'/'%0A'}
+              echo "::error title=Firo wallet test failure::$failure"
+
+              case_list="$PRETEST_LOG_DIR/wallet-database-cases.txt"
+              set +e
+              list_output=$(
+                "$executable" --list_content 2>&1
+              )
+              list_exit=$?
+              set -e
+              if [ "$list_exit" -ne 0 ]; then
+                emit_pretest_annotation \
+                  'macOS isolated wallet test discovery failure' \
+                  "$executable --list_content (exit $list_exit)"
+              else
+                printf '%s\n' "$list_output" \
+                  | awk '
+                      $0 == "wallet_database_tests*" {
+                          in_suite = 1
+                          next
+                      }
+                      in_suite && $0 !~ /^[[:space:]]/ {
+                          in_suite = 0
+                      }
+                      in_suite && $0 ~ /^    [^[:space:]].*\*$/ {
+                          sub(/^    /, "")
+                          sub(/\*$/, "")
+                          print
+                      }
+                    ' \
+                  > "$case_list"
+                if [ ! -s "$case_list" ]; then
+                  emit_pretest_annotation \
+                    'macOS isolated wallet test discovery failure' \
+                    'No wallet_database_tests cases were extracted from --list_content.'
+                else
+                  isolated_failures=''
+                  isolated_failure_count=0
+                  while IFS= read -r case_name; do
+                    set +e
+                    isolated_output=$(
+                      TMPDIR="$WALLET_TEST_TMPDIR" timeout --kill-after=15s 900 \
+                      "$executable" \
+                        "--run_test=wallet_database_tests/$case_name" \
+                        --catch_system_error=no \
+                        --log_level=test_suite \
+                        -- DEBUG_LOG_OUT 2>&1
+                    )
+                    isolated_exit=$?
+                    set -e
+                    if [ "$isolated_exit" -ne 0 ]; then
+                      isolated_failure_count=$((isolated_failure_count + 1))
+                      isolated_priority=$(
+                        printf '%s\n' "$isolated_output" \
+                          | grep -Fv 'is skipped because disabled' \
+                          | grep -Ei \
+                            'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
+                          | head -n 12 \
+                          | head -c 1400 \
+                          || true
+                      )
+                      if [ -z "$isolated_priority" ]; then
+                        isolated_priority=$(
+                          printf '%s\n' "$isolated_output" \
+                            | tail -n 20 \
+                            | tail -c 1400
+                        )
+                      fi
+                      isolated_failures+="$case_name (exit $isolated_exit)"$'\n'"$isolated_priority"$'\n'
+                    fi
+                  done < "$case_list"
+                  if [ "$isolated_failure_count" -eq 0 ]; then
+                    echo "::notice title=macOS isolated wallet tests::aggregate exit $test_exit; every wallet_database_tests case passed in a fresh process"
+                  else
+                    emit_pretest_annotation \
+                      'macOS isolated wallet test failures' \
+                      "isolated_failure_count=$isolated_failure_count"$'\n'"$isolated_failures"
+                  fi
+                fi
+              fi
+              exit "$test_exit"
+            fi
+          }
+
+          trap - ERR
+          run_firo_test \
+            build-mac-dual/bin/test_firo \
+            wallet_database_factory_preopen_policy,wallet_database_tests,macos_wallet_permissions_tests
+
+      - name: Build and test true BDB-only wallets
+        run: |
+          set -Eexo pipefail
+          PRETEST_PHASE='initialize BDB-only diagnostics'
+          PRETEST_ANNOTATION_ESCAPED=0
+          PRETEST_ANNOTATION_LIMIT=9000
+          PRETEST_FAILURE_ANNOTATED=0
+          PRETEST_LOG_INDEX=0
+
+          emit_pretest_annotation() {
+            local title="$1"
+            local raw="$2"
+            local escaped
+            local escaped_length
+            local remaining
+            local LC_ALL=C
+
+            escaped=${raw//'%'/'%25'}
+            escaped=${escaped//$'\r'/'%0D'}
+            escaped=${escaped//$'\n'/'%0A'}
+            remaining=$((PRETEST_ANNOTATION_LIMIT - PRETEST_ANNOTATION_ESCAPED))
+            if [ "$remaining" -le 0 ]; then
+              return 0
+            fi
+            escaped_length=${#escaped}
+            if [ "$escaped_length" -gt "$remaining" ]; then
+              escaped=${escaped:0:$remaining}
+              case "$escaped" in
+                *%)
+                  escaped=${escaped%?}
+                  ;;
+                *%0|*%2)
+                  escaped=${escaped%??}
+                  ;;
+              esac
+              escaped_length=${#escaped}
+            fi
+            PRETEST_ANNOTATION_ESCAPED=$((PRETEST_ANNOTATION_ESCAPED + escaped_length))
+            printf '::error title=%s::%s\n' "$title" "$escaped"
+          }
+
+          pretest_err_trap() {
+            local error_exit="$1"
+            local error_line="$2"
+            local error_command="$3"
+            local error_body
+
+            if [ "$PRETEST_FAILURE_ANNOTATED" -eq 0 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              error_body="phase=$PRETEST_PHASE"$'\n'"command=$error_command"$'\n'"exit=$error_exit; line=$error_line"
+              emit_pretest_annotation \
+                'macOS pre-test guard or audit failure' \
+                "$error_body"
+            fi
+            return 0
+          }
+
+          run_logged_phase() {
+            local phase="$1"
+            shift
+            local phase_command=''
+            local command_arg
+            local quoted_arg
+            local log_path
+            local producer_exit
+            local tee_exit
+            local phase_tail
+            local failure_body
+            local -a phase_status
+
+            PRETEST_PHASE="$phase"
+            for command_arg in "$@"; do
+              printf -v quoted_arg '%q' "$command_arg"
+              if [ -n "$phase_command" ]; then
+                phase_command="$phase_command $quoted_arg"
+              else
+                phase_command="$quoted_arg"
+              fi
+            done
+            PRETEST_LOG_INDEX=$((PRETEST_LOG_INDEX + 1))
+            log_path="$PRETEST_LOG_DIR/phase-$PRETEST_LOG_INDEX.log"
+
+            trap - ERR
+            set +e
+            "$@" 2>&1 | tee "$log_path"
+            phase_status=("${PIPESTATUS[@]}")
+            set -e
+            trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+
+            producer_exit="${phase_status[0]}"
+            tee_exit="${phase_status[1]}"
+            if [ "$producer_exit" -ne 0 ] || [ "$tee_exit" -ne 0 ]; then
+              if phase_tail=$(tail -c 2200 "$log_path"); then
+                :
+              else
+                phase_tail='phase log tail unavailable'
+              fi
+              failure_body="phase=$phase"$'\n'"command=$phase_command"$'\n'"producer_exit=$producer_exit; tee_exit=$tee_exit"$'\n'"tail (last at most 2200 bytes):"$'\n'"$phase_tail"
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS pre-test logged phase failure' \
+                "$failure_body"
+              if [ "$producer_exit" -ne 0 ]; then
+                return "$producer_exit"
+              fi
+              return "$tee_exit"
+            fi
+          }
+
+          trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+          PRETEST_LOG_DIR=$(mktemp -d)
+
+          run_logged_phase \
+            'BDB-only dependency build' \
+            make -C depends -j"$EVIDENCE_JOBS" NO_QT=1 NO_SQLITE=1
+          PRETEST_PHASE='verify absence of BDB-only SQLite dependency'
+          HOST_TRIPLET=$(depends/config.guess)
+          PREFIX="$PWD/depends/$HOST_TRIPLET"
+          PKG_CONFIG_DIR="$PREFIX/lib/pkgconfig"
+
+          test ! -e "$PREFIX/include/sqlite3.h"
+          test ! -e "$PREFIX/include/sqlite3ext.h"
+          test ! -e "$PREFIX/lib/libsqlite3.a"
+          test ! -e "$PREFIX/lib/pkgconfig/sqlite3.pc"
+
+          run_logged_phase \
+            'BDB-only CMake configure' \
+            env \
+            PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
+            PKG_CONFIG_LIBDIR="$PKG_CONFIG_DIR" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$PREFIX/toolchain.cmake" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=ON \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_WALLET=ON \
+              -DENABLE_SQLITE_WALLET=OFF \
+              -DWITH_BDB=ON \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$PWD" \
+              -B"$PWD/build-mac-bdb-only"
+
+          PRETEST_PHASE='verify BDB-only clean generated-header guards'
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
+            "$PWD/build-mac-bdb-only/src/config/bitcoin-config.h" \
+            "$PWD/build-mac-bdb-only/config/bitcoin-config.h"
+          grep -Fqx '/* #undef USE_SQLITE */' \
+            "$PWD/build-mac-bdb-only/src/config/bitcoin-config.h"
+          run_logged_phase \
+            'BDB-only clean generated-header CMake build' \
+            cmake --build build-mac-bdb-only \
+              --target test_firo firod \
+              --parallel "$EVIDENCE_JOBS"
+
+          PRETEST_PHASE='audit BDB-only absence of SQLite linkage'
+          BDB_AUDIT_DIR=$(mktemp -d)
+          ar -t build-mac-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-members"
+          nm -C build-mac-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-symbols"
+          otool -L build-mac-bdb-only/bin/test_firo \
+            > "$BDB_AUDIT_DIR/test-firo-libraries"
+          if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
+              "$BDB_AUDIT_DIR/wallet-members"; then
+            echo "BDB-only macOS wallet archive contains a SQLite wallet object"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden BDB-only SQLite object' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden SQLite wallet object found"
+            exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS BDB-only object audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
+          fi
+          if grep -Eq \
+              'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+              "$BDB_AUDIT_DIR/wallet-symbols"; then
+            echo "BDB-only macOS wallet archive contains a SQLite wallet symbol"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden BDB-only SQLite symbol' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden SQLite wallet symbol found"
+            exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS BDB-only symbol audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
+          fi
+          if grep -qi sqlite \
+              "$BDB_AUDIT_DIR/test-firo-libraries"; then
+            echo "BDB-only macOS test executable links SQLite"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden BDB-only dynamic SQLite linkage' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden dynamic SQLite reference found"
+            exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS BDB-only dynamic SQLite audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
+          fi
+
+          PRETEST_PHASE='run BDB-only Boost tests'
+          run_firo_test() {
+            local executable="$1"
+            local filter="$2"
+            local test_output
+            local test_exit
+            local summary
+            local failure
+            local context
+            local priority
+
+            set +e
+            test_output=$(
+              TMPDIR="$WALLET_TEST_TMPDIR" timeout --kill-after=15s 900 \
+              "$executable" \
+                "--run_test=$filter" \
+                --catch_system_error=no \
+                --log_level=test_suite \
+                -- DEBUG_LOG_OUT 2>&1
+            )
+            test_exit=$?
+            set -e
+            printf '%s\n' "$test_output"
+
+            summary=$(
+              printf '%s\n' "$test_output" \
+                | grep -E 'Running [0-9]+ test cases|No errors detected' \
+                || true
+            )
+            if [ -n "$summary" ]; then
+              summary="$executable $filter"$'\n'"$summary"
+              summary=${summary//'%'/'%25'}
+              summary=${summary//$'\r'/'%0D'}
+              summary=${summary//$'\n'/'%0A'}
+              echo "::notice title=Firo wallet test summary::$summary"
+            fi
+
+            if [ "$test_exit" -ne 0 ]; then
+              failure=$(
+                printf '%s\n' "$test_output" \
+                  | grep -Fv 'is skipped because disabled' \
+                  || true
+              )
+              context=$(
+                printf '%s\n' "$failure" \
+                  | tail -n 40
+              )
+              priority=$(
+                printf '%s\n' "$failure" \
+                  | grep -Ei \
+                    'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
+                  || true
+              )
+              failure=$(
+                printf '%s\n%s\n' "$context" "$priority" \
+                  | tail -n 60 \
+                  | tail -c 3000
+              )
+              failure="$executable $filter (exit $test_exit)"$'\n'"$failure"
+              failure=${failure//'%'/'%25'}
+              failure=${failure//$'\r'/'%0D'}
+              failure=${failure//$'\n'/'%0A'}
+              echo "::error title=Firo wallet test failure::$failure"
+              exit "$test_exit"
+            fi
+          }
+
+          trap - ERR
+          run_firo_test \
+            build-mac-bdb-only/bin/test_firo \
+            wallet_database_factory_preopen_policy,wallet_database_tests
+
+      - name: Run native wallet lifecycles
+        shell: bash
+        run: |
+          set -euo pipefail
+          for backend in dual bdb-only; do
+            case "$backend" in
+              dual) BUILD_ROOT=build-mac-dual ;;
+              bdb-only) BUILD_ROOT=build-mac-bdb-only ;;
+            esac
+            TEST_PARENT=$(mktemp -d)
+            TEST_ROOT="$(cd "$TEST_PARENT" && pwd -P)/wallet-lifecycle"
+            FIROD="$PWD/$BUILD_ROOT/bin/firod" \
+              timeout --kill-after=15s 900 \
+                python -u qa/rpc-tests/wallet-database-format.py \
+                  --tmpdir="$TEST_ROOT"
+            echo "::notice title=Native macOS wallet lifecycle::$backend passed"
+          done

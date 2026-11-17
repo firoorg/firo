@@ -163,7 +163,8 @@ qt_native_packages_$(NO_QT) = $(qt_native_packages) $(qt_$(host_os)_native_packa
 
 bdb_packages_$(NO_BDB) = $(bdb_packages)
 sqlite_packages_$(NO_SQLITE) = $(sqlite_packages)
-wallet_packages_$(NO_WALLET) = $(bdb_packages_) $(sqlite_packages_)
+# Wallets still require BDB, even when SQLite support is available.
+wallet_packages_$(NO_WALLET) = $(if $(bdb_packages_),$(bdb_packages_) $(sqlite_packages_))
 
 zmq_packages_$(NO_ZMQ) = $(zmq_packages)
 multiprocess_packages_$(MULTIPROCESS) = $(multiprocess_packages)

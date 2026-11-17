@@ -1,1 +1,2 @@
 src/clientversion.cpp export-subst
+depends/patches/sqlite/autosetup-fixup.patch whitespace=-space-before-tab

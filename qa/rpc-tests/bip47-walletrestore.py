@@ -22,18 +22,40 @@ class Bip47WalletRestore(BitcoinTestFramework):
         backup_file = os.path.join(self.options.tmpdir, "cleanwallet.bak")
         wallet_file = os.path.join(self.options.tmpdir, "node0/regtest/wallet.dat")
         self.nodes[0].backupwallet(backup_file)
-        initial_pcodes = [self.nodes[0].createrapaddress("pcode" + str(num)) for num in range(0,200)]
-        assert(len(initial_pcodes) == 200)
+        initial_pcodes = {
+            "pcode" + str(num):
+                self.nodes[0].createrapaddress("pcode" + str(num))
+            for num in range(0, 200)
+        }
+        assert_equal(len(initial_pcodes), 200)
+        initial_state = self.nodes[0].listrapaddresses(True)
+
+        stop_node(self.nodes[0], 0)
+        self.nodes[0] = start_node(0, self.options.tmpdir)
+        assert_equal(
+            self.nodes[0].listrapaddresses(True),
+            initial_state)
+        loaded_pcodes = {
+            entry["Label"]: entry["RAPaddr"]
+            for entry in self.nodes[0].listrapaddresses()
+        }
+        assert_equal(loaded_pcodes, initial_pcodes)
 
         stop_node(self.nodes[0], 0)
         os.remove(wallet_file)
         shutil.copy(backup_file, wallet_file)
 
         self.nodes[0] = start_node(0, self.options.tmpdir)
-        assert(len(self.nodes[0].listrapaddresses()) == 0)
+        assert_equal(len(self.nodes[0].listrapaddresses()), 0)
 
         for i in range(0, 200):
-            assert(initial_pcodes[i] == self.nodes[0].createrapaddress("pcode" + str(i)))
+            label = "pcode" + str(i)
+            assert_equal(
+                initial_pcodes[label],
+                self.nodes[0].createrapaddress(label))
+        assert_equal(
+            self.nodes[0].listrapaddresses(True),
+            initial_state)
 
 
 if __name__ == '__main__':

@@ -12,6 +12,7 @@ class WalletUiTests : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void sparkAddressWriteFailure();
     void initialSyncQueryDoesNotBlock();
     void synchronizationProgress();
     void synchronizationEstimates();

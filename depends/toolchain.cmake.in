@@ -181,6 +181,13 @@ else()
   set(WITH_BDB ON CACHE BOOL "")
 endif()
 
+set(sqlite_packages @sqlite_packages@)
+if("${wallet_packages}" STREQUAL "" OR "${sqlite_packages}" STREQUAL "")
+  set(ENABLE_SQLITE_WALLET OFF CACHE BOOL "")
+else()
+  set(ENABLE_SQLITE_WALLET ON CACHE BOOL "")
+endif()
+
 if("@usdt_packages@" MATCHES "^[ ]*$")
   set(WITH_USDT OFF CACHE BOOL "")
 else()
