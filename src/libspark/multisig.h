@@ -117,6 +117,7 @@ public:
         std::size_t threshold,
         const std::vector<GroupElement>& participants,
         const Scalar& secret);
+    virtual ~MultisigKeygen() = default;
 
     const std::vector<GroupElement>& get_participants() const { return participants; }
     std::size_t get_index() const { return index; }
@@ -126,19 +127,24 @@ public:
     // Round two: given the round one message of every participant, add the shares
     MultisigKeygenMessage round2(const std::vector<MultisigKeygenMessage>& messages) const;
     // Given the round two message of every participant, verify all of it and derive the
-    // key. Success means every participant whose share decrypted worked from the same
-    // round one messages; the participants still confirm among themselves that each of
-    // them completed and reached the same address before the wallet receives funds.
+    // key. Success does not mean the others completed, or completed with the same
+    // round one messages: before the wallet receives funds, the participants confirm
+    // among themselves that each of them reached the same address. The view key is
+    // derived from all round one messages, so the same address means shares of the
+    // same spend key.
     MultisigKey finalize(const std::vector<MultisigKeygenMessage>& messages) const;
 
+protected:
+    // Virtual so that a test can stand in for a participant that departs from the protocol
+    virtual Scalar derive(const std::string& purpose, uint64_t i, const std::vector<unsigned char>& data = {}) const;
+
 private:
-    Scalar derive(const std::string& purpose, uint64_t i, const std::vector<unsigned char>& data = {}) const;
     Scalar pok_challenge(std::size_t sender, const MultisigKeygenMessage& message) const;
     std::vector<unsigned char> view_commitment(std::size_t sender, const Scalar& s1, const Scalar& s2) const;
     std::vector<MultisigKeygenMessage> check(const std::vector<MultisigKeygenMessage>& messages) const;
     std::vector<unsigned char> round1_hash(const std::vector<MultisigKeygenMessage>& ordered) const;
     GroupElement share_key(const std::vector<unsigned char>& transcript, std::size_t sender, std::size_t recipient) const;
-    Scalar aggregate(const std::string& label, const std::vector<Scalar>& contributions) const;
+    Scalar aggregate(const std::string& label, const std::vector<unsigned char>& transcript, const std::vector<Scalar>& contributions) const;
 
     const Params* params;
     std::size_t threshold;

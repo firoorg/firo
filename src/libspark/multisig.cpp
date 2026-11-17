@@ -307,9 +307,10 @@ std::vector<unsigned char> MultisigKeygen::round1_hash(const std::vector<Multisi
 
 // Key for what `sender` tells `recipient`: a static Diffie-Hellman secret of the two
 // participant keys, bound to the round one messages the sender worked from. A recipient
-// can therefore decrypt only if it holds the very same messages, which gives the
-// consistent delivery of commitments the protocol relies on. Every distinct plaintext
-// also gets a key of its own, as the fixed-nonce cipher requires.
+// can therefore decrypt only what was made for the very messages it holds. That alone
+// does not make the participants agree, since a sender may have worked from other
+// messages as well; the view key settles that (see aggregate). Every distinct
+// plaintext also gets a key of its own, as the fixed-nonce cipher requires.
 GroupElement MultisigKeygen::share_key(const std::vector<unsigned char>& transcript, std::size_t sender, std::size_t recipient) const
 {
     Hash hash(LABEL_MULTISIG_SHARE_KEY);
@@ -347,16 +348,23 @@ MultisigKeygenMessage MultisigKeygen::round2(const std::vector<MultisigKeygenMes
     return message;
 }
 
-// Hash-weighted sum of the view key contributions, so that no participant chooses the result
-Scalar MultisigKeygen::aggregate(const std::string& label, const std::vector<Scalar>& contributions) const
+// Hash-weighted sum of the view key contributions, so that no participant chooses the
+// result. The weights also commit to the round one messages. Being stateless, a
+// participant can be led through round two for more than one set of them, and sets
+// that agree on the constant coefficients and the contributions would otherwise give
+// the same view key over shares of different polynomials. This way participants who
+// arrive at the same view key, and with it the same addresses, hold the same
+// commitments, and so shares of one spend key.
+Scalar MultisigKeygen::aggregate(const std::string& label, const std::vector<unsigned char>& transcript, const std::vector<Scalar>& contributions) const
 {
     Scalar result;
     for (std::size_t i = 0; i < contributions.size(); ++i) {
-        Transcript transcript(label);
-        transcript.add("context", context);
-        transcript.add("contributions", contributions);
-        transcript.add("index", Identifier(i + 1));
-        result += transcript.challenge("weight")*contributions[i];
+        Transcript weight(label);
+        weight.add("context", context);
+        weight.add("round1", transcript);
+        weight.add("contributions", contributions);
+        weight.add("index", Identifier(i + 1));
+        result += weight.challenge("weight")*contributions[i];
     }
     return result;
 }
@@ -403,8 +411,8 @@ MultisigKey MultisigKeygen::finalize(const std::vector<MultisigKeygenMessage>& m
         }
     }
 
-    key.s1 = aggregate(LABEL_MULTISIG_S1, s1);
-    key.s2 = aggregate(LABEL_MULTISIG_S2, s2);
+    key.s1 = aggregate(LABEL_MULTISIG_S1, transcript, s1);
+    key.s2 = aggregate(LABEL_MULTISIG_S2, transcript, s2);
     if (key.s1.isZero() || key.s2.isZero() || key.commitments[0].isInfinity()) {
         throw std::runtime_error("Unusable multisig key");
     }

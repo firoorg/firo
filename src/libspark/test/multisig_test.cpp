@@ -112,6 +112,21 @@ ChaumProofV2 Authorize(
     return session.combine(statement.serials, shares);
 }
 
+// A participant that departs from the protocol: it can present a second polynomial
+// that has the same constant coefficient and comes with the same view key contributions
+class TwoFacedKeygen : public MultisigKeygen {
+public:
+    using MultisigKeygen::MultisigKeygen;
+    bool second = false;
+
+protected:
+    Scalar derive(const std::string& purpose, uint64_t i, const std::vector<unsigned char>& data) const override
+    {
+        const Scalar value = MultisigKeygen::derive(purpose, i, data);
+        return second && purpose == "coefficient" && i > 0 ? value + Scalar(uint64_t(1)) : value;
+    }
+};
+
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(spark_multisig_tests, BasicTestingSetup)
@@ -257,7 +272,7 @@ BOOST_AUTO_TEST_CASE(keygen_output_is_stable)
     for (const MultisigKeygen& keygen : keygens) {
         hasher << keygen.finalize(round2);
     }
-    BOOST_CHECK_EQUAL(hasher.GetHash().GetHex(), "d660b368855275fd8c91230c4148ebdb9f7291331531c1845b6fb62e259486ca");
+    BOOST_CHECK_EQUAL(hasher.GetHash().GetHex(), "89a1b68e751a558a04779a8666844e978df19cb95db247f9553d7704d2b560b8");
 }
 
 BOOST_AUTO_TEST_CASE(constant_time_multiplication)
@@ -353,6 +368,55 @@ BOOST_AUTO_TEST_CASE(keygen_rejects_bad_messages)
         other.round1(),
         MultisigKeygen(params, 2, other_keys, other_secrets[2]).round1()}).shares;
     BOOST_CHECK_THROW(keygens[0].finalize(bad), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(address_commits_to_the_shares)
+{
+    // Setup keeps no state, so a participant can have the others run round two for two
+    // versions of its round one message, and then hand each of them the round two data
+    // of a different version. Versions that differ only above the constant coefficient
+    // lead to the same spend key and view key contributions, yet to shares of
+    // different polynomials. Comparing addresses is how the participants confirm a
+    // setup, so the address has to tell such a split apart.
+    const Params* params = Params::get_test();
+
+    std::vector<Scalar> secrets(3);
+    std::vector<GroupElement> keys;
+    for (Scalar& secret : secrets) {
+        secret.randomize();
+        keys.emplace_back(params->get_G()*secret);
+    }
+    const MultisigKeygen alice(params, 2, keys, secrets[0]);
+    const MultisigKeygen bob(params, 2, keys, secrets[1]);
+    TwoFacedKeygen mallory(params, 2, keys, secrets[2]);
+
+    // Alice completes the setup with one version and Bob with the other
+    std::vector<MultisigKeygenMessage> versions;
+    std::vector<MultisigKey> completed;
+    for (const bool second : {false, true}) {
+        mallory.second = second;
+        const std::vector<MultisigKeygenMessage> round1 = {alice.round1(), bob.round1(), mallory.round1()};
+        const std::vector<MultisigKeygenMessage> round2 = {alice.round2(round1), bob.round2(round1), mallory.round2(round1)};
+        versions.emplace_back(round1[2]);
+        completed.emplace_back((second ? bob : alice).finalize(round2));
+    }
+    BOOST_CHECK(versions[0].C[0] == versions[1].C[0]);
+    BOOST_CHECK(versions[0].view_commitment == versions[1].view_commitment);
+    BOOST_CHECK(versions[0].C[1] != versions[1].C[1]);
+
+    // They hold the same spend key in shares that do not go together
+    const GroupElement& D = completed[0].commitments[0];
+    BOOST_CHECK(completed[1].commitments[0] == D);
+    BOOST_CHECK(completed[0].commitments != completed[1].commitments);
+    BOOST_CHECK(params->get_G()*Interpolate({
+        {completed[0].index, completed[0].get_share(params, secrets[0])},
+        {completed[1].index, completed[1].get_share(params, secrets[1])}}) != D);
+
+    // Their addresses differ
+    const auto address = [params](const MultisigKey& key) {
+        return Address(IncomingViewKey(key.get_full_view_key(params)), 1).encode(ADDRESS_NETWORK_TESTNET);
+    };
+    BOOST_CHECK(address(completed[0]) != address(completed[1]));
 }
 
 BOOST_AUTO_TEST_CASE(threshold_proof)

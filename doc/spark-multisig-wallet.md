@@ -41,7 +41,11 @@ after a restart the wallet is the multisig wallet. From then on the call answers
 with the address, and an unlocked wallet also returns its data again.
 
 Before the address receives funds, the participants confirm that each of them
-completed the third call and obtained the same address.
+completed the third call and obtained the same address. The address is derived
+from everything the participants exchanged, so those who obtained the same address
+hold shares of the same key. A participant who was given other data than the rest,
+by mistake or by someone trying to leave the others with shares that do not work
+together, ends up with a different address.
 
 The wallet must not hold Spark coins when it is set up, because it stops tracking
 its previous Spark addresses. Use a new wallet. Its transparent keys and funds
@@ -118,8 +122,15 @@ These complete the protocol description where it leaves room.
   contributions. Round two carries, for each participant, its share and the view
   key contributions, encrypted under a key agreed between the two participant
   keys and bound to the hash of all round one messages. A participant can only
-  decrypt shares made from the round one messages it holds itself, which gives the
-  consistent delivery of commitments that the protocol requires.
+  decrypt shares made for the round one messages it holds itself.
+- **View key.** The view key is the sum of the participants' contributions,
+  weighted by hashes of the contributions and of all round one messages. No
+  participant can choose it, and it commits to every coefficient commitment. This
+  is what makes comparing addresses a check of the whole setup, and gives the
+  consistent delivery of commitments that the protocol requires. Decrypting the
+  shares would not: the calls keep no state, so a participant can be led through
+  round two for more than one set of round one messages, and two sets can differ
+  in nothing but the higher coefficients of one polynomial.
 - **Proof version.** Spends use the Chaum V2 proof, which proves every input
   separately under one challenge. The single-input signing of the protocol
   description is run once per input, with a nonce pair per input from each signer.
