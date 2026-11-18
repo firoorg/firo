@@ -171,6 +171,53 @@ int ConsumeMigrationSyncFailure()
     }
     return 0;
 }
+
+bool CloseAndCheckpointMigrationDatabase(
+    CDBEnv& environment,
+    const std::string& filename,
+    std::string& error)
+{
+    const auto users =
+        environment.mapFileUseCount.find(filename);
+    if (users != environment.mapFileUseCount.end() &&
+        users->second != 0) {
+        error = strprintf(
+            "Cannot checkpoint BDB wallet '%s' for migration while database batches remain active.",
+            filename);
+        return false;
+    }
+    environment.migrationLogPins.insert(filename);
+
+    int close_result = 0;
+    const auto cached = environment.mapDb.find(filename);
+    if (cached != environment.mapDb.end()) {
+        Db* const database = cached->second;
+        if (database) {
+            close_result = database->close(0);
+            delete database;
+        }
+        environment.mapDb.erase(cached);
+    }
+    environment.mapFileUseCount.erase(filename);
+    if (close_result != 0) {
+        error = strprintf(
+            "Failed to close BDB wallet '%s' for migration: %s",
+            filename,
+            DbEnv::strerror(close_result));
+        return false;
+    }
+
+    const int checkpoint_result =
+        environment.dbenv->txn_checkpoint(0, 0, 0);
+    if (checkpoint_result != 0) {
+        error = strprintf(
+            "Failed to checkpoint BDB wallet '%s' for migration: %s",
+            filename,
+            DbEnv::strerror(checkpoint_result));
+        return false;
+    }
+    return true;
+}
 #endif
 
 #if defined(WIN32) && defined(USE_SQLITE)
@@ -266,53 +313,6 @@ bool DurableSyncMigrationFile(
     return win32_wallet::FlushFile(
         file,
         error);
-}
-
-bool CloseAndCheckpointMigrationDatabaseWin32(
-    CDBEnv& environment,
-    const std::string& filename,
-    std::string& error)
-{
-    const auto users =
-        environment.mapFileUseCount.find(filename);
-    if (users != environment.mapFileUseCount.end() &&
-        users->second != 0) {
-        error = strprintf(
-            "Cannot checkpoint BDB wallet '%s' for migration while database batches remain active.",
-            filename);
-        return false;
-    }
-    environment.migrationLogPins.insert(filename);
-
-    int close_result = 0;
-    const auto cached = environment.mapDb.find(filename);
-    if (cached != environment.mapDb.end()) {
-        Db* const database = cached->second;
-        if (database) {
-            close_result = database->close(0);
-            delete database;
-        }
-        environment.mapDb.erase(cached);
-    }
-    environment.mapFileUseCount.erase(filename);
-    if (close_result != 0) {
-        error = strprintf(
-            "Failed to close BDB wallet '%s' for migration: %s",
-            filename,
-            DbEnv::strerror(close_result));
-        return false;
-    }
-
-    const int checkpoint_result =
-        environment.dbenv->txn_checkpoint(0, 0, 0);
-    if (checkpoint_result != 0) {
-        error = strprintf(
-            "Failed to checkpoint BDB wallet '%s' for migration: %s",
-            filename,
-            DbEnv::strerror(checkpoint_result));
-        return false;
-    }
-    return true;
 }
 
 bool ResetMigrationBackupWin32(
@@ -747,53 +747,6 @@ bool CopyMigrationFile(
             written += write_size;
         }
     }
-}
-
-bool CloseAndCheckpointMigrationDatabase(
-    CDBEnv& environment,
-    const std::string& filename,
-    std::string& error)
-{
-    const auto users =
-        environment.mapFileUseCount.find(filename);
-    if (users != environment.mapFileUseCount.end() &&
-        users->second != 0) {
-        error = strprintf(
-            "Cannot checkpoint BDB wallet '%s' for migration while database batches remain active.",
-            filename);
-        return false;
-    }
-    environment.migrationLogPins.insert(filename);
-
-    int close_result = 0;
-    const auto cached = environment.mapDb.find(filename);
-    if (cached != environment.mapDb.end()) {
-        Db* const database = cached->second;
-        if (database) {
-            close_result = database->close(0);
-            delete database;
-        }
-        environment.mapDb.erase(cached);
-    }
-    environment.mapFileUseCount.erase(filename);
-    if (close_result != 0) {
-        error = strprintf(
-            "Failed to close BDB wallet '%s' for migration: %s",
-            filename,
-            DbEnv::strerror(close_result));
-        return false;
-    }
-
-    const int checkpoint_result =
-        environment.dbenv->txn_checkpoint(0, 0, 0);
-    if (checkpoint_result != 0) {
-        error = strprintf(
-            "Failed to checkpoint BDB wallet '%s' for migration: %s",
-            filename,
-            DbEnv::strerror(checkpoint_result));
-        return false;
-    }
-    return true;
 }
 
 bool VerifyMigrationBackup(
@@ -2091,7 +2044,7 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
         return MigrationBackupResult::INDETERMINATE;
     };
 
-    if (!CloseAndCheckpointMigrationDatabaseWin32(
+    if (!CloseAndCheckpointMigrationDatabase(
             *m_env,
             m_filename,
             error) ||
@@ -2752,7 +2705,7 @@ bool BerkeleyDatabase::PrepareForMigrationPublication(
             if (users ==
                     m_env->mapFileUseCount.end() ||
                 users->second == 0) {
-                if (!CloseAndCheckpointMigrationDatabaseWin32(
+                if (!CloseAndCheckpointMigrationDatabase(
                         *m_env,
                         m_filename,
                         error)) {

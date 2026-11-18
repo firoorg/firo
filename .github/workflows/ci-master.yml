@@ -280,11 +280,11 @@ jobs:
 
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=OFF -DBUILD_DAEMON=OFF -DBUILD_GUI=OFF -DBUILD_TESTS=ON \
+        -DBUILD_CLI=OFF -DBUILD_DAEMON=ON -DBUILD_GUI=OFF -DBUILD_TESTS=ON \
         -DENABLE_CRASH_HOOKS=ON -DENABLE_SQLITE_WALLET=OFF -DWITH_BDB=ON \
         -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -S$(realpath .) -B$(realpath build-windows-bdb-only)
-        cmake --build build-windows-bdb-only --target test_firo --parallel "$BDB_JOBS"
+        cmake --build build-windows-bdb-only --target test_firo firod --parallel "$BDB_JOBS"
 
         BDB_AUDIT_DIR=$(mktemp -d)
         x86_64-w64-mingw32-ar -t build-windows-bdb-only/lib/libfiro_wallet.a \
@@ -353,11 +353,11 @@ jobs:
         env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
         cmake -G Ninja \
           -DCMAKE_TOOLCHAIN_FILE="$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake" \
-          -DBUILD_CLI=OFF -DBUILD_DAEMON=OFF -DBUILD_GUI=OFF \
+          -DBUILD_CLI=OFF -DBUILD_DAEMON=ON -DBUILD_GUI=OFF \
           -DBUILD_TESTS=ON -DENABLE_SQLITE_WALLET=OFF -DWITH_BDB=ON \
           -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -S"$(pwd)" -B"$(pwd)/build-mac-bdb-only"
-        cmake --build build-mac-bdb-only --target test_firo --parallel "$BDB_JOBS"
+        cmake --build build-mac-bdb-only --target test_firo firod --parallel "$BDB_JOBS"
 
         BDB_AUDIT_DIR=$(mktemp -d)
         ar -t build-mac-bdb-only/lib/libfiro_wallet.a \
@@ -384,6 +384,26 @@ jobs:
         build-mac-bdb-only/bin/test_firo \
           --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
           --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+    - name: Set up Python 3.11 (Mac)
+      if: matrix.is_mac
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+    - name: Run Native Wallet Lifecycles (Mac)
+      if: matrix.is_mac
+      timeout-minutes: 30
+      run: |
+        set -exo pipefail
+        BUILD_ROOTS="build"
+        if [ "${{ matrix.build_type }}" = "RelWithDebInfo" ]; then
+          BUILD_ROOTS="$BUILD_ROOTS build-mac-bdb-only"
+        fi
+        for BUILD_ROOT in $BUILD_ROOTS; do
+          TEST_PARENT=$(mktemp -d)
+          TEST_ROOT="$(cd "$TEST_PARENT" && pwd -P)/wallet-lifecycle"
+          FIROD="$PWD/$BUILD_ROOT/bin/firod" \
+            python -u qa/rpc-tests/wallet-database-format.py --tmpdir="$TEST_ROOT"
+        done
     - name: Run Unit Tests
       if: matrix.is_linux
       run: |
@@ -404,7 +424,9 @@ jobs:
         name: windows-sqlite-wallet-test-runtime-${{ env.COMMIT_HASH }}
         path: |
           build/bin/test_firo.exe
+          build/bin/firod.exe
           build-windows-bdb-only/bin/test_firo.exe
+          build-windows-bdb-only/bin/firod.exe
         if-no-files-found: error
         retention-days: 1
     - name: Prepare Files for Artifact
@@ -446,6 +468,12 @@ jobs:
     if: ${{ !cancelled() && needs.get-commit-hash.result == 'success' }}
     runs-on: windows-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
       - name: Download Windows SQLite Wallet Test Runtime
         uses: actions/download-artifact@v7
         with:
@@ -623,6 +651,54 @@ jobs:
           Invoke-FiroTest '.\build\bin\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
           Invoke-FiroTest '.\build\bin\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
           Invoke-FiroTest '.\build-windows-bdb-only\bin\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+
+          foreach ($buildRoot in @('build', 'build-windows-bdb-only')) {
+            $env:FIROD = (Resolve-Path ".\$buildRoot\bin\firod.exe").Path
+            $functionalRoot = Join-Path $testTemp "functional-$buildRoot"
+            $functionalLog = Join-Path $testTemp "functional-$buildRoot.stdout"
+            $functionalErrors = Join-Path $testTemp "functional-$buildRoot.stderr"
+            $script = Join-Path $env:GITHUB_WORKSPACE 'qa/rpc-tests/wallet-database-format.py'
+            $arguments = "-u `"$script`" `"--tmpdir=$functionalRoot`" --nocleanup"
+            $process = Start-Process -FilePath (Get-Command python).Source `
+              -ArgumentList $arguments -PassThru -NoNewWindow `
+              -RedirectStandardOutput $functionalLog `
+              -RedirectStandardError $functionalErrors
+            if (!$process.WaitForExit(900000)) {
+              & taskkill.exe /PID $process.Id /T /F
+              throw "Native $buildRoot wallet lifecycle exceeded 900 seconds"
+            }
+            Get-Content -LiteralPath $functionalLog
+            Get-Content -LiteralPath $functionalErrors
+            if ($process.ExitCode -ne 0) {
+              throw "Native $buildRoot wallet lifecycle failed with exit $($process.ExitCode)"
+            }
+
+            # The fixture inherits only the current user's full-control grant.
+            # Check native owner/DACLs instead of POSIX uid and mode bits.
+            foreach ($file in Get-ChildItem -LiteralPath $functionalRoot -File -Recurse) {
+              $fileAcl = Get-Acl -LiteralPath $file.FullName
+              if (!$fileAcl.GetOwner([System.Security.Principal.SecurityIdentifier]).Equals($currentSid)) {
+                throw "Functional fixture file has an unexpected owner: $($file.FullName)"
+              }
+              $rules = $fileAcl.GetAccessRules(
+                $true, $true, [System.Security.Principal.SecurityIdentifier]
+              )
+              $hasUserGrant = $false
+              foreach ($rule in $rules) {
+                if ($rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow) {
+                  if (!$rule.IdentityReference.Equals($currentSid)) {
+                    throw "Functional fixture file grants another user access: $($file.FullName)"
+                  }
+                  if (($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -eq [System.Security.AccessControl.FileSystemRights]::FullControl) {
+                    $hasUserGrant = $true
+                  }
+                }
+              }
+              if (!$hasUserGrant) {
+                throw "Functional fixture file lacks the current user's full control: $($file.FullName)"
+              }
+            }
+          }
 
   guix-build:
     needs: get-commit-hash

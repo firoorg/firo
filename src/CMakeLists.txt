@@ -6,6 +6,11 @@ include(GNUInstallDirs)
 include(AddWindowsResources)
 include(WindowsSystemConfiguration)
 
+# The configuration header used to be generated in the source tree. A leftover copy is found first by quoted
+# includes and its include guard hides the header generated below.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h")
+  message(FATAL_ERROR "Found an obsolete generated header: ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h. Remove it and run cmake again.")
+endif()
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config ${PROJECT_BINARY_DIR}/config)
 configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
 # Preserve legacy ../config includes without generating files in the source tree.
