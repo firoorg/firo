@@ -273,7 +273,7 @@ public:
             uint256& blockHash,
             std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins);
 
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> GetMints() const;
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash, spark::CoinEqual> GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::vector<std::pair<GroupElement, int>> const & GetSpendsMobile() const;
     std::unordered_map<uint256, uint256> const& GetSpendTxIds() const;
@@ -300,7 +300,7 @@ private:
 
     // Set of all minted coins
     mutable CCriticalSection cs_minted_coins;
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins GUARDED_BY(cs_minted_coins);
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash, spark::CoinEqual> mintedCoins GUARDED_BY(cs_minted_coins);
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
     // Set of all used linking tags, used only when -mobile=true

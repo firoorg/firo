@@ -1628,7 +1628,7 @@ CSparkState::CSparkState(
 
 void CSparkState::CopyFrom(const CSparkState& other)
 {
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> coins;
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash, spark::CoinEqual> coins;
     {
         LOCK(other.cs_minted_coins);
         coins = other.mintedCoins;
@@ -2226,7 +2226,7 @@ void CSparkState::GetCoinsForRecovery(
     }
 }
 
-std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> CSparkState::GetMints() const {
+std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash, spark::CoinEqual> CSparkState::GetMints() const {
     LOCK(cs_minted_coins);
     return mintedCoins;
 }
