@@ -556,6 +556,46 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_spends)
     spark::CSparkState::GetState()->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(block_spend_marks_known_coin_before_notifications)
+{
+    GenerateBlocks(1001);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({2 * COIN, 2 * COIN}, mintTransactions);
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(5);
+
+    // Leave the spend uncommitted so that only its block can mark the coin
+    // used, as for a wallet spend whose mark was dropped before it was mined.
+    auto* wallet = pwalletMain->sparkWallet.get();
+    CAmount fee;
+    const CWalletTx wtx = wallet->CreateSparkSpendTransaction(
+        {{GetScriptForDestination(GenerateAddress().GetID()), COIN, false}}, {}, fee);
+    const auto lTags = spark::GetSparkUsedTags(*wtx.tx);
+    BOOST_REQUIRE_EQUAL(lTags.size(), 1);
+    const uint256 lTagHash = primitives::GetLTagHash(lTags[0]);
+    wallet->FinishTasks();
+    BOOST_REQUIRE(!wallet->getMintMeta(lTagHash).isUsed);
+
+    bool fChecked = false;
+    {
+        // Connected transaction notifications still hold cs_main, so the
+        // worker cannot record the spend before this check.
+        boost::signals2::scoped_connection check(
+            GetMainSignals().SyncTransaction.connect(
+                [&](const CTransaction& tx, const CBlockIndex*, int posInBlock) {
+                    if (posInBlock < 0 || tx.GetHash() != wtx.GetHash())
+                        return;
+                    AssertLockHeld(cs_main);
+                    BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+                    fChecked = true;
+                }));
+        BOOST_REQUIRE(GenerateBlock({CMutableTransaction(*wtx.tx)}));
+    }
+    BOOST_CHECK(fChecked);
+    wallet->FinishTasks();
+    spark::CSparkState::GetState()->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
