@@ -984,6 +984,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             for (const auto& coin : sparkMintCoins) {
+                // Honest coins never contain the point at infinity, whose many
+                // encodings compare equal but hash differently.
+                if (coin.S.isInfinity() || coin.K.isInfinity() || coin.C.isInfinity())
+                    return state.Invalid(false, REJECT_NONSTANDARD, "spark-coin-infinity");
                 if (!txSparkMints.insert(coin.getHash()).second ||
                         sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
                     LogPrintf("AcceptToMemoryPool(): duplicate Spark mint coin %s\n", coin.getHash().GetHex());
