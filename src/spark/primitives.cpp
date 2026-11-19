@@ -40,6 +40,10 @@ std::size_t CoinHash::operator ()(const spark::Coin& coin) const noexcept {
     return result;
 }
 
+bool CoinEqual::operator ()(const spark::Coin& a, const spark::Coin& b) const {
+    return primitives::GetSparkCoinHash(a) == primitives::GetSparkCoinHash(b);
+}
+
 std::size_t CLTagHash::operator ()(const secp_primitives::GroupElement& tag) const noexcept {
     uint256 hash = primitives::GetLTagHash(tag);
 

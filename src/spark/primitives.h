@@ -131,6 +131,13 @@ struct CoinHash {
     std::size_t operator()(const spark::Coin& coin) const noexcept;
 };
 
+// Key equality matching CoinHash. Coin::operator== treats every encoding of
+// the point at infinity as equal although they hash differently, which would
+// make hash table lookups depend on bucket layout.
+struct CoinEqual {
+    bool operator()(const spark::Coin& a, const spark::Coin& b) const;
+};
+
 // Custom hash for the linking tag. THIS IS NOT SECURE HASH FUNCTION
 struct CLTagHash {
     std::size_t operator()(const secp_primitives::GroupElement& tag) const noexcept;
