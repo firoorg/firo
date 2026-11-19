@@ -779,6 +779,25 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 }
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
+    // Mark known coins spent before block notifications reach balance/spend
+    // callers, as UpdateMintStateFromBlock does for known mints. Otherwise a
+    // spend built before the worker runs can select a coin this block spent,
+    // e.g. the input of a wallet transaction the mempool had rejected. The
+    // worker below records the spend entries, which need the spending txid.
+    if (block.sparkTxInfo) {
+        LOCK(cs_spark_wallet);
+        CWalletDB walletdb(strWalletFile);
+        for (const auto& spent : block.sparkTxInfo->spentLTags) {
+            const uint256 lTagHash = primitives::GetLTagHash(spent.first);
+            auto it = coinMeta.find(lTagHash);
+            if (it == coinMeta.end() || it->second.isUsed)
+                continue;
+            CSparkMintMeta mint = it->second;
+            mint.isUsed = true;
+            addOrUpdateMint(mint, lTagHash, walletdb);
+        }
+    }
+
     std::vector<CTransactionRef> vtxCopy = block.vtx;
     const uint256 blockHash = block.GetHash();
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
