@@ -3674,8 +3674,9 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
     if (!vExtraPayload.empty()) {
         // vExtraPayload is serialized and covered by the sighash only for version 3 special transactions.
+        // Asset payloads use Spark V2; that fork is already active when assets start.
         txNew.nVersion = 3;
-        txNew.nType = TRANSACTION_SPARK;
+        txNew.nType = TRANSACTION_SPARK_V2;
         txNew.vExtraPayload = vExtraPayload;
     }
 

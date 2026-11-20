@@ -219,9 +219,10 @@ enum opcodetype
     // NOP suffix that tags a P2PKH output with spark name and spark address data
     OP_SPARKNAMEID = 0xe1
 };
-// ATTENTION: When adding a new enumerator to the above, make sure to update the src/test/data/script_tests.json file accordingly, e.g. by deleting the corresponding
+// ATTENTION: An opcode that GetOp2 consumes as an opaque suffix must have its
+// unexecuted-conditional fixture removed from src/test/data/script_tests.json, e.g.
 //      ["0", "IF 0xNN ELSE 1 ENDIF", "P2SH,STRICTENC", "OK"],
-// line...
+// SPATS opcodes are not suffixes. Leave those fixtures succeeding.
 
 const char* GetOpName(opcodetype opcode);
 
@@ -614,9 +615,13 @@ public:
 
         opcodeRet = (opcodetype)opcode;
 
+        // Opaque privacy suffixes. SPATS is absent on purpose: its payload is
+        // protocol data only when GetSpatsEnvelope() accepts the script.
+        // Swallowing the tail here also swallows it inside an unexecuted
+        // conditional and changes pre-activation script validity.
         if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
             opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT ||
-            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND || IsSpatsOp(opcodeRet)) {
+            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
@@ -726,6 +731,10 @@ public:
     bool IsSpatsBurn() const;
 
     bool IsSpats() const;
+
+    /** Leading SPATS opcode plus payload. The same byte later in a script is an ordinary opcode. */
+    bool GetSpatsEnvelope(opcodetype& opcode, const_iterator& payload) const;
+
     bool HasSerializedSpatsAction() const;
 
     // Returns true if this script is a P2PKH tagged with spark name data
@@ -744,21 +753,22 @@ public:
     bool IsPushOnly(const_iterator pc) const;
     bool IsPushOnly() const;
 
-    /**
-     * Returns whether the script is guaranteed to fail at execution,
-     * regardless of the initial stack. This allows outputs to be pruned
-     * instantly when entering the UTXO set.
-     *
-     * SPATS mint and burn outputs carry protocol data only; spending them
-     * hits BAD_OPCODE, so they are pruned like OP_RETURN.
-     */
+    /** Pruned from the UTXO set. SPATS mint and burn prefixes count only when \p spatsActive. */
     bool IsUnspendable() const
     {
-        return (size() > 0 &&
-                (*begin() == OP_RETURN ||
-                 *begin() == OP_SPATSMINT ||
-                 *begin() == OP_SPATSBURN)) ||
-            (size() > MAX_SCRIPT_SIZE);
+        return IsUnspendable(true);
+    }
+
+    bool IsUnspendable(bool spatsActive) const
+    {
+        if (size() > MAX_SCRIPT_SIZE)
+            return true;
+        if (empty())
+            return false;
+        const unsigned char first = *begin();
+        if (first == OP_RETURN)
+            return true;
+        return spatsActive && (first == OP_SPATSMINT || first == OP_SPATSBURN);
     }
 
     void clear()

@@ -800,9 +800,16 @@ class CCoinsViewMemPool : public CCoinsViewBacked
 {
 protected:
     const CTxMemPool& mempool;
+    const bool m_spatsActive;
+
+    bool MempoolOutputSpendable(const CTransaction& tx, unsigned int n) const;
 
 public:
-    CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn);
+    /**
+     * \p spatsActive is whether the next block prunes SPATS mint and burn
+     * outputs. Compute it before taking the mempool lock.
+     */
+    CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn, bool spatsActive);
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
     bool HaveCoin(const COutPoint &outpoint) const override;
 };

@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "coins.h"
+#include "chainparams.h"
+#include "txmempool.h"
 #include "util.h"
 
 #include "consensus/consensus.h"
@@ -61,9 +63,18 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     return false;
 }
 
+bool IsOutputPruned(const CScript& script, uint32_t nHeight)
+{
+    // MEMPOOL_HEIGHT is not a block. The mempool view applies the next-block
+    // rule itself so this lookup does not take the chain lock.
+    if (nHeight == MEMPOOL_HEIGHT)
+        return script.IsUnspendable(false);
+    return script.IsUnspendable(static_cast<int>(nHeight) >= ::Params().GetConsensus().nSpatsStartBlock);
+}
+
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
     assert(!coin.IsSpent());
-    if (coin.out.scriptPubKey.IsUnspendable()) return;
+    if (IsOutputPruned(coin.out.scriptPubKey, coin.nHeight)) return;
     CCoinsMap::iterator it;
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());

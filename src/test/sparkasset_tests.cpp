@@ -10,6 +10,7 @@
 #include "chainparams.h"
 #include "coins.h"
 #include "consensus/validation.h"
+#include "txmempool.h"
 #include "key.h"
 #include "libspark/keys.h"
 #include "libspark/mint_transaction.h"
@@ -266,6 +267,14 @@ BOOST_AUTO_TEST_CASE(admin_proof_is_checked)
     BOOST_CHECK(!spark::VerifySpatsAssetAdminProof(
         admin, secp_primitives::Scalar(uint64_t(43)), dummy, signedProof.getOwnershipProof()));
 
+    spark::OwnershipProof identity;
+    CDataStream identityStream(SER_NETWORK, PROTOCOL_VERSION);
+    identityStream << identity;
+    const std::vector<unsigned char> identityBytes(identityStream.begin(), identityStream.end());
+    BOOST_CHECK(identity.A.isInfinity());
+    BOOST_CHECK(!spark::VerifySparkAddressOwnership(adminAddr, m, identity));
+    BOOST_CHECK(!spark::VerifySpatsAssetAdminProof(admin, m, dummy, identityBytes));
+
     CKey transparentKey;
     transparentKey.MakeNewKey(true);
     const CBitcoinAddress transparentAddr(transparentKey.GetPubKey().GetID());
@@ -478,7 +487,9 @@ BOOST_AUTO_TEST_CASE(registry_ops_require_spark_spend)
     const auto& consensus = Params().GetConsensus();
     CMutableTransaction tx;
     tx.nVersion = 3;
-    tx.nType = TRANSACTION_SPARK;
+    tx.nType = TRANSACTION_SPARK_V2;
+    tx.vin.emplace_back(COutPoint(uint256S("21"), 0));
+    tx.vin[0].scriptSig << OP_1;
     tx.vout.emplace_back(
         static_cast<CAmount>(consensus.nSpatsRegFee[asset.getSymbol().size()]) * COIN,
         GetScriptForDestination(CBitcoinAddress(consensus.stage3CommunityFundAddress).Get()));
@@ -722,12 +733,39 @@ BOOST_AUTO_TEST_CASE(spats_mint_and_burn_are_pruned_from_utxo_set)
 
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
+    const int belowActivation = 1;
+    const int atActivation = Params().GetConsensus().nSpatsStartBlock;
+    const COutPoint earlyMint(uint256S("a1"), 0);
+    const COutPoint earlyBurn(uint256S("b1"), 1);
+    view.AddCoin(earlyMint, Coin(CTxOut(0, mint), belowActivation, false), false);
+    view.AddCoin(earlyBurn, Coin(CTxOut(0, burn), belowActivation, false), false);
+    BOOST_CHECK(!view.AccessCoin(earlyMint).IsSpent());
+    BOOST_CHECK(!view.AccessCoin(earlyBurn).IsSpent());
     const COutPoint mintOut(uint256S("aa"), 0);
     const COutPoint burnOut(uint256S("bb"), 1);
-    view.AddCoin(mintOut, Coin(CTxOut(0, mint), 1, false), false);
-    view.AddCoin(burnOut, Coin(CTxOut(0, burn), 1, false), false);
+    view.AddCoin(mintOut, Coin(CTxOut(0, mint), atActivation, false), false);
+    view.AddCoin(burnOut, Coin(CTxOut(0, burn), atActivation, false), false);
     BOOST_CHECK(view.AccessCoin(mintOut).IsSpent());
     BOOST_CHECK(view.AccessCoin(burnOut).IsSpent());
+    // The sentinel itself is not a block height. The mempool view decides
+    // whether the next block prunes the output, and HaveCoin matches GetCoin.
+    BOOST_CHECK(!IsOutputPruned(mint, MEMPOOL_HEIGHT));
+    BOOST_CHECK(IsOutputPruned(mint, static_cast<uint32_t>(atActivation)));
+    CMutableTransaction parent;
+    parent.vin.resize(1);
+    parent.vin[0].scriptSig = CScript() << OP_1;
+    parent.vout.emplace_back(0, mint);
+    CTxMemPool pool(CFeeRate(0));
+    TestMemPoolEntryHelper entry;
+    pool.addUnchecked(parent.GetHash(), entry.FromTx(parent));
+    const COutPoint parentOut(parent.GetHash(), 0);
+    CCoinsViewMemPool visible(&viewDummy, pool, false);
+    CCoinsViewMemPool hidden(&viewDummy, pool, true);
+    Coin mempoolCoin;
+    BOOST_CHECK(visible.HaveCoin(parentOut));
+    BOOST_CHECK(visible.GetCoin(parentOut, mempoolCoin));
+    BOOST_CHECK(!hidden.HaveCoin(parentOut));
+    BOOST_CHECK(!hidden.GetCoin(parentOut, mempoolCoin));
 
     txnouttype whichType;
     BOOST_CHECK(IsStandard(burn, whichType));

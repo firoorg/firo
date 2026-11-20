@@ -439,8 +439,9 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     // Check transaction against spark limits
     if(tx.IsSparkSpend()) {
-        CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
+        CAmount spendAmount = spark::GetSpendTransparentAmount(
+            tx, nHeight >= params.nSpatsStartBlock);
 
         if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return false;
@@ -457,8 +458,9 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     const CTransaction &tx = iter->GetTx();
 
     if(tx.IsSparkSpend()) {
-        CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
+        CAmount spendAmount = spark::GetSpendTransparentAmount(
+            tx, nHeight >= params.nSpatsStartBlock);
 
         if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return;
@@ -967,7 +969,10 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
     if (sporkMap.count(CSporkAction::featureSparkTransparentLimit) > 0) {
         BlacklistTxsExceedingLimit(sporkMap[CSporkAction::featureSparkTransparentLimit].second,
             [](const CTransaction &tx)->bool { return tx.IsSparkSpend(); },
-            [](const CTransaction &tx)->CAmount { return spark::GetSpendTransparentAmount(tx); });
+            [this](const CTransaction &tx)->CAmount {
+                return spark::GetSpendTransparentAmount(
+                    tx, nHeight >= chainparams.GetConsensus().nSpatsStartBlock);
+            });
     }
 }
 

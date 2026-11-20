@@ -456,7 +456,7 @@ bool CheckSequenceLocks(const CTxMemPool& pool, const CTransaction &tx, int flag
     }
     else {
         // pcoinsTip contains the UTXO set for chainActive.Tip()
-        CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
+        CCoinsViewMemPool viewMemPool(pcoinsTip, pool, NextBlockActivatesSpats());
         std::vector<int> prevheights;
         prevheights.resize(tx.vin.size());
         for (size_t txinIndex = 0; txinIndex < tx.vin.size(); txinIndex++) {
@@ -723,10 +723,15 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
+    // Candidate block for a mempool tx is the next block. An explicit height
+    // is already the block being validated.
+    const int nCandidateHeight = nHeight == INT_MAX ? nTxHeight + 1 : nTxHeight;
+    const bool spatsActive = nCandidateHeight >= consensus.nSpatsStartBlock;
+
     // SPATS mint and burn amounts live in the script. nValue must stay zero so
-    // they are not counted as FIRO. The UTXO set drops them because the scripts
-    // are IsUnspendable, not because nValue is zero.
-    if (nTxHeight >= ::Params().GetConsensus().nSpatsStartBlock) {
+    // they are not counted as FIRO. The UTXO set drops them from the activation
+    // block on, because the scripts are unspendable, not because nValue is zero.
+    if (spatsActive) {
         for (const auto &vout : tx.vout) {
             if (vout.scriptPubKey.IsSpatsMint() && vout.nValue != 0)
                 return state.DoS(100, false, REJECT_INVALID, "bad-spats-mint-nvalue");
@@ -735,9 +740,9 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
-    // A burn is valid only on a Spark spend. On a coinbase or transparent
-    // transaction the output is unspendable, so its value would be destroyed.
-    if (tx.HasSpatsBurn() && !tx.IsSparkSpend())
+    // From activation, a burn is valid only on a Spark spend. Below that, an
+    // output whose first byte is the future burn opcode is an ordinary script.
+    if (spatsActive && tx.HasSpatsBurn() && !tx.IsSparkSpend())
         return state.DoS(100, false, REJECT_INVALID, "bad-spats-burn");
 
     if (tx.IsCoinBase())
@@ -751,12 +756,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
         if (hasExchangeUTXOs)
             return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-        // Coinbase never reaches CheckSparkTransaction. A mint output is
-        // unspendable, so accepting one before activation drops its value.
-        if (nTxHeight < ::Params().GetConsensus().nSpatsStartBlock) {
+        // Coinbase never reaches CheckSparkTransaction. From activation a mint
+        // output would be pruned without entering the anonymity set.
+        if (spatsActive) {
             for (const auto& vout : tx.vout) {
                 if (vout.scriptPubKey.IsSpatsMint())
-                    return state.DoS(100, false, REJECT_INVALID, "bad-spats-before-activation");
+                    return state.DoS(100, false, REJECT_INVALID, "bad-spats-coinbase-mint");
             }
         }
     }
@@ -856,6 +861,10 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
             if (tx.nType == TRANSACTION_SPARK_V2 &&
                 nHeight < consensusParams.nSparkChaumV2StartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-v2-premature");
+            if (tx.nType == TRANSACTION_SPARK_V2 &&
+                !tx.IsSparkSpend() &&
+                nHeight < consensusParams.nSpatsStartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-before-spats");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
@@ -1145,8 +1154,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         LockPoints lp;
         spark::CSparkAssetPending assetPending;
         {
+        bool spatsActive;
+        {
+            LOCK(cs_main);
+            spatsActive = NextBlockActivatesSpats();
+        }
         LOCK(pool.cs);
-        CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
+        CCoinsViewMemPool viewMemPool(pcoinsTip, pool, spatsActive);
         view.SetBackend(viewMemPool);
 
         // do we already have it?
@@ -2470,7 +2484,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                     continue;
                 }
 
-                const CAmount fee = spark::GetSparkFee(*tx);
+                const CAmount fee = spark::GetSparkFee(*tx, pindex->nHeight);
                 if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
                     LogPrintf(
                         "DisconnectBlock(): Spark spend fee is out of range\n");
@@ -2501,7 +2515,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
         for (size_t o = 0; o < tx.vout.size(); o++) {
-            if (!tx.vout[o].scriptPubKey.IsUnspendable()) {
+            if (!IsOutputPruned(tx.vout[o].scriptPubKey, static_cast<uint32_t>(pindex->nHeight))) {
                 COutPoint out(hash, o);
                 Coin coin;
                 view.SpendCoin(out, &coin);
@@ -2932,7 +2946,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsSparkSpend()) {
                 try {
-                    nFees += spark::GetSparkFee(tx);
+                    nFees += spark::GetSparkFee(tx, pindex->nHeight);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
@@ -3529,7 +3543,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                     }
                 } else {
                     try {
-                        sparkTransactionsToRemove.push_back(spark::ParseSparkSpend(*tx));
+                        sparkTransactionsToRemove.push_back(spark::ParseSparkSpend(
+                            *tx, pindexDelete->nHeight >= chainparams.GetConsensus().nSpatsStartBlock));
                     }
                     catch (const CBadTxIn&) {
                         continue;
@@ -3758,8 +3773,13 @@ int GetInputAge(const CTxIn &txin) {
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
+        bool spatsActive;
+        {
+            LOCK(cs_main);
+            spatsActive = NextBlockActivatesSpats();
+        }
         LOCK(mempool.cs);
-        CCoinsViewMemPool viewMempool(pcoinsTip, mempool);
+        CCoinsViewMemPool viewMempool(pcoinsTip, mempool, spatsActive);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
 
         const Coin &coin = view.AccessCoin(txin.prevout);

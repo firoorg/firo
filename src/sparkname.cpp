@@ -308,16 +308,23 @@ bool CSparkNameManager::CheckSparkNameTx(
             }
             return true;    // no payload, not an error at all
         }
-        // Spark V2 (and SPATS) bind a trailing asset operation in the same
-        // extra-payload slot as a Spark name. That is not a name transaction.
-        try {
-            if (spark::GetSparkAssetTxData(tx))
-                return true;
-        } catch (const std::bad_alloc&) {
-            throw;
-        } catch (const std::exception&) {
+        // From SPATS activation, a trailing asset operation shares this slot
+        // with a Spark name. Before that, the bytes are not an asset and a
+        // failed name parse is still an error.
+        if (nHeight >= consensusParams.nSpatsStartBlock) {
+            try {
+                if (spark::GetSparkAssetTxData(tx, nHeight))
+                    return true;
+            } catch (const std::bad_alloc&) {
+                throw;
+            } catch (const std::exception&) {
+            }
         }
-        return state.DoS(nContextualFailureDoS, error("CheckSparkNameTx: failed to parse spark name tx"));
+        return state.DoS(
+            nContextualFailureDoS,
+            error("CheckSparkNameTx: failed to parse spark name tx"),
+            REJECT_INVALID,
+            "CheckSparkNameTx: failed to parse spark name tx");
     }
 
     if (sparkNameData.nVersion > CSparkNameTxData::CURRENT_VERSION)

@@ -13,6 +13,8 @@
 #include "../libspark/spats/spend_transaction.h"
 #include "assetstate.h"
 #include "../sync.h"
+
+#include <limits>
 #include "primitives.h"
 #include "sparkname.h"
 
@@ -90,6 +92,9 @@ void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTrans
 bool ParseSpatsBurn(const CScript& script, std::pair<Scalar, Scalar>& assetId, CAmount& amount);
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
+/** Asset extension bytes are accepted only when \p allowAssetExtension is true. */
+spark::SpendTransaction ParseSparkSpend(const CTransaction &tx, bool allowAssetExtension);
+/** Same, using the next block's activation state. */
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx);
 
@@ -106,7 +111,7 @@ CAmount GetSparkSpendFee(const CTransaction& tx);
  * Asset operation carried at the end of the payload, if any.
  * @throws std::invalid_argument if the payload has trailing bytes that are not a canonical asset operation
  */
-std::optional<CSparkAssetTxData> GetSparkAssetTxData(const CTransaction& tx);
+std::optional<CSparkAssetTxData> GetSparkAssetTxData(const CTransaction& tx, int nHeight = std::numeric_limits<int>::max());
 
 /**
  * Message signed by a Spark admin: the whole transaction with the asset ownership proof cleared.
@@ -150,11 +155,11 @@ inline bool IsSpatsSpendTransaction(const CTransaction& tx)
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
-CAmount GetSparkFee(const CTransaction &tx);
+CAmount GetSparkFee(const CTransaction &tx, int nHeight = std::numeric_limits<int>::max());
 
 size_t GetSpendInputs(const CTransaction &tx);
-/** Transparent FIRO withdrawn by a Spark spend. Skips Spark/SPATS mint and burn outputs. */
-CAmount GetSpendTransparentAmount(const CTransaction& tx);
+/** Transparent FIRO from a Spark spend. SPATS outputs are skipped only when \p spatsActive. */
+CAmount GetSpendTransparentAmount(const CTransaction& tx, bool spatsActive);
 
 /** Whether a Spark spend has a format mineable at the given block height. */
 bool IsSparkSpendFormatAllowed(const CTransaction& tx, int height);

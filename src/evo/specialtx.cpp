@@ -45,9 +45,19 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
     case TRANSACTION_LELANTUS:
         return true;
     case TRANSACTION_SPARK:
-    case TRANSACTION_SPARK_V2:
+        // V1 is only a Spark spend. Asset transactions use V2.
+        return true;
+    case TRANSACTION_SPARK_V2: {
+        // V2 is active before the asset fork. A V2 transaction that is not a
+        // spend is the asset form and stays invalid until that fork.
+        const int nextHeight = pindexPrev ? pindexPrev->nHeight + 1 : 0;
+        if (!tx.IsSparkSpend() &&
+            nextHeight < Params().GetConsensus().nSpatsStartBlock) {
+            return state.DoS(10, false, REJECT_INVALID, "bad-tx-type");
+        }
         // spark transaction checks are done in other places
         return true;
+    }
     case TRANSACTION_ALIAS:
         return true;
     }

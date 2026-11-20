@@ -1,4 +1,5 @@
 #include "specialtx.h"
+#include "spark/state.h"
 #include "base58.h"
 #include "chainparams.h"
 #include "validation.h"
@@ -63,7 +64,11 @@ static bool IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &s
         if (tx.IsSparkSpend()) {
             const auto &limitSpork = sporkMap.find(CSporkAction::featureSparkTransparentLimit);
             if (limitSpork != sporkMap.cend()) {
-                if (spark::GetSpendTransparentAmount(tx) > (CAmount)limitSpork->second.second)
+                // Callers already hold cs_main, often together with mempool.cs.
+                AssertLockHeld(cs_main);
+                const bool spatsActive =
+                    chainActive.Height() + 1 >= Params().GetConsensus().nSpatsStartBlock;
+                if (spark::GetSpendTransparentAmount(tx, spatsActive) > (CAmount)limitSpork->second.second)
                     return state.DoS(100, false, REJECT_CONFLICT, "txn-spark-disabled", false, "Spark transaction is over the transparent limit");
             }
         }
@@ -186,7 +191,8 @@ bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pinde
             if (!tx->IsSparkSpend())
                 continue;
 
-            totalTransparentOutput += spark::GetSpendTransparentAmount(*tx);
+            totalTransparentOutput += spark::GetSpendTransparentAmount(
+                *tx, pindex->nHeight >= Params().GetConsensus().nSpatsStartBlock);
         }
 
         if (totalTransparentOutput > CAmount(limit))

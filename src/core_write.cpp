@@ -72,6 +72,17 @@ const std::map<unsigned char, std::string> mapSigHashTypes =
  */
 std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDecode)
 {
+    opcodetype spatsOpcode;
+    CScript::const_iterator spatsPayload = script.begin();
+    if (script.GetSpatsEnvelope(spatsOpcode, spatsPayload)) {
+        std::string str = GetOpName(spatsOpcode);
+        if (spatsPayload != script.end()) {
+            str += " ";
+            str += HexStr(spatsPayload, script.end());
+        }
+        return str;
+    }
+
     std::string str;
     opcodetype opcode;
     std::vector<unsigned char> vch;
@@ -113,7 +124,7 @@ std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDeco
 
         if (opcode == opcodetype::OP_SIGMASPEND || opcode == opcodetype::OP_SIGMAMINT ||
             opcode == opcodetype::OP_LELANTUSMINT || opcode == opcodetype::OP_LELANTUSJOINSPLIT ||
-            opcode == opcodetype::OP_SPARKMINT || opcode == opcodetype::OP_SPARKSPEND || IsSpatsOp(opcode)) {
+            opcode == opcodetype::OP_SPARKMINT || opcode == opcodetype::OP_SPARKSPEND) {
             str += " ";
             str += HexStr(vch);
             break;

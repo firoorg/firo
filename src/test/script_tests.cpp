@@ -1326,6 +1326,40 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm)
     BOOST_CHECK_EQUAL(derSig + "83 " + pubKey, ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "83")) << vchPubKey));
 }
 
+BOOST_AUTO_TEST_CASE(script_spats_opcode_is_not_a_suffix)
+{
+    // The opcode inside a conditional is a single instruction. The following
+    // opcodes stay reachable, which is what kept these scripts spendable.
+    const CScript conditional = CScript() << OP_IF << OP_SPATSMINT << OP_ELSE << OP_1 << OP_ENDIF;
+    std::vector<opcodetype> opcodes;
+    CScript::const_iterator pc = conditional.begin();
+    opcodetype opcode;
+    while (conditional.GetOp(pc, opcode))
+        opcodes.push_back(opcode);
+    const std::vector<opcodetype> expected = {OP_IF, OP_SPATSMINT, OP_ELSE, OP_1, OP_ENDIF};
+    BOOST_CHECK(opcodes == expected);
+    BOOST_CHECK_EQUAL(ScriptToAsmStr(conditional), "OP_IF OP_SPATSMINT OP_ELSE 1 OP_ENDIF");
+    DoTest(conditional, CScript() << OP_0, CScriptWitness(), flags, "unexecuted SPATS opcode", SCRIPT_ERR_OK);
+    DoTest(conditional, CScript() << OP_1, CScriptWitness(), flags, "executed SPATS opcode", SCRIPT_ERR_BAD_OPCODE);
+
+    CScript withSigop = CScript() << OP_IF << OP_SPATSMINT << OP_CHECKSIG << OP_ELSE << OP_ENDIF;
+    BOOST_CHECK_EQUAL(withSigop.GetSigOpCount(true), 1U);
+
+    CScript envelope;
+    envelope << OP_SPATSMINT;
+    const unsigned char payloadBytes[] = {0xac, 0x11};
+    envelope.insert(envelope.end(), payloadBytes, payloadBytes + sizeof(payloadBytes));
+    opcodetype envelopeOpcode;
+    CScript::const_iterator payload = envelope.begin();
+    BOOST_CHECK(envelope.GetSpatsEnvelope(envelopeOpcode, payload));
+    BOOST_CHECK(envelopeOpcode == OP_SPATSMINT);
+    BOOST_CHECK_EQUAL(static_cast<size_t>(envelope.end() - payload), sizeof(payloadBytes));
+    BOOST_CHECK(!conditional.GetSpatsEnvelope(envelopeOpcode, payload));
+    BOOST_CHECK_EQUAL(ScriptToAsmStr(envelope), "OP_SPATSMINT ac11");
+    // Script rules still walk an envelope. Protocol parsing does not.
+    BOOST_CHECK_EQUAL(envelope.GetSigOpCount(true), 1U);
+}
+
 static CScript
 ScriptFromHex(const char* hex)
 {

@@ -514,7 +514,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         CCoinsViewCache view(&viewDummy);
 
         CCoinsViewCache& viewChain = *pcoinsTip;
-        CCoinsViewMemPool viewMempool(&viewChain, mempool);
+        CCoinsViewMemPool viewMempool(&viewChain, mempool, NextBlockActivatesSpats());
 
         if (fCheckMemPool)
             view.SetBackend(viewMempool); // switch cache backend to db+mempool in case user likes to query mempool

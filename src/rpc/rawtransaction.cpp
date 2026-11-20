@@ -809,9 +809,14 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
+        bool spatsActive;
+        {
+            LOCK(cs_main);
+            spatsActive = NextBlockActivatesSpats();
+        }
         LOCK(mempool.cs);
         CCoinsViewCache &viewChain = *pcoinsTip;
-        CCoinsViewMemPool viewMempool(&viewChain, mempool);
+        CCoinsViewMemPool viewMempool(&viewChain, mempool, spatsActive);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
 
         BOOST_FOREACH(const CTxIn& txin, mergedTx.vin) {

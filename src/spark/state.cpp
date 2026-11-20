@@ -213,9 +213,11 @@ namespace {
 
 size_t GetSpatsMintSerializedMintPayloadByteCount(const CScript& script, const spark::Params* params)
 {
-    if (!script.IsSpatsMint())
+    opcodetype opcode;
+    CScript::const_iterator payload = script.begin();
+    if (!script.GetSpatsEnvelope(opcode, payload) || opcode != OP_SPATSMINT)
         return 0;
-    std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+    std::vector<unsigned char> serialized(payload, script.end());
     const size_t initial = serialized.size();
     CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION);
     std::vector<CDataStream> serializedCoins = { stream };
@@ -310,10 +312,12 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 
 void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof, bool* pfMintOnlyWithoutSparkProof)
 {
-    if (!script.IsSpatsMint())
+    opcodetype opcode;
+    CScript::const_iterator payload = script.begin();
+    if (!script.GetSpatsEnvelope(opcode, payload) || opcode != OP_SPATSMINT)
         throw std::invalid_argument("Script is not a Spats coin mint");
 
-    std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+    std::vector<unsigned char> serialized(payload, script.end());
     CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION);
     std::vector<CDataStream> serializedCoins = { stream };
 
@@ -348,11 +352,13 @@ void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTrans
 
 bool ParseSpatsBurn(const CScript& script, std::pair<Scalar, Scalar>& assetId, CAmount& amount)
 {
-    if (!script.IsSpatsBurn() || script.size() < 2)
+    opcodetype opcode;
+    CScript::const_iterator payload = script.begin();
+    if (!script.GetSpatsEnvelope(opcode, payload) || opcode != OP_SPATSBURN || payload == script.end())
         return false;
     try {
         CDataStream stream(
-            std::vector<unsigned char>(script.begin() + 1, script.end()),
+            std::vector<unsigned char>(payload, script.end()),
             SER_NETWORK, PROTOCOL_VERSION);
         stream >> assetId;
         stream >> amount;
@@ -391,7 +397,21 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
     }
 }
 
+static bool SpatsActiveForHeight(int nHeight)
+{
+    if (nHeight == std::numeric_limits<int>::max()) {
+        LOCK(cs_main);
+        nHeight = chainActive.Height() + 1;
+    }
+    return nHeight >= ::Params().GetConsensus().nSpatsStartBlock;
+}
+
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
+{
+    return ParseSparkSpend(tx, SpatsActiveForHeight(std::numeric_limits<int>::max()));
+}
+
+spark::SpendTransaction ParseSparkSpend(const CTransaction &tx, bool allowAssetExtension)
 {
     if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() < 1) {
         throw CBadTxIn();
@@ -469,6 +489,12 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
             }
 
             if (!accepted) {
+                // Asset metadata shares the Spark name extension slot. It is a
+                // valid extension only in blocks at or after SPATS activation.
+                if (!allowAssetExtension) {
+                    throw std::invalid_argument(
+                        "Spark V2 asset extension is not active");
+                }
                 try {
                     CDataStream assetStream(extension, SER_NETWORK, PROTOCOL_VERSION);
                     CSparkAssetTxData assetData;
@@ -584,7 +610,7 @@ CAmount GetSparkSpendFee(const CTransaction& tx)
     return CheckedSparkFee(ParseSparkSpend(tx).getFee());
 }
 
-std::optional<CSparkAssetTxData> GetSparkAssetTxData(const CTransaction& tx)
+std::optional<CSparkAssetTxData> GetSparkAssetTxData(const CTransaction& tx, int nHeight)
 {
     if (tx.nVersion < 3 ||
         (tx.nType != TRANSACTION_SPARK && tx.nType != TRANSACTION_SPARK_V2) ||
@@ -604,7 +630,7 @@ std::optional<CSparkAssetTxData> GetSparkAssetTxData(const CTransaction& tx)
             offset = tx.vExtraPayload.size() - stream.size();
         } else if (tx.IsSparkSpendV2()) {
             // ParseSparkSpend has already matched the extension against its commitment.
-            const spark::SpendTransaction spend = ParseSparkSpend(tx);
+            const spark::SpendTransaction spend = ParseSparkSpend(tx, SpatsActiveForHeight(nHeight));
             CDataStream canonicalSpend(SER_NETWORK, PROTOCOL_VERSION);
             canonicalSpend << spend;
             offset = canonicalSpend.size();
@@ -872,7 +898,7 @@ bool CheckSparkAssetTransaction(
 
     std::optional<CSparkAssetTxData> op;
     try {
-        op = GetSparkAssetTxData(tx);
+        op = GetSparkAssetTxData(tx, nHeight);
     } catch (const std::bad_alloc&) {
         throw;
     } catch (...) {
@@ -986,7 +1012,7 @@ bool CheckSparkAssetTransaction(
         if (const auto sparkAdmin = DecodeSparkAssetAdmin(entry->adminPublicAddress)) {
             if (!isSparkSpend || noProof)
                 return state.DoS(contextualDoS, false, REJECT_INVALID, "spats-mint-ownership-missing");
-            if (!sparkAdmin->verify_own(GetSpatsMintM(tx), proof))
+            if (!VerifySparkAddressOwnership(*sparkAdmin, GetSpatsMintM(tx), proof))
                 return state.DoS(contextualDoS, false, REJECT_INVALID, "spats-mint-ownership-invalid");
         } else if (isSparkSpend || !noProof ||
                    !SpendsFromTransparentAdmin(tx, inputs, entry->adminPublicAddress)) {
@@ -1033,7 +1059,9 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
     try {
         if (IsSpatsSpendTransaction(tx))
             return ParseSpatsSpend(tx).getUsedLTags();
-        return ParseSparkSpend(tx).getUsedLTags();
+        // Linking tags sit in the spend body. Parsing the extension must not
+        // take cs_main: mempool removal calls this while holding mempool.cs.
+        return ParseSparkSpend(tx, true).getUsedLTags();
     } catch (const std::bad_alloc &) {
         throw;
     } catch (const std::exception &) {
@@ -1041,12 +1069,12 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
     }
 }
 
-CAmount GetSparkFee(const CTransaction &tx)
+CAmount GetSparkFee(const CTransaction &tx, int nHeight)
 {
     if (tx.vin.empty() || tx.vin[0].scriptSig.empty())
         throw CBadTxIn();
     if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND)
-        return CheckedSparkFee(ParseSparkSpend(tx).getFee());
+        return CheckedSparkFee(ParseSparkSpend(tx, SpatsActiveForHeight(nHeight)).getFee());
     if (IsSpatsSpendTransaction(tx))
         return CheckedSparkFee(ParseSpatsSpend(tx).getFee());
     throw CBadTxIn();
@@ -1058,7 +1086,7 @@ std::map<uint64_t, uint256> getBlockHashes(const CTransaction &tx)
 
     if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND) {
         spark::SpendTransaction spendTransaction(params);
-        spendTransaction = ParseSparkSpend(tx);
+        spendTransaction = ParseSparkSpend(tx, true);
         return  spendTransaction.getBlockHashes();
     }
     else if (IsSpatsSpendTransaction(tx)) {
@@ -1101,14 +1129,16 @@ size_t GetSpendInputs(const CTransaction &tx) {
            GetSparkUsedTags(tx).size() : 0;
 }
 
-CAmount GetSpendTransparentAmount(const CTransaction& tx) {
+CAmount GetSpendTransparentAmount(const CTransaction& tx, bool spatsActive) {
     CAmount result = 0;
     if (!tx.IsSparkSpend())
         return 0;
 
     for (const CTxOut &txout : tx.vout) {
         const auto& script = txout.scriptPubKey;
-        if (script.IsSparkSMint() || script.IsSpatsMint() || script.IsSpatsBurn())
+        if (script.IsSparkSMint())
+            continue;
+        if (spatsActive && (script.IsSpatsMint() || script.IsSpatsBurn()))
             continue;
         result += txout.nValue;
     }
@@ -1507,7 +1537,8 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHei
     CAmount blockSpendsValue = 0;
 
     for (const auto& tx : block.vtx) {
-        auto txSpendsValue =  GetSpendTransparentAmount(*tx);
+        auto txSpendsValue = GetSpendTransparentAmount(
+            *tx, nBlockHeight >= consensus.nSpatsStartBlock);
 
         if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(nBlockHeight)) {
             return state.DoS(100, false, REJECT_INVALID,
@@ -1763,7 +1794,8 @@ bool CheckSparkSpendTransaction(
         if (isSpatsSpend)
             spend = std::make_unique<spats::SpendTransaction>(ParseSpatsSpend(tx));
         else
-            spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
+            spend = std::make_unique<spark::SpendTransaction>(
+                ParseSparkSpend(tx, height >= params.nSpatsStartBlock));
     }
     catch (CBadTxIn&) {
         return state.DoS(100,
@@ -1786,14 +1818,19 @@ bool CheckSparkSpendTransaction(
     // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
+    const bool spatsActive = height >= params.nSpatsStartBlock;
     txTemp.vout.erase(
         std::remove_if(
             txTemp.vout.begin(),
             txTemp.vout.end(),
-            [](const CTxOut& output) {
-                return output.scriptPubKey.IsSparkSMint() ||
-                    output.scriptPubKey.IsSpatsMint() ||
-                    output.scriptPubKey.IsSpatsBurn();
+            [&](const CTxOut& output) {
+                if (output.scriptPubKey.IsSparkSMint())
+                    return true;
+                // Before activation these prefixes are part of the transaction
+                // the spend proof commits to.
+                return spatsActive &&
+                    (output.scriptPubKey.IsSpatsMint() ||
+                     output.scriptPubKey.IsSpatsBurn());
             }),
         txTemp.vout.end());
     txHashForMetadata = txTemp.GetHash();
@@ -1926,9 +1963,9 @@ bool CheckSparkSpendTransaction(
                 script.IsSigmaMint()) {
             return state.DoS(100, false, REJECT_INVALID,
                 "CheckSparkSpendTransaction: incompatible private output type");
-        } else if (script.IsSpatsMint()) {
+        } else if (height >= params.nSpatsStartBlock && script.IsSpatsMint()) {
             continue;
-        } else if (script.IsSpatsBurn()) {
+        } else if (height >= params.nSpatsStartBlock && script.IsSpatsBurn()) {
             if (burn_asset_id) {
                 return state.DoS(100, false, REJECT_INVALID,
                     "CheckSparkSpendTransaction: multiple spats burn outputs");
@@ -2115,7 +2152,8 @@ bool CheckSparkSpendTransaction(
 
     // The mint coin is not part of the metadata hash. Bind its on-chain prefix
     // into the spend proof so a replaced SPATSMINT output fails verification.
-    {
+    // Below activation the prefix is an ordinary output and is not bound.
+    if (height >= params.nSpatsStartBlock) {
         int mintCount = 0;
         bool mintWellFormed = true;
         uint256 mintBind;
@@ -2138,12 +2176,6 @@ bool CheckSparkSpendTransaction(
                 txout.scriptPubKey.begin() + static_cast<std::ptrdiff_t>(1 + mintBytes));
             mintBind = GetSpatsMintSpendBindHash(txout.nValue, prefix);
         }
-        if (mintCount > 0 && height < params.nSpatsStartBlock) {
-            return state.DoS(isMempoolAcceptance ? 0 : 100,
-                             false,
-                             isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
-                             "CheckSparkSpendTransaction: spats mint before spats activation");
-        }
         if (mintCount > 0 && (!spend->isSpats() || !mintWellFormed)) {
             return state.DoS(100, false, REJECT_INVALID,
                 "CheckSparkSpendTransaction: spats mint is not bound to the spend");
@@ -2152,9 +2184,9 @@ bool CheckSparkSpendTransaction(
         // A Spark V2 spend commits to a trailing asset operation through its extension;
         // a SPATS spend commits to it through extraDataHash, like a mint.
         std::optional<CSparkAssetTxData> assetData;
-        if (spend->isSpats() && height >= params.nSpatsStartBlock) {
+        if (spend->isSpats()) {
             try {
-                assetData = GetSparkAssetTxData(tx);
+                assetData = GetSparkAssetTxData(tx, height);
             } catch (const std::bad_alloc&) {
                 return state.Error(
                     "CheckSparkSpendTransaction: memory allocation failed while parsing asset data");
@@ -2405,22 +2437,13 @@ bool CheckSparkTransaction(
     // Check Spats Mint Transaction. VerifyDB must parse the mint too, so the
     // coin is on sparkTxInfo->mints for the duplicate check and the mint proof
     // is re-checked. The anonymity set itself is restored from the block index.
-    if (allowSpark && tx.IsSpatsMint()) {
+    // Below activation the prefix is an ordinary output and is not a mint.
+    if (allowSpark && tx.IsSpatsMint() && nRealHeight >= consensus.nSpatsStartBlock) {
         std::vector<CTxOut> txOuts;
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSpatsMint()) {
                 txOuts.push_back(txout);
             }
-        }
-
-        // Registry and supply checks do not run before this height. Parsing the
-        // mint here would still add the coin to the cover set.
-        if (nRealHeight < consensus.nSpatsStartBlock) {
-            const bool isMempoolAcceptance = sparkTxInfo == nullptr && nHeight == INT_MAX;
-            return state.DoS(isMempoolAcceptance ? 0 : 100,
-                             false,
-                             isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
-                             "CheckSparkTransaction: spats mint before spats activation");
         }
 
         if (txOuts.size() > 1) {
@@ -2448,7 +2471,8 @@ bool CheckSparkTransaction(
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
-        if (GetSpendTransparentAmount(tx) > consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
+        if (GetSpendTransparentAmount(tx, nRealHeight >= consensus.nSpatsStartBlock) >
+                consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
             return state.DoS(100, false,
                              REJECT_INVALID,
                              "bad-txns-spend-invalid");
@@ -2575,7 +2599,7 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
             if (IsSpatsSpendTransaction(tx)) {
                 serialContextStream << ParseSpatsSpend(tx).getUsedLTags();
             } else {
-                spark::SpendTransaction spend = ParseSparkSpend(tx);
+                spark::SpendTransaction spend = ParseSparkSpend(tx, true);
                 serialContextStream << spend.getUsedLTags();
             }
         } catch (const std::bad_alloc &) {

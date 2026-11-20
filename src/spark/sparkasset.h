@@ -44,6 +44,14 @@ bool VerifySpatsAssetAdminProof(
     const Scalar& sparkMessage,
     const uint256& transparentHash,
     const std::vector<unsigned char>& proof);
+/**
+ * Address::verify_own for a proof that has already been decoded.
+ * A malformed commitment is false. std::bad_alloc still propagates.
+ */
+bool VerifySparkAddressOwnership(
+    const Address& address,
+    const Scalar& message,
+    OwnershipProof& proof);
 
 /** "address:hexproof" handoff from the receiver to the current admin. */
 std::string EncodeSpatsAssetReceiveData(

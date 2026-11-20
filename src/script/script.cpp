@@ -376,7 +376,18 @@ bool CScript::IsSpatsBurn() const
 
 bool CScript::IsSpats() const
 {
-    return this->size() > 0 && IsSpatsOp(static_cast<opcodetype>((*this)[0]));
+    opcodetype opcode;
+    const_iterator payload = begin();
+    return GetSpatsEnvelope(opcode, payload);
+}
+
+bool CScript::GetSpatsEnvelope(opcodetype& opcode, const_iterator& payload) const
+{
+    if (empty() || !IsSpatsOp(static_cast<opcodetype>((*this)[0])))
+        return false;
+    opcode = static_cast<opcodetype>((*this)[0]);
+    payload = begin() + 1;
+    return true;
 }
 
 bool CScript::HasSerializedSpatsAction() const

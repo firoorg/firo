@@ -2382,6 +2382,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
     if (extensionCommitment.IsNull()) {
         CValidationState state;
+        LOCK(cs_main);
         for (CWalletTx& wtx : result) {
             if (!mempool.IsTransactionAllowed(*wtx.tx, state))
                 throw std::invalid_argument(_("Spark transactions are disabled at the moment"));
@@ -2557,6 +2558,7 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(
             }
         }
         CValidationState state;
+        LOCK(cs_main);
         if (!mempool.IsTransactionAllowed(*wtxSparkSpend.tx, state)) {
             throw std::invalid_argument(_(
                 "Unable to create a valid Spark name transaction"));

@@ -222,16 +222,19 @@ bool CTransaction::IsSparkSpend() const
 
 bool CTransaction::IsSparkSpendV1() const
 {
-    // Type alone is not enough: a transparent asset transaction is also
-    // version 3 / TRANSACTION_SPARK so its vExtraPayload is signed and relayed.
-    if (nVersion < 3 || nType != TRANSACTION_SPARK || vin.empty())
-        return false;
-    return vin[0].scriptSig.IsSparkSpend();
+    return nVersion >= 3 && nType == TRANSACTION_SPARK;
 }
 
 bool CTransaction::IsSparkSpendV2() const
 {
-    return nVersion >= 3 && nType == TRANSACTION_SPARK_V2;
+    if (nVersion < 3 || nType != TRANSACTION_SPARK_V2)
+        return false;
+    // Asset transactions are V2 with an ordinary input script. The asset fork
+    // is after Chaum V2, so V1 is never that form. Empty inputs and spend
+    // scripts remain Spark V2 spends.
+    if (!vin.empty() && !vin[0].scriptSig.empty() && !vin[0].scriptSig.IsSparkSpend())
+        return false;
+    return true;
 }
 
 bool CTransaction::IsSparkMint() const

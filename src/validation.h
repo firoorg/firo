@@ -622,6 +622,13 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex);
 /** The currently-connected chain of blocks (protected by cs_main). */
 extern CChain chainActive;
 
+/** True when the block after the active tip prunes SPATS mint and burn outputs. */
+inline bool NextBlockActivatesSpats()
+{
+    AssertLockHeld(cs_main);
+    return chainActive.Height() + 1 >= Params().GetConsensus().nSpatsStartBlock;
+}
+
 /** Global variable that points to the active CCoinsView (protected by cs_main) */
 extern CCoinsViewCache *pcoinsTip;
 

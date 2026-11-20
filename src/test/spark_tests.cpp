@@ -5,6 +5,7 @@
 #include "../script/sign.h"
 #include "../script/standard.h"
 #include "../validation.h"
+#include "../evo/specialtx.h"
 #include "../validationinterface.h"
 #include "../wallet/coincontrol.h"
 #include "../libspark/spats/nft_holding.h"
@@ -450,56 +451,48 @@ BOOST_AUTO_TEST_CASE(spats_spend_before_spats_activation)
     mintScript << OP_SPATSMINT;
     mintTx.vout.emplace_back(0, mintScript);
 
+    // Below activation the mint prefix is an ordinary output.
     CValidationState mintState;
     CSparkTxInfo mintInfo;
-    BOOST_CHECK(!CheckSparkTransaction(
+    BOOST_CHECK(CheckSparkTransaction(
         CTransaction(mintTx), mintState, mintTx.GetHash(), false, chainActive.Height(), false, true, &mintInfo));
-    int mintDos = 0;
-    BOOST_CHECK(mintState.IsInvalid(mintDos));
-    BOOST_CHECK_EQUAL(mintDos, 100);
-    BOOST_CHECK_EQUAL(mintState.GetRejectReason(),
-        "CheckSparkTransaction: spats mint before spats activation");
     BOOST_CHECK(mintInfo.mints.empty());
 
     CValidationState mintMempoolState;
-    BOOST_CHECK(!CheckSparkTransaction(
+    BOOST_CHECK(CheckSparkTransaction(
         CTransaction(mintTx), mintMempoolState, mintTx.GetHash(), false, INT_MAX, false, true, nullptr));
-    int mintMempoolDos = -1;
-    BOOST_REQUIRE(mintMempoolState.IsInvalid(mintMempoolDos));
-    BOOST_CHECK_EQUAL(mintMempoolDos, 0);
-    BOOST_CHECK_EQUAL(mintMempoolState.GetRejectReason(),
-        "CheckSparkTransaction: spats mint before spats activation");
+
+    const int activeHeight = ::Params().GetConsensus().nSpatsStartBlock;
+    CValidationState mintActiveState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(mintTx), mintActiveState, mintTx.GetHash(), false, activeHeight, false, true, &mintInfo));
+    BOOST_CHECK_EQUAL(mintActiveState.GetRejectReason(),
+        "CTransaction::CheckTransaction() : SpatsMint parsing failure.");
 
     CMutableTransaction burnTx;
     burnTx.vin.emplace_back(COutPoint(uint256S("11"), 0));
     burnTx.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 5 * COIN));
 
     CValidationState burnState;
-    BOOST_CHECK(!CheckTransaction(
+    BOOST_CHECK(CheckTransaction(
         CTransaction(burnTx), burnState, true, burnTx.GetHash(), false, chainActive.Height()));
-    int burnDos = 0;
-    BOOST_CHECK(burnState.IsInvalid(burnDos));
-    BOOST_CHECK_EQUAL(burnDos, 100);
-    BOOST_CHECK_EQUAL(burnState.GetRejectReason(), "bad-spats-burn");
 
     CValidationState burnMempoolState;
-    BOOST_CHECK(!CheckTransaction(
+    BOOST_CHECK(CheckTransaction(
         CTransaction(burnTx), burnMempoolState, true, burnTx.GetHash(), false, INT_MAX));
-    int burnMempoolDos = -1;
-    BOOST_REQUIRE(burnMempoolState.IsInvalid(burnMempoolDos));
-    BOOST_CHECK_EQUAL(burnMempoolDos, 100);
-    BOOST_CHECK_EQUAL(burnMempoolState.GetRejectReason(), "bad-spats-burn");
 
-    CMutableTransaction coinbase;
-    coinbase.vin.resize(1);
-    coinbase.vin[0].scriptSig = CScript() << 1 << OP_0;
-    coinbase.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 1 * COIN));
-    const int activeHeight = ::Params().GetConsensus().nSpatsStartBlock;
     CValidationState transparentBurnState;
     BOOST_CHECK(!CheckTransaction(
         CTransaction(burnTx), transparentBurnState, true, burnTx.GetHash(), false, activeHeight));
     BOOST_CHECK_EQUAL(transparentBurnState.GetRejectReason(), "bad-spats-burn");
 
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vin[0].scriptSig = CScript() << 1 << OP_0;
+    coinbase.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 1 * COIN));
+    CValidationState coinbaseBurnEarly;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(coinbase), coinbaseBurnEarly, true, coinbase.GetHash(), false, chainActive.Height()));
     CValidationState coinbaseBurnState;
     BOOST_CHECK(!CheckTransaction(
         CTransaction(coinbase), coinbaseBurnState, true, coinbase.GetHash(), false, activeHeight));
@@ -508,10 +501,13 @@ BOOST_AUTO_TEST_CASE(spats_spend_before_spats_activation)
     CScript coinbaseMint;
     coinbaseMint << OP_SPATSMINT;
     coinbase.vout[0].scriptPubKey = coinbaseMint;
+    CValidationState coinbaseMintEarly;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(coinbase), coinbaseMintEarly, true, coinbase.GetHash(), false, chainActive.Height()));
     CValidationState coinbaseMintState;
     BOOST_CHECK(!CheckTransaction(
-        CTransaction(coinbase), coinbaseMintState, true, coinbase.GetHash(), false, chainActive.Height()));
-    BOOST_CHECK_EQUAL(coinbaseMintState.GetRejectReason(), "bad-spats-before-activation");
+        CTransaction(coinbase), coinbaseMintState, true, coinbase.GetHash(), false, activeHeight));
+    BOOST_CHECK_EQUAL(coinbaseMintState.GetRejectReason(), "bad-spats-coinbase-mint");
 
     CMutableTransaction sparkBurn = spend;
     sparkBurn.vout.emplace_back(0, MakeSpatsBurnScript(1, 0, 1 * COIN));
@@ -522,6 +518,81 @@ BOOST_AUTO_TEST_CASE(spats_spend_before_spats_activation)
 
     mempool.clear();
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spats_forms_follow_activation_height)
+{
+    const Consensus::Params& params = ::Params().GetConsensus();
+    const int below = params.nSpatsStartBlock - 1;
+    const int active = params.nSpatsStartBlock;
+    BOOST_REQUIRE(below >= params.nSparkChaumV2StartBlock);
+    BOOST_REQUIRE(below >= params.DIP0003Height);
+
+    CMutableTransaction transparent;
+    transparent.nVersion = 3;
+    transparent.nType = TRANSACTION_SPARK_V2;
+    transparent.vin.emplace_back(COutPoint(uint256S("21"), 0));
+    transparent.vin[0].scriptSig << OP_1;
+    transparent.vout.emplace_back(COIN, CScript() << OP_TRUE);
+    BOOST_CHECK(!CTransaction(transparent).IsSparkSpend());
+    BOOST_CHECK(!CTransaction(transparent).IsSparkSpendV1());
+
+    CMutableTransaction v1Transparent = transparent;
+    v1Transparent.nType = TRANSACTION_SPARK;
+    BOOST_CHECK(CTransaction(v1Transparent).IsSparkSpendV1());
+
+    CBlockIndex prev;
+    prev.nHeight = below - 1;
+    CValidationState specialEarly;
+    BOOST_CHECK(!CheckSpecialTx(CTransaction(transparent), &prev, specialEarly));
+    BOOST_CHECK_EQUAL(specialEarly.GetRejectReason(), "bad-tx-type");
+    CValidationState contextEarly;
+    BOOST_CHECK(!ContextualCheckTransaction(
+        CTransaction(transparent), contextEarly, params, &prev));
+    BOOST_CHECK_EQUAL(contextEarly.GetRejectReason(), "bad-txns-spark-before-spats");
+    CValidationState v1Context;
+    BOOST_CHECK(ContextualCheckTransaction(
+        CTransaction(v1Transparent), v1Context, params, &prev));
+
+    prev.nHeight = active - 1;
+    CValidationState specialActive;
+    BOOST_CHECK(CheckSpecialTx(CTransaction(transparent), &prev, specialActive));
+    CValidationState contextActive;
+    BOOST_CHECK(ContextualCheckTransaction(
+        CTransaction(transparent), contextActive, params, &prev));
+
+    CMutableTransaction sparkSpend = transparent;
+    sparkSpend.vin[0].scriptSig = CScript() << OP_SPARKSPEND;
+    BOOST_CHECK(CTransaction(sparkSpend).IsSparkSpendV2());
+    prev.nHeight = below - 1;
+    CValidationState spendEarly;
+    BOOST_CHECK(CheckSpecialTx(CTransaction(sparkSpend), &prev, spendEarly));
+    CValidationState spendContext;
+    BOOST_CHECK(ContextualCheckTransaction(
+        CTransaction(sparkSpend), spendContext, params, &prev));
+
+    CMutableTransaction legacyMint;
+    legacyMint.vin.emplace_back(COutPoint(uint256S("22"), 0));
+    CScript mintScript;
+    mintScript << OP_SPATSMINT;
+    legacyMint.vout.emplace_back(COIN, mintScript);
+    CValidationState mintEarly;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(legacyMint), mintEarly, true, legacyMint.GetHash(), false, below));
+    CValidationState mintActive;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(legacyMint), mintActive, true, legacyMint.GetHash(), false, active));
+    BOOST_CHECK_EQUAL(mintActive.GetRejectReason(), "bad-spats-mint-nvalue");
+
+    legacyMint.vout[0].nValue = 0;
+    CValidationState zeroEarly;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(legacyMint), zeroEarly, true, legacyMint.GetHash(), false, below));
+    CValidationState zeroActive;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(legacyMint), zeroActive, true, legacyMint.GetHash(), false, active));
+    BOOST_CHECK_EQUAL(zeroActive.GetRejectReason(),
+        "CTransaction::CheckTransaction() : SpatsMint parsing failure.");
 }
 
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
@@ -1964,6 +2035,15 @@ BOOST_AUTO_TEST_CASE(spats_mint_bound_to_spend)
         mintScript.insert(mintScript.end(), serializedProof.begin(), serializedProof.end());
         BOOST_CHECK(!CheckAssetTx(forged, &reason));
         BOOST_CHECK_EQUAL(reason, "spats-mint-ownership-invalid");
+
+        OwnershipProof identity;
+        CDataStream identityProof(SER_NETWORK, PROTOCOL_VERSION);
+        identityProof << identity;
+        CMutableTransaction identityMint = stripped;
+        CScript& identityScript = identityMint.vout[mintIdx].scriptPubKey;
+        identityScript.insert(identityScript.end(), identityProof.begin(), identityProof.end());
+        BOOST_CHECK(!CheckAssetTx(identityMint, &reason));
+        BOOST_CHECK_EQUAL(reason, "spats-mint-ownership-invalid");
     }
 
     // Drop the mint output.
@@ -2034,6 +2114,36 @@ BOOST_AUTO_TEST_CASE(spats_registry_is_consensus)
     BOOST_CHECK(CheckAssetTx(regTx));
     BOOST_CHECK(CheckAssetTx(dupTx));
     BOOST_CHECK(CTransaction(regTx).IsSparkSpendV2());
+    {
+        Consensus::Params& params = const_cast<Consensus::Params&>(::Params().GetConsensus());
+        const int savedSpats = params.nSpatsStartBlock;
+        const int savedNames = params.nSparkNamesStartBlock;
+        params.nSparkNamesStartBlock = 1;
+        params.nSpatsStartBlock = chainActive.Height() + 10;
+        BOOST_CHECK_THROW(ParseSparkSpend(CTransaction(regTx)), std::invalid_argument);
+        BOOST_CHECK_THROW(ParseSparkSpend(CTransaction(regTx), false), std::invalid_argument);
+        BOOST_CHECK_NO_THROW(ParseSparkSpend(CTransaction(regTx), true));
+        CValidationState nameEarly;
+        BOOST_CHECK(!CSparkNameManager::GetInstance()->CheckSparkNameTx(
+            CTransaction(regTx), params.nSpatsStartBlock - 1, nameEarly));
+        BOOST_CHECK_EQUAL(nameEarly.GetRejectReason(), "CheckSparkNameTx: failed to parse spark name tx");
+        CValidationState nameActive;
+        params.nSpatsStartBlock = savedSpats;
+        BOOST_CHECK(CSparkNameManager::GetInstance()->CheckSparkNameTx(
+            CTransaction(regTx), chainActive.Height() + 1, nameActive));
+        params.nSparkNamesStartBlock = savedNames;
+        CValidationState earlySpend;
+        params.nSpatsStartBlock = chainActive.Height() + 10;
+        CSparkTxInfo earlyInfo;
+        BOOST_CHECK(!CheckSparkTransaction(
+            regTx, earlySpend, regTx.GetHash(), false, chainActive.Height(),
+            false, true, &earlyInfo));
+        BOOST_CHECK_EQUAL(earlySpend.GetRejectReason(),
+            "CheckSparkSpendTransaction: failed to deserialize spend");
+        params.nSpatsStartBlock = savedSpats;
+        params.nSparkNamesStartBlock = savedNames;
+        BOOST_CHECK_NO_THROW(ParseSparkSpend(CTransaction(regTx)));
+    }
     {
         CValidationState nameState;
         BOOST_CHECK(CSparkNameManager::GetInstance()->CheckSparkNameTx(
@@ -5022,12 +5132,13 @@ BOOST_AUTO_TEST_CASE(spats_burn_not_counted_as_spark_spend)
     GenerateBlocks(10);
 
     CMutableTransaction spend(GenerateSparkSpend({1 * COIN}, {}, nullptr));
-    const CAmount transparent = GetSpendTransparentAmount(CTransaction(spend));
+    const bool spatsActive = chainActive.Height() >= ::Params().GetConsensus().nSpatsStartBlock;
+    const CAmount transparent = GetSpendTransparentAmount(CTransaction(spend), spatsActive);
     BOOST_CHECK_EQUAL(transparent, 1 * COIN);
 
     spend.vout.emplace_back(0, MakeSpatsBurnScript(2, 0, 10000 * COIN));
 
-    BOOST_CHECK_EQUAL(GetSpendTransparentAmount(CTransaction(spend)), transparent);
+    BOOST_CHECK_EQUAL(GetSpendTransparentAmount(CTransaction(spend), spatsActive), transparent);
 
     mempool.clear();
     sparkState->Reset();
@@ -5045,15 +5156,21 @@ BOOST_AUTO_TEST_CASE(spats_burn_failures_are_scored)
     const auto burnScript = [](uint64_t assetType, uint64_t identifier, CAmount amount = COIN) {
         return MakeSpatsBurnScript(assetType, identifier, amount);
     };
-    const auto rejected = [](const CMutableTransaction& tx, const char* reason) {
+    const auto reasonAt = [](const CMutableTransaction& tx, int height) {
         CValidationState state;
         CSparkTxInfo info;
-        BOOST_CHECK(!CheckSparkTransaction(
-            CTransaction(tx), state, tx.GetHash(), false, chainActive.Height(), false, true, &info));
-        int dos = 0;
-        BOOST_CHECK(state.IsInvalid(dos));
-        BOOST_CHECK_EQUAL(dos, 100);
-        BOOST_CHECK_EQUAL(state.GetRejectReason(), reason);
+        const bool ok = CheckSparkTransaction(
+            CTransaction(tx), state, tx.GetHash(), false, height, false, true, &info);
+        return std::make_pair(ok, state.GetRejectReason());
+    };
+    const auto rejected = [&](const CMutableTransaction& tx, const char* reason) {
+        const int below = chainActive.Height();
+        const auto early = reasonAt(tx, below);
+        BOOST_CHECK(!early.first);
+        BOOST_CHECK_NE(early.second, reason);
+        const auto active = reasonAt(tx, ::Params().GetConsensus().nSpatsStartBlock);
+        BOOST_CHECK(!active.first);
+        BOOST_CHECK_EQUAL(active.second, reason);
     };
 
     // One spend is enough. Each call selects the confirmed coins, and the

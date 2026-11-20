@@ -129,6 +129,20 @@ bool ParseSpatsAssetReceiveData(
     return true;
 }
 
+bool VerifySparkAddressOwnership(
+    const Address& address,
+    const Scalar& message,
+    OwnershipProof& proof)
+{
+    try {
+        return address.verify_own(message, proof);
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
 bool VerifySpatsAssetReceiverProof(
     std::uint64_t assetType,
     const std::string& currentAdmin,
@@ -153,8 +167,10 @@ bool VerifySpatsAssetReceiverProof(
             stream >> proof;
             if (!stream.empty() || !IsCanonicalOwnershipProof(proofBytes, proof))
                 return false;
-            return sparkAddr.verify_own(
-                GetSpatsAssetTransferReceiverM(assetType, currentAdmin, dest), proof);
+            return VerifySparkAddressOwnership(
+                sparkAddr,
+                GetSpatsAssetTransferReceiverM(assetType, currentAdmin, dest),
+                proof);
         } catch (const std::bad_alloc&) {
             throw;
         } catch (const std::exception&) {
@@ -417,7 +433,7 @@ bool VerifySpatsAssetAdminProof(
             stream >> proof;
             if (!stream.empty() || !IsCanonicalOwnershipProof(proofBytes, proof))
                 return false;
-            return sparkAddr.verify_own(sparkMessage, proof);
+            return VerifySparkAddressOwnership(sparkAddr, sparkMessage, proof);
         } catch (const std::bad_alloc&) {
             throw;
         } catch (const std::exception&) {

@@ -158,20 +158,22 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
         return true;
     }
 
-    if (scriptPubKey.IsSpatsMint())
+    opcodetype spatsOpcode;
+    CScript::const_iterator spatsPayload = scriptPubKey.begin();
+    if (scriptPubKey.GetSpatsEnvelope(spatsOpcode, spatsPayload) && spatsOpcode == OP_SPATSMINT)
     {
         typeRet = TX_SPATSMINT;
         if (scriptPubKey.size() < 213) return false;
-        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
+        vSolutionsRet.emplace_back(spatsPayload, scriptPubKey.end());
         return true;
     }
 
-    if (scriptPubKey.IsSpatsBurn())
+    if (scriptPubKey.GetSpatsEnvelope(spatsOpcode, spatsPayload) && spatsOpcode == OP_SPATSBURN)
     {
         typeRet = TX_SPATSBURN;
         // Canonical burn: OP_SPATSBURN, two 32-byte scalars, and an 8-byte amount.
         if (scriptPubKey.size() != 1 + 32 + 32 + 8) return false;
-        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
+        vSolutionsRet.emplace_back(spatsPayload, scriptPubKey.end());
         return true;
     }
 

@@ -280,6 +280,13 @@ private:
     //CCoinsViewCache(const CCoinsViewCache &);
 };
 
+/**
+ * True when this output is left out of the UTXO set at \p nHeight.
+ * MEMPOOL_HEIGHT only drops scripts that are unspendable at every height.
+ * CCoinsViewMemPool applies the next-block SPATS rule.
+ */
+bool IsOutputPruned(const CScript& script, uint32_t nHeight);
+
 //! Utility function to add all of a transaction's outputs to a cache.
 // It assumes that overwrites are only possible for coinbase transactions,
 // TODO: pass in a boolean to limit these possible overwrites to known

@@ -1578,26 +1578,33 @@ bool CTxMemPool::IsTransactionAllowed(const CTransaction &tx, CValidationState &
     return sporkManager.IsTransactionAllowed(tx, state);
 }
 
-CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }
+CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn, bool spatsActive)
+    : CCoinsViewBacked(baseIn), mempool(mempoolIn), m_spatsActive(spatsActive) { }
+
+bool CCoinsViewMemPool::MempoolOutputSpendable(const CTransaction& tx, unsigned int n) const
+{
+    if (n >= tx.vout.size())
+        return false;
+    return !tx.vout[n].scriptPubKey.IsUnspendable(m_spatsActive);
+}
 
 bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
-    // If an entry in the mempool exists, always return that one, as it's guaranteed to never
-    // conflict with the underlying cache, and it cannot have pruned entries (as it contains full)
-    // transactions. First checking the underlying cache risks returning a pruned entry instead.
+    // Prefer the mempool transaction. A pruned output is absent, matching HaveCoin.
     CTransactionRef ptx = mempool.get(outpoint.hash);
     if (ptx) {
-        if (outpoint.n < ptx->vout.size()) {
-            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false);
-            return true;
-        } else {
+        if (!MempoolOutputSpendable(*ptx, outpoint.n))
             return false;
-        }
+        coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false);
+        return true;
     }
     return (base->GetCoin(outpoint, coin) && !coin.IsSpent());
 }
 
 bool CCoinsViewMemPool::HaveCoin(const COutPoint &outpoint) const {
-    return mempool.exists(outpoint) || base->HaveCoin(outpoint);
+    CTransactionRef ptx = mempool.get(outpoint.hash);
+    if (ptx)
+        return MempoolOutputSpendable(*ptx, outpoint.n);
+    return base->HaveCoin(outpoint);
 }
 
 size_t CTxMemPool::DynamicMemoryUsage() const {
