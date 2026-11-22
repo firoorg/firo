@@ -92,6 +92,11 @@ CSparkVerifyDBContext* CSparkVerifyDBContext::GetActive()
     return activeVerifyDBContext;
 }
 
+bool HasInfinityPoint(const spark::Coin& coin)
+{
+    return coin.S.isInfinity() || coin.K.isInfinity() || coin.C.isInfinity();
+}
+
 bool CheckSparkMintDuplicates(
         CValidationState& state,
         const std::vector<spark::Coin>& mints,

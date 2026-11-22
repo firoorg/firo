@@ -286,6 +286,10 @@ struct Params {
     // INT_MAX is the deployment blocker.
     int nSparkChaumV2StartBlock;
 
+    // At and after this height, blocks may not contain Spark coins whose
+    // S, K or C is the point at infinity. INT_MAX is the deployment blocker.
+    int nSparkRejectInfinityStartBlock;
+
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers

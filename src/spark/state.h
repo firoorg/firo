@@ -66,6 +66,9 @@ bool IsSparkSpendFormatAllowed(const CTransaction& tx, int height);
 
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight);
 
+/** True if the coin's S, K or C is the point at infinity. Honest coins never are. */
+bool HasInfinityPoint(const spark::Coin& coin);
+
 /** Reject repeated Spark coin identities within a block or at an earlier height. */
 bool CheckSparkMintDuplicates(
         CValidationState& state,
