@@ -1560,7 +1560,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 catch (const std::exception &) {
                     continue;
                 }
-                if (coin == txCoin) {
+                if (CoinEqual()(coin, txCoin)) {
                     outPoint = COutPoint(tx->GetHash(), nIndex);
                     if (txOut)
                         *txOut = tx;
