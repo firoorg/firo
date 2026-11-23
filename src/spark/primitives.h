@@ -131,9 +131,10 @@ struct CoinHash {
     std::size_t operator()(const spark::Coin& coin) const noexcept;
 };
 
-// Key equality matching CoinHash. Coin::operator== treats every encoding of
-// the point at infinity as equal although they hash differently, which would
-// make hash table lookups depend on bucket layout.
+// Key equality matching CoinHash: coins are the same key only if their hashes
+// match. Coin::operator== alone treats every encoding of the point at infinity
+// as equal although they hash differently, which would make hash table lookups
+// depend on bucket layout.
 struct CoinEqual {
     bool operator()(const spark::Coin& a, const spark::Coin& b) const;
 };

@@ -41,7 +41,9 @@ std::size_t CoinHash::operator ()(const spark::Coin& coin) const noexcept {
 }
 
 bool CoinEqual::operator ()(const spark::Coin& a, const spark::Coin& b) const {
-    return primitives::GetSparkCoinHash(a) == primitives::GetSparkCoinHash(b);
+    // Equal hashes imply operator==, so checking it first changes no result.
+    // It costs far less than two hashes and rejects nearly every mismatch.
+    return a == b && primitives::GetSparkCoinHash(a) == primitives::GetSparkCoinHash(b);
 }
 
 std::size_t CLTagHash::operator ()(const secp_primitives::GroupElement& tag) const noexcept {
