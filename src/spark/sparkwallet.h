@@ -111,7 +111,15 @@ public:
     // mark the coins of the given linking tags as unspent again
     void RemoveSparkSpends(const std::vector<GroupElement>& lTags);
     void AbandonSparkMints(const std::vector<spark::Coin>& mints);
-    void AbandonSpends(const std::vector<GroupElement>& spends);
+    /**
+     * Release the coins spent by an abandoned transaction. A coin stays used
+     * while the chain or either pool holds a spend of it, or while its spend
+     * entry belongs to another transaction.
+     * @param[in] spends  Linking tags of the abandoned transaction.
+     * @param[in] txHash  Hash of the abandoned transaction.
+     * @pre The transaction is neither confirmed nor in a pool.
+     */
+    void AbandonSpends(std::vector<GroupElement> spends, const uint256& txHash);
 
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);

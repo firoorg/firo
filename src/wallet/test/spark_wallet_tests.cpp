@@ -762,6 +762,91 @@ BOOST_AUTO_TEST_CASE(disconnect_block_rolls_back_spend)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(abandon_keeps_coin_spent_elsewhere)
+{
+    GenerateBlocks(1001);
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({2 * COIN, 2 * COIN}, mintTxs);
+    BOOST_REQUIRE(GenerateBlock(mintTxs));
+    GenerateBlocks(5);
+
+    auto* wallet = pwalletMain->sparkWallet.get();
+    wallet->FinishTasks();
+
+    const auto addToWallet = [](const CWalletTx& wtx) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        return pwalletMain->AddToWallet(wtx);
+    };
+    const auto abandon = [](const CWalletTx& wtx) {
+        return pwalletMain->AbandonTransaction(wtx.GetHash());
+    };
+
+    // Two copies of one wallet spend the same coin. This copy only holds the
+    // spend that lost; the other copy's spend gets mined.
+    CAmount fee;
+    const CWalletTx loser = wallet->CreateSparkSpendTransaction({{script, COIN, false}}, {}, fee);
+    const CWalletTx winner = wallet->CreateSparkSpendTransaction({{script, COIN / 2, false}}, {}, fee);
+    BOOST_REQUIRE(loser.GetHash() != winner.GetHash());
+    const auto lTags = spark::GetSparkUsedTags(*loser.tx);
+    BOOST_REQUIRE_EQUAL(lTags.size(), 1);
+    BOOST_REQUIRE(lTags == spark::GetSparkUsedTags(*winner.tx));
+    const uint256 lTagHash = primitives::GetLTagHash(lTags[0]);
+
+    BOOST_REQUIRE(addToWallet(loser));
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(*winner.tx)}));
+    wallet->FinishTasks();
+    BOOST_REQUIRE(spark::CSparkState::GetState()->IsUsedLTag(lTags[0]));
+
+    // Abandoning the losing spend must not release the coin the chain spent,
+    // nor drop the record of the spend that won.
+    BOOST_CHECK(abandon(loser));
+    const CSparkMintMeta spent = wallet->getMintMeta(lTagHash);
+    BOOST_CHECK(spent.isUsed);
+    const auto available = wallet->GetAvailableSparkCoins();
+    BOOST_CHECK(std::find(available.begin(), available.end(), spent) == available.end());
+    auto spends = wallet->ListSparkSpends();
+    BOOST_REQUIRE_EQUAL(spends.size(), 1);
+    BOOST_CHECK(spends.front().hashTx == winner.GetHash());
+
+    // The chain alone keeps the coin spent: a wallet that discovers a coin
+    // after its spend confirmed has no spend entry for it.
+    CWalletDB(pwalletMain->strWalletFile).EraseSparkSpendEntry(lTags[0]);
+    BOOST_CHECK(abandon(loser));
+    BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+
+    // The other holders of a competing spend, one at a time, on a coin that
+    // only `lone` spends: either pool, then the wallet's own spend entry.
+    const CWalletTx lone = wallet->CreateSparkSpendTransaction({{script, COIN, false}}, {}, fee);
+    const auto loneTags = spark::GetSparkUsedTags(*lone.tx);
+    BOOST_REQUIRE_EQUAL(loneTags.size(), 1);
+    const uint256 loneTagHash = primitives::GetLTagHash(loneTags[0]);
+    BOOST_REQUIRE(loneTagHash != lTagHash);
+    BOOST_REQUIRE(addToWallet(lone));
+    const uint256 rival = winner.GetHash(); // stands in for another spend of this coin
+    for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
+        {
+            LOCK(pool->cs);
+            pool->sparkState.AddSpendToMempool(loneTags[0], rival);
+        }
+        BOOST_CHECK(abandon(lone));
+        BOOST_CHECK(wallet->getMintMeta(loneTagHash).isUsed);
+        LOCK(pool->cs);
+        pool->sparkState.RemoveSpendFromMempool(loneTags[0]);
+    }
+    wallet->UpdateSpendState(loneTags[0], rival);
+    BOOST_CHECK(abandon(lone));
+    BOOST_CHECK(wallet->getMintMeta(loneTagHash).isUsed);
+    spends = wallet->ListSparkSpends();
+    BOOST_REQUIRE_EQUAL(spends.size(), 1);
+    BOOST_CHECK(spends.front().hashTx == rival);
+
+    // A coin that only the abandoned transaction spends is released.
+    wallet->UpdateSpendState(loneTags[0], lone.GetHash());
+    BOOST_CHECK(abandon(lone));
+    BOOST_CHECK(!wallet->getMintMeta(loneTagHash).isUsed);
+    BOOST_CHECK(wallet->ListSparkSpends().empty());
+}
+
 BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
 {
     auto countMintsInBalance = [&](

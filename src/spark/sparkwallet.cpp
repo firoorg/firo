@@ -1081,7 +1081,21 @@ void CSparkWallet::AbandonSparkMints(const std::vector<spark::Coin>& mints) {
     RemoveSparkMints(mints);
 }
 
-void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
+void CSparkWallet::AbandonSpends(std::vector<GroupElement> spends, const uint256& txHash)
+{
+    LOCK2(cs_main, cs_spark_wallet);
+    CWalletDB walletdb(strWalletFile);
+    // The abandoned transaction is neither confirmed nor in a pool, so a spend
+    // found there, or recorded for another transaction, keeps the coin used.
+    std::erase_if(spends, [&](const GroupElement& lTag) {
+        if (spark::CSparkState::GetState()->IsUsedLTag(lTag)) return true;
+        for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
+            LOCK(pool->cs);
+            if (pool->sparkState.HasLTag(lTag)) return true;
+        }
+        CSparkSpendEntry entry;
+        return walletdb.ReadSparkSpendEntry(lTag, entry) && entry.hashTx != txHash;
+    });
     RemoveSparkSpends(spends);
 }
 

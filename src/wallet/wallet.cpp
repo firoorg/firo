@@ -1433,7 +1433,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                 continue;
             }
 
-            sparkWallet->AbandonSpends(lTags);
+            sparkWallet->AbandonSpends(std::move(lTags), now);
         }
 
         if (wtx.tx->IsSparkTransaction()) {
