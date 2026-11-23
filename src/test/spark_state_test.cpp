@@ -734,6 +734,9 @@ BOOST_AUTO_TEST_CASE(mint_lookup_independent_of_bucket_layout)
     BOOST_REQUIRE(coin2 == coin1);
     BOOST_REQUIRE(coin2.getHash() != coin1.getHash());
 
+    // The copy is the map whose buckets were inspected, so this check does
+    // not depend on the state's own map having the same layout.
+    BOOST_CHECK(mints.find(coin2) == mints.end());
     BOOST_CHECK(!sparkState->HasCoin(coin2));
     CValidationState aliasState;
     BOOST_CHECK(spark::CheckSparkMintDuplicates(aliasState, {coin2}, 2));
