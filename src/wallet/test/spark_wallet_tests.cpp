@@ -580,10 +580,22 @@ BOOST_AUTO_TEST_CASE(known_spend_marks_coin_before_worker_runs)
     wallet->setCoinUnused(lTags[0]);
     BOOST_REQUIRE(!wallet->getMintMeta(lTagHash).isUsed);
 
+    {
+        // The worker needs cs_main, so only the synchronous mark can be seen here.
+        LOCK(cs_main);
+        CValidationState state;
+        BOOST_REQUIRE(AcceptToMemoryPool(mempool, state, wtx.tx, false, nullptr));
+        BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+    }
+
+    // Clear the mark again once the worker can no longer set it.
+    wallet->FinishTasks();
+    wallet->setCoinUnused(lTags[0]);
+    BOOST_REQUIRE(!wallet->getMintMeta(lTagHash).isUsed);
+
     bool fChecked = false;
     {
-        // Connected transaction notifications still hold cs_main, which the
-        // worker needs, so only the synchronous mark can be seen here.
+        // Connected transaction notifications still hold cs_main as well.
         boost::signals2::scoped_connection check(
             GetMainSignals().SyncTransaction.connect(
                 [&](const CTransaction& tx, const CBlockIndex*, int posInBlock) {

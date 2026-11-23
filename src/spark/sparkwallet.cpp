@@ -778,6 +778,12 @@ void CSparkWallet::MarkCoinUsed(const GroupElement& lTag)
 }
 
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
+    // The worker below records the spend entries.
+    if (fUpdateMint) {
+        for (const auto& lTag : lTags) {
+            MarkCoinUsed(lTag);
+        }
+    }
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK2(cs_main, cs_spark_wallet);
         if (!mempool.exists(txHash) && !txpools.getStemTxPool().exists(txHash))
