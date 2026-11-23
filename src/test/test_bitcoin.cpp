@@ -5,7 +5,7 @@
 #define BOOST_TEST_MODULE Firo Test Suite
 
 #if defined(HAVE_CONFIG_H)
-#include "../config/bitcoin-config.h"
+#include "config/bitcoin-config.h"
 #endif
 
 #include "test_bitcoin.h"

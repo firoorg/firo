@@ -6,7 +6,14 @@ include(GNUInstallDirs)
 include(AddWindowsResources)
 include(WindowsSystemConfiguration)
 
-configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
+# This header used to be generated into the source tree. Remove a leftover
+# copy: quoted includes from files in src/ would find it before any -I path.
+file(REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h)
+  # file(REMOVE) does not report failure, e.g. on a read-only source tree.
+  message(FATAL_ERROR "Could not remove the stale ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h. Delete it and re-run CMake.")
+endif()
+configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_command(

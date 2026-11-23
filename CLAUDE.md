@@ -108,7 +108,6 @@ src/                        # Main source code
 ├── test/                   # Unit tests
 ├── fuzz/                   # Fuzz testing
 ├── bench/                  # Benchmarks
-├── config/                 # Build configuration headers
 ├── validation.cpp/h        # Core block/transaction validation (~6100 lines)
 ├── net.cpp/h               # Network layer
 ├── net_processing.cpp/h    # Peer protocol handling
