@@ -764,6 +764,19 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
     UpdateSpendState(lTag, lTagHash, txHash, fUpdateMint);
 }
 
+void CSparkWallet::MarkCoinUsed(const GroupElement& lTag)
+{
+    AssertLockHeld(cs_main);
+    LOCK(cs_spark_wallet);
+    const uint256 lTagHash = primitives::GetLTagHash(lTag);
+    auto it = coinMeta.find(lTagHash);
+    if (it == coinMeta.end() || it->second.isUsed) return;
+    CSparkMintMeta mint = it->second;
+    mint.isUsed = true;
+    CWalletDB walletdb(strWalletFile);
+    addOrUpdateMint(mint, lTagHash, walletdb);
+}
+
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK2(cs_main, cs_spark_wallet);
@@ -779,22 +792,10 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 }
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
-    // Mark known coins spent before block notifications reach balance/spend
-    // callers, as UpdateMintStateFromBlock does for known mints. Otherwise a
-    // spend built before the worker runs can select a coin this block spent,
-    // e.g. the input of a wallet transaction the mempool had rejected. The
-    // worker below records the spend entries, which need the spending txid.
+    // The worker below records the spend entries, which need the spending txid.
     if (block.sparkTxInfo) {
-        LOCK(cs_spark_wallet);
-        CWalletDB walletdb(strWalletFile);
         for (const auto& spent : block.sparkTxInfo->spentLTags) {
-            const uint256 lTagHash = primitives::GetLTagHash(spent.first);
-            auto it = coinMeta.find(lTagHash);
-            if (it == coinMeta.end() || it->second.isUsed)
-                continue;
-            CSparkMintMeta mint = it->second;
-            mint.isUsed = true;
-            addOrUpdateMint(mint, lTagHash, walletdb);
+            MarkCoinUsed(spent.first);
         }
     }
 

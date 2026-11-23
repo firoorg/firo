@@ -238,6 +238,16 @@ private:
 
     IdentifiedMint IdentifyMint(spark::Coin coin, const uint256& txHash) const;
     void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
+    /**
+     * Mark a wallet-known coin used now rather than when the worker runs, so
+     * that a spend built in between cannot select it. This matters when a
+     * spend the wallet already knows has lost its mark, e.g. to a reorg
+     * rollback, and is then mined or accepted again. The worker still records
+     * the spend entry.
+     * @pre cs_main is held, and the spend of lTag was just connected in a
+     *      block or accepted into a pool
+     */
+    void MarkCoinUsed(const GroupElement& lTag);
 
     std::string strWalletFile;
     // this is latest used diversifier
