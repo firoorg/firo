@@ -110,7 +110,7 @@ public:
         if (fCommit) {
             CReserveKey reserveKey(pwalletMain);
             lastState = CValidationState();
-            pwalletMain->CommitTransaction(sparkNameWalletTx, reserveKey, g_connman.get(), lastState);
+            pwalletMain->CommitTransaction(sparkNameWalletTx, reserveKey, g_connman.get(), lastState, true);
         }
         return CMutableTransaction(*sparkNameWalletTx.tx);
     }
