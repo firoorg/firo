@@ -5,6 +5,8 @@
 #include "serialize.h"
 #include "../uint256.h"
 
+#include <unordered_map>
+
 struct CSparkMintMeta
 {
     int nHeight;
@@ -150,6 +152,8 @@ struct CMintedCoinInfo {
 
     static CMintedCoinInfo make(int coinGroupId, int nHeight);
 };
+
+using mint_info_container = std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash, spark::CoinEqual>;
 
 }
 
