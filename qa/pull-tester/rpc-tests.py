@@ -250,7 +250,7 @@ def runtests():
         for t in testScripts + testScriptsExt:
             if t in opts or re.sub(".py$", "", t) in opts:
                 test_list.append(t)
-        skipped = [o for o in opts if not o.startswith('-') and (o if o.endswith('.py') else o + '.py') not in test_list]
+        skipped = [o for o in opts if not o.startswith('-') and o not in test_list and o + '.py' not in test_list]
         if skipped:
             sys.exit("Not in testScripts or testScriptsExt: " + " ".join(sorted(skipped)))
 
