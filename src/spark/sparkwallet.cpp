@@ -519,7 +519,7 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
     // though: whoever holds the view key can send to an address at any diversifier,
     // and every start generates all addresses up to the count. The change address
     // counts as issued, as any spend with change moves the count there.
-    // ponytail: a wallet restored from its seed counts no further than the look-ahead
+    // A wallet restored from its seed counts no further than the look-ahead
     // past a gap of unused addresses, and then issues some of them again. Generate
     // addresses on demand instead if such gaps turn out to matter.
     const int64_t limit = std::min<int64_t>(std::max<int64_t>(lastDiversifier, SPARK_CHANGE_D) + SPARK_DIVERSIFIER_LOOKAHEAD, std::numeric_limits<int32_t>::max());

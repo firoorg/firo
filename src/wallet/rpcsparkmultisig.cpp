@@ -48,7 +48,7 @@ struct CSparkMultisigNonce {
     spark::MultisigNonce nonce;
     Scalar statement; //!< what it was issued for: all that the proof's challenge covers
 };
-// ponytail: the nonce of a spend that is never signed stays here until restart;
+// The nonce of a spend that is never signed stays here until restart;
 // evict the oldest if a signer ever abandons enough spends for that to matter.
 CCriticalSection cs_multisigNonces;
 std::map<uint256, CSparkMultisigNonce> mapMultisigNonces; // by hash of the commitment
@@ -338,7 +338,7 @@ UniValue AdvanceSpend(CWallet* pwallet, const spark::MultisigKey& key, CSparkMul
     // spend tells: the chain shows the wallet neither the recipient nor the amount
     // of an output to someone else. It comes first, and all of it or nothing, so that
     // the wallet does not sign or complete a spend whose recipients it failed to keep.
-    // ponytail: the record of a spend that is never sent stays in the wallet file;
+    // The record of a spend that is never sent stays in the wallet file;
     // erase it with the abandoned spend if such records ever add up.
     std::vector<std::pair<CScript, CSparkOutputTx>> records;
     for (const CTxOut& out : package.tx.vout) {
@@ -562,8 +562,8 @@ UniValue addsparkmultisigaddress(const JSONRPCRequest& request)
             return result;
         }
     } else if (IsInitialBlockDownload()) {
-        // The check below sees only the coins in blocks this node already has
-        // ponytail: a node that is a few blocks behind is not in initial download and
+        // The check below sees only the coins in blocks this node already has.
+        // A node that is a few blocks behind is not in initial download and
         // passes. Compare the height with the wallet's own scan if that ever matters;
         // a coin missed this way stays reachable from the mnemonic in another wallet.
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Firo is downloading blocks. Set up Spark multisig once it is synchronized: until then the wallet cannot tell whether it holds Spark coins.");

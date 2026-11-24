@@ -282,8 +282,8 @@ private:
     // this is incoming view key
     spark::IncomingViewKey viewKey;
     // set in a multisig wallet, where fullViewKey is the group's and the spend key
-    // is shared among the participants; like the keys above it never changes
-    // ponytail: one group takes over the whole Spark wallet; holding several groups,
+    // is shared among the participants; like the keys above it never changes.
+    // One group takes over the whole Spark wallet; holding several groups,
     // or a group next to the wallet's own coins, means scanning per key set.
     std::optional<spark::MultisigKey> multisigKey;
     uint64_t mintWorkGeneration = 0; // queued under cs_main
