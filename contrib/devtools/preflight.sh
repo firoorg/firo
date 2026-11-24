@@ -5,7 +5,7 @@
 #
 # Usage: contrib/devtools/preflight.sh [RPC test scripts ...] [-extended]
 #   BASE=origin/<branch>  branch the PR targets (default origin/master)
-#   BUILD_DIR=<dir>       build directory (default build)
+#   BUILD_DIR=<dir>       build directory (default build); its CMake cache is reset
 #   TOOLCHAIN=<file>      depends toolchain (default depends/<host>/toolchain.cmake)
 #   JOBS=<n>              parallel build jobs (default: ninja's choice)
 set -euo pipefail
@@ -45,6 +45,9 @@ fi
 [ "$fail" -eq 0 ] || exit 1
 
 echo "== build: the Linux Debug job of .github/workflows/ci-master.yml (keep the flags in sync)"
+# Start from an empty cache as CI does: options cached by another configuration
+# can drop tests from the build or leave an old firod for the RPC tests to run.
+rm -f "$BUILD_DIR/CMakeCache.txt"
 PKG_CONFIG_PATH="$(dirname "$TOOLCHAIN")/lib/pkgconfig:${PKG_CONFIG_PATH:-}" \
 cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
     -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
@@ -60,7 +63,8 @@ fi
 if [ "$#" -gt 0 ]; then
     echo "== RPC tests: $*"
     cp -f "$BUILD_DIR"/bin/* "$BUILD_DIR"/src/
-    if ! qa/pull-tester/rpc-tests.py "$@"; then
+    # rpc-tests.py prefers an exported FIROD or FIROCLI to the binaries copied above.
+    if ! env -u FIROD -u FIROCLI qa/pull-tester/rpc-tests.py "$@"; then
         echo "FAIL: RPC tests (above)"
         fail=1
     fi
