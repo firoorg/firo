@@ -126,6 +126,7 @@ private:
     QAction *encryptWalletAction;
     QAction *backupWalletAction;
     QAction *exportViewKeyAction;
+    QAction *sparkMultisigAction;
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
@@ -275,6 +276,9 @@ public Q_SLOTS:
     void gotoSignMessageTab(QString addr = "");
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
+
+    /** Set up a multisig wallet, or show the transaction a multisig wallet is working on */
+    void showSparkMultisig();
 
     /** Show open dialog */
     void openClicked();
