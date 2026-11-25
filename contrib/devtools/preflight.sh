@@ -25,9 +25,11 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "FAIL: uncommitted changes (above); the checks cover commits only"
     fail=1
 fi
+# Compare with the fetched tip: the fetch updates the ref $BASE names only
+# when the remote's fetch refspec covers that branch.
 git fetch --quiet "${BASE%%/*}" "${BASE#*/}"
-MERGE_BASE=$(git merge-base "$BASE" HEAD)
-if [ "$MERGE_BASE" != "$(git rev-parse "$BASE")" ]; then
+MERGE_BASE=$(git merge-base FETCH_HEAD HEAD)
+if [ "$MERGE_BASE" != "$(git rev-parse FETCH_HEAD)" ]; then
     echo "FAIL: not based on the latest $BASE; rebase first"
     fail=1
 fi
