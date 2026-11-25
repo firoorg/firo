@@ -184,13 +184,16 @@ The main workflow is `.github/workflows/ci-master.yml`.
 
 Current CI behavior:
 
-- Runs on pushes to `master` and on PRs targeting `master`; a PR based on another PR's branch gets no CI
+- Runs on pushes to `master` and on PRs targeting `master`; a PR based on another PR's branch gets no GitHub Actions run
 - Ignores `doc/**` and `**/README.md`
-- Linux matrix: Release and Debug, with unit tests and the extended RPC tests; Debug also builds the fuzz binary
-- Windows matrix: Release and Debug cross-builds on Ubuntu
-- macOS matrix: Release and Debug builds
+- Linux matrix: RelWithDebInfo and Debug, with unit tests and the extended RPC tests; Debug also builds the fuzz binary
+- Windows matrix: RelWithDebInfo and Debug cross-builds on Ubuntu
+- macOS matrix: RelWithDebInfo and Debug builds
+- Guix builds for five hosts
 - Uses `ccache`
 - Caches `depends/` artifacts
+
+Jenkins runs `Jenkinsfile` (a Linux Release build, the unit tests and the extended RPC tests) on PRs and on branches of this repository, stacked PR branches included.
 
 `contrib/devtools/preflight.sh` reproduces the Linux Debug job locally; see "Before opening a PR".
 
@@ -278,14 +281,14 @@ Use `-regtest` for local multi-node functional testing and `-testnet` for public
 ## Before opening a PR
 
 - Branch from a freshly fetched `origin/master`, and rebase right before pushing: `master` moves often
-- Commit everything, then run `contrib/devtools/preflight.sh <RPC tests that cover the change>` on Linux with `depends/` built. It checks that the branch is based on the latest `master` and that the added lines are clean, then builds with the CI Linux Debug flags and runs the unit tests and the named RPC tests
+- Commit everything, then run `contrib/devtools/preflight.sh <RPC tests that cover the change>` on Linux with `depends/` built. It checks that the branch is based on the latest `master` and that the added lines are clean, then builds with the CI Linux Debug flags and runs the unit tests and the named RPC tests. The build replaces the configuration in `build/`; set `BUILD_DIR` to use another directory
 - Check what reviewers keep flagging:
   - Shared maps are locked the way their other users lock them (for example `pool.cs` around mempool maps)
   - Chain and mempool changes cover `-txindex=0`, reorgs, and transactions that arrive out of order
   - New CMake targets link everything they use
   - No second copy of an existing helper's body
   - No overlap with another open PR, and the title and description match what the diff does
-- A PR based on another PR's branch gets no CI; say so in the description
+- A PR based on another PR's branch gets no GitHub Actions run, only the Jenkins one; say so in the description
 
 ## PR and commit conventions
 
@@ -303,11 +306,10 @@ Preferred PR title prefixes:
 - `Scripts and tools:`
 - `Trivial:`
 
-PR descriptions fill `.github/pull_request_template.md` and nothing else, in at most 1,500 characters:
+PR descriptions fill the two sections of `.github/pull_request_template.md` in at most 1,500 characters:
 
 - PR intention: 1-3 sentences on the problem and its effect, plus `Fixes #N` when there is an issue
-- Code changes brief: at most 5 bullets, only what the diff does not show (design choice, behavior or consensus impact, what was kept on purpose)
-- One line naming the test that fails without the change
+- Code changes brief: only what the diff does not show (design choice, behavior or consensus impact, what was kept on purpose), and the test that fails without the change when there is one
 - Leave out validation logs, run counts, commit SHAs and dates, bot and linter output, CI status, commit-history narration, and a file-by-file retelling of the diff
 - Good models: PR 2010 (small change) and PR 2003 (large change); read them with `gh pr view <n> -R firoorg/firo`
 
