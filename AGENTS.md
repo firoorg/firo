@@ -166,6 +166,8 @@ Useful environment variables:
 - `FIROD` - defaults to `build/src/firod`
 - `FIROCLI` - defaults to `build/src/firo-cli`
 
+GitHub Actions runs these tests on Python 3.8, so keep test code compatible with it. The framework imports `asyncore`, which Python 3.12 removed; run the tests locally on Python 3.11 or older.
+
 ### Benchmarks and fuzzing
 
 Benchmarks:
@@ -176,7 +178,7 @@ cmake --build build
 ./build/bin/bench_firo
 ```
 
-Fuzz targets live in `src/fuzz/`. See `doc/fuzzing.md` for setup details.
+Fuzz harnesses for libspark live in `src/fuzz/` and build with honggfuzz; see `src/fuzz/README.md`. `-DBUILD_FUZZ_BINARY=ON`, which the CI Linux Debug job sets, builds the CMake fuzz targets in `src/test/fuzz/`.
 
 ## CI reference
 
@@ -281,7 +283,7 @@ Use `-regtest` for local multi-node functional testing and `-testnet` for public
 ## Before opening a PR
 
 - Branch from a freshly fetched `origin/master`, and rebase right before pushing: `master` moves often
-- Commit everything, then run `contrib/devtools/preflight.sh <RPC tests that cover the change>` on Linux with `depends/` built. It checks that the branch is based on the latest `master` and that the added lines are clean, then builds with the CI Linux Debug flags and runs the unit tests and the named RPC tests. The build replaces the configuration in `build/`; set `BUILD_DIR` to use another directory
+- Commit everything, then run `contrib/devtools/preflight.sh <RPC tests that cover the change>` on Linux with `depends/` built. It checks that the branch is based on the latest `master` and that the added lines are clean, then builds with the CI Linux Debug flags and runs the unit tests and the named RPC tests. The build replaces the configuration in `build/`; set `BUILD_DIR` to use another directory. Skip the script for a change to `doc/` and `README.md` files only, which CI ignores too
 - Check what reviewers keep flagging:
   - Shared maps are locked the way their other users lock them (for example `pool.cs` around mempool maps)
   - Chain and mempool changes cover `-txindex=0`, reorgs, and transactions that arrive out of order
@@ -328,4 +330,4 @@ Commit guidance:
 - `doc/developer-notes.md`
 - `.github/workflows/ci-master.yml`
 - `src/.clang-format`
-- `doc/fuzzing.md`
+- `src/fuzz/README.md`
