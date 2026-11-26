@@ -291,6 +291,7 @@ Use `-regtest` for local multi-node functional testing and `-testnet` for public
   - No second copy of an existing helper's body
   - No overlap with another open PR, and the title and description match what the diff does
 - A PR based on another PR's branch gets no GitHub Actions run, only the Jenkins one; say so in the description
+- In Claude Code, run the `firo-preflight` skill before opening or updating a pull request; it walks through this section
 
 ## PR and commit conventions
 
