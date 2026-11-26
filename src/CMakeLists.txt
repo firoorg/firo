@@ -308,6 +308,8 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_signing.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_signing_shares.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_rotation.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_rotationinfo.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/masternode-payments.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/masternode-sync.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/masternode-utils.cpp

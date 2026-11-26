@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "quorums_signing.h"
+#include "quorums_blockprocessor.h"
+#include "quorums_rotation.h"
 #include "quorums_utils.h"
 #include "quorums_signing_shares.h"
 
@@ -458,6 +460,8 @@ void CSigningManager::ProcessMessage(CNode* pfrom, const std::string& strCommand
 
 void CSigningManager::ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredSig& recoveredSig, CConnman& connman)
 {
+    if (Consensus::IsRotatedLLMQType(Consensus::LLMQType(recoveredSig.llmqType)) &&
+        pfrom->nVersion < DIP24_PROTO_VERSION) return;
     bool ban = false;
     if (!PreVerifyRecoveredSig(pfrom->id, recoveredSig, ban)) {
         if (ban) {
@@ -531,6 +535,9 @@ bool CSigningManager::PreVerifyRecoveredSig(NodeId nodeId, const CRecoveredSig& 
         return false;
     }
     if (!CLLMQUtils::IsQuorumActive(llmqType, quorum->qc.quorumHash)) {
+        return false;
+    }
+    if (quorum->qc.IsIndexed() && quorum->qc.quorumIndex != GetRotatedSigningIndex(quorum->params, recoveredSig.id)) {
         return false;
     }
 
@@ -695,6 +702,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs(CConnman& connman)
 void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& recoveredSig, const CQuorumCPtr& quorum, CConnman& connman)
 {
     auto llmqType = (Consensus::LLMQType)recoveredSig.llmqType;
+    const bool rotated = Consensus::IsRotatedLLMQType(llmqType);
 
     {
         LOCK(cs_main);
@@ -703,6 +711,15 @@ void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& re
 
     std::vector<CRecoveredSigsListener*> listeners;
     {
+        LOCK(rotated ? &cs_main : nullptr);
+        if (rotated) {
+            CFinalCommitment current;
+            uint256 minedHash;
+            if (quorum->qc.quorumIndex != GetRotatedSigningIndex(quorum->params, recoveredSig.id) ||
+                !CLLMQUtils::IsQuorumActive(llmqType, recoveredSig.quorumHash) ||
+                !quorumBlockProcessor->GetMinedCommitment(llmqType, recoveredSig.quorumHash, current, minedHash) ||
+                minedHash != quorum->minedBlockHash) return;
+        }
         LOCK(cs);
         listeners = recoveredSigsListeners;
 
@@ -738,7 +755,7 @@ void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& re
 
     CInv inv(MSG_QUORUM_RECOVERED_SIG, recoveredSig.GetHash());
     g_connman->ForEachNode([&](CNode* pnode) {
-        if (pnode->nVersion >= LLMQS_PROTO_VERSION && pnode->fSendRecSigs) {
+        if (pnode->nVersion >= (quorum->qc.IsIndexed() ? DIP24_PROTO_VERSION : LLMQS_PROTO_VERSION) && pnode->fSendRecSigs) {
             pnode->PushInventory(inv);
         }
     });
@@ -757,6 +774,25 @@ void CSigningManager::PushReconstructedRecoveredSig(const llmq::CRecoveredSig& r
 void CSigningManager::RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
 {
     db.RemoveRecoveredSig(llmqType, id);
+}
+
+bool CSigningManager::PrepareForRotatedResigning(const CRecoveredSig& stale)
+{
+    const auto type = Consensus::LLMQType(stale.llmqType);
+    assert(Consensus::IsRotatedLLMQType(type));
+    LOCK(cs);
+    CRecoveredSig current;
+    if (!db.GetRecoveredSigById(type, stale.id, current) || current.GetHash() != stale.GetHash()) return false;
+
+    uint256 priorVote;
+    if (db.GetVoteForId(type, stale.id, priorVote)) {
+        if (priorVote != stale.msgHash) return false;
+    } else {
+        // Retiring a signature must not allow a vote for a different message.
+        db.WriteVoteForId(type, stale.id, stale.msgHash);
+    }
+    db.RemoveRecoveredSig(type, stale.id);
+    return true;
 }
 
 void CSigningManager::Cleanup()
@@ -787,7 +823,8 @@ void CSigningManager::UnregisterRecoveredSigsListener(CRecoveredSigsListener* l)
     recoveredSigsListeners.erase(itRem, recoveredSigsListeners.end());
 }
 
-bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash, bool allowReSign)
+bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash, bool allowReSign,
+                                       const CQuorumCPtr& selectedQuorum, Consensus::LLMQType otherType)
 {
     FIRO_UNUSED auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
@@ -798,6 +835,11 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
     {
         LOCK(cs);
 
+        if (otherType != Consensus::LLMQ_NONE) {
+            uint256 previousVote;
+            if ((db.GetVoteForId(otherType, id, previousVote) && previousVote != msgHash) ||
+                IsConflicting(otherType, id, msgHash)) return false;
+        }
         bool hasVoted = db.HasVotedOnId(llmqType, id);
         if (hasVoted) {
             uint256 prevMsgHash;
@@ -836,7 +878,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
     // This gives a slight risk of not getting enough shares to recover a signature
     // But at least it shouldn't be possible to get conflicting recovered signatures
     // TODO fix this by re-signing when the next block arrives, but only when that block results in a change of the quorum list and no recovered signature has been created in the mean time
-    CQuorumCPtr quorum = SelectQuorumForSigning(llmqType, tipHeight, id);
+    CQuorumCPtr quorum = selectedQuorum ? selectedQuorum : SelectQuorumForSigning(llmqType, tipHeight, id);
     if (!quorum) {
         LogPrint("llmq", "CSigningManager::%s -- failed to select quorum. id=%s, msgHash=%s\n", __func__, id.ToString(), msgHash.ToString());
         return false;
@@ -910,6 +952,14 @@ std::vector<CQuorumCPtr> CSigningManager::GetActiveQuorumSet(Consensus::LLMQType
     auto& llmqParams = Params().GetConsensus().llmqs.at(llmqType);
     size_t poolSize = (size_t)llmqParams.signingActiveQuorumCount;
 
+    if (Consensus::IsRotatedLLMQType(llmqType)) {
+        LOCK(cs_main);
+        if (signHeight < SIGN_HEIGHT_OFFSET || signHeight > chainActive.Height()) return {};
+        const int cycle = GetCompletedRotationCycle(llmqParams, signHeight - SIGN_HEIGHT_OFFSET);
+        if (cycle < 0) return {};
+        return quorumManager->ScanQuorums(llmqType, chainActive[cycle + llmqParams.dkgMiningWindowEnd], poolSize, true);
+    }
+
     CBlockIndex* pindexStart;
     {
         LOCK(cs_main);
@@ -931,6 +981,12 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
     auto quorums = GetActiveQuorumSet(llmqType, signHeight);
     if (quorums.empty()) {
         return nullptr;
+    }
+
+    if (Consensus::IsRotatedLLMQType(llmqType)) {
+        const auto& params = Params().GetConsensus().llmqs.at(llmqType);
+        if (quorums.size() != size_t(params.signingActiveQuorumCount)) return nullptr;
+        return quorums[GetRotatedSigningIndex(params, selectionHash)];
     }
 
     std::vector<std::pair<uint256, size_t>> scores;

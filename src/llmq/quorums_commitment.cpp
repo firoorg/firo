@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "quorums_commitment.h"
+#include "quorums_rotation.h"
 #include "quorums_utils.h"
 
 #include "chainparams.h"
@@ -15,12 +16,27 @@
 namespace llmq
 {
 
-CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash) :
+CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash, uint16_t index) :
+        nVersion(Consensus::IsRotatedLLMQType(params.type) ? INDEXED_VERSION : CURRENT_VERSION),
         llmqType(params.type),
         quorumHash(_quorumHash),
+        quorumIndex(index),
         signers(params.size),
         validMembers(params.size)
 {
+}
+
+bool CFinalCommitment::MatchesQuorumBase(const CBlockIndex* base) const
+{
+    const auto& llmqs = Params().GetConsensus().llmqs;
+    const auto it = llmqs.find(Consensus::LLMQType(llmqType));
+    if (!base || base->GetBlockHash() != quorumHash || it == llmqs.end()) return false;
+    const auto& params = it->second;
+    const int offset = base->nHeight % params.dkgInterval;
+    if (!IsIndexed()) return offset == 0;
+    return nVersion == INDEXED_VERSION && quorumIndex == offset &&
+           quorumIndex < params.signingActiveQuorumCount &&
+           IsRotationDkgCycle(params, base->nHeight - offset);
 }
 
 #define LogPrintfFinalCommitment(...) do { \
@@ -29,7 +45,7 @@ CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const ui
 
 bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs) const
 {
-    if (nVersion == 0 || nVersion > CURRENT_VERSION) {
+    if (nVersion != (IsIndexed() ? INDEXED_VERSION : CURRENT_VERSION)) {
         return false;
     }
 
@@ -39,7 +55,7 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, 
     }
     const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)llmqType);
 
-    if (!VerifySizes(params)) {
+    if (!VerifySizes(params) || (IsIndexed() && members.size() < size_t(params.minSize))) {
         return false;
     }
 
@@ -139,6 +155,7 @@ void CFinalCommitment::ToJson(UniValue& obj) const
     obj.push_back(Pair("version", (int)nVersion));
     obj.push_back(Pair("llmqType", (int)llmqType));
     obj.push_back(Pair("quorumHash", quorumHash.ToString()));
+    if (IsIndexed()) obj.push_back(Pair("quorumIndex", int(quorumIndex)));
     obj.push_back(Pair("signersCount", CountSigners()));
     obj.push_back(Pair("validMembersCount", CountValidMembers()));
     obj.push_back(Pair("quorumPublicKey", quorumPublicKey.ToString()));
@@ -185,6 +202,10 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-type");
     }
     const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qcTx.commitment.llmqType);
+
+    if (qcTx.commitment.IsIndexed() && !qcTx.commitment.MatchesQuorumBase(pindexQuorum)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-index");
+    }
 
     if (qcTx.commitment.IsNull()) {
         if (!qcTx.commitment.VerifyNull()) {

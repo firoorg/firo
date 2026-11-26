@@ -48,8 +48,8 @@ public:
     void AddMinableCommitment(const CFinalCommitment& fqc);
     bool HasMinableCommitment(const uint256& hash);
     bool GetMinableCommitmentByHash(const uint256& commitmentHash, CFinalCommitment& ret);
-    bool GetMinableCommitment(Consensus::LLMQType llmqType, int nHeight, CFinalCommitment& ret);
-    bool GetMinableCommitmentTx(Consensus::LLMQType llmqType, int nHeight, CTransactionRef& ret);
+    std::vector<CFinalCommitment> GetMinableCommitments(Consensus::LLMQType llmqType, const CBlockIndex* prev);
+    std::vector<CTransactionRef> GetMinableCommitmentTxs(const CBlockIndex* prev);
 
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash);
     bool GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, CFinalCommitment& ret, uint256& retMinedBlockHash);
@@ -58,14 +58,15 @@ public:
     void ClearMinedCommitmentCache();
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t maxCount);
+    std::vector<const CBlockIndex*> GetActiveIndexedCommitments(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t maxCount);
+    const CBlockIndex* GetMinedCommitmentByIndex(Consensus::LLMQType llmqType, const CBlockIndex* pindex, uint16_t index);
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(const CBlockIndex* pindex);
 
 private:
-    bool GetCommitmentsFromBlock(const CBlock& block, const CBlockIndex* pindex, std::map<Consensus::LLMQType, CFinalCommitment>& ret, CValidationState& state);
-    bool ProcessCommitment(int nHeight, const uint256& blockHash, const CFinalCommitment& qc, CValidationState& state);
-    bool IsMiningPhase(Consensus::LLMQType llmqType, int nHeight);
-    bool IsCommitmentRequired(Consensus::LLMQType llmqType, int nHeight);
-    uint256 GetQuorumBlockHash(Consensus::LLMQType llmqType, int nHeight);
+    using Commitments = std::map<std::pair<Consensus::LLMQType, uint16_t>, CFinalCommitment>;
+    bool GetCommitmentsFromBlock(const CBlock& block, const CBlockIndex* pindex, Commitments& ret, CValidationState& state);
+    bool ProcessCommitment(const CBlockIndex* pindex, const uint256& blockHash, const CFinalCommitment& qc, CValidationState& state);
+    const CBlockIndex* GetUnminedQuorumBase(const Consensus::LLMQParams& params, const CBlockIndex* prev, uint16_t index);
 };
 
 extern CQuorumBlockProcessor* quorumBlockProcessor;

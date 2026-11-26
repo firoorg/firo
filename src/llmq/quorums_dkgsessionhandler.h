@@ -101,7 +101,7 @@ public:
 };
 
 /**
- * Handles multiple sequential sessions of one specific LLMQ type. There is one instance of this class per LLMQ type.
+ * Handles sequential sessions of one LLMQ type and quorum index.
  *
  * It internally starts the phase handler thread, which constantly loops and sequentially processes one session at a
  * time and waiting for the next phase if necessary.
@@ -116,6 +116,7 @@ private:
     std::atomic<bool> stopRequested{false};
 
     const Consensus::LLMQParams& params;
+    const DKGSessionId sessionId;
     ctpl::thread_pool& messageHandlerPool;
     CBLSWorker& blsWorker;
     CDKGSessionManager& dkgManager;
@@ -132,7 +133,7 @@ private:
     CDKGPendingMessages pendingPrematureCommitments;
 
 public:
-    CDKGSessionHandler(const Consensus::LLMQParams& _params, ctpl::thread_pool& _messageHandlerPool, CBLSWorker& blsWorker, CDKGSessionManager& _dkgManager);
+    CDKGSessionHandler(const Consensus::LLMQParams& _params, ctpl::thread_pool& _messageHandlerPool, CBLSWorker& blsWorker, CDKGSessionManager& _dkgManager, uint16_t index);
     ~CDKGSessionHandler();
 
     void UpdatedBlockTip(const CBlockIndex *pindexNew);

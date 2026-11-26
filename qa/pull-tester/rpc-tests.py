@@ -189,6 +189,7 @@ testScripts = [
     'llmq-is-retroactive.py',
     'llmq-is-dandelion.py',
     'llmq-is-deterministic.py',
+    'llmq-dip24.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'

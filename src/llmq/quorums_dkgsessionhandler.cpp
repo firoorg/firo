@@ -6,6 +6,7 @@
 #include "quorums_blockprocessor.h"
 #include "quorums_debug.h"
 #include "quorums_init.h"
+#include "quorums_rotation.h"
 #include "quorums_utils.h"
 
 #include "activemasternode.h"
@@ -83,19 +84,20 @@ void CDKGPendingMessages::Clear()
 
 //////
 
-CDKGSessionHandler::CDKGSessionHandler(const Consensus::LLMQParams& _params, ctpl::thread_pool& _messageHandlerPool, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager) :
+CDKGSessionHandler::CDKGSessionHandler(const Consensus::LLMQParams& _params, ctpl::thread_pool& _messageHandlerPool, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager, uint16_t index) :
     params(_params),
+    sessionId(_params.type, index),
     messageHandlerPool(_messageHandlerPool),
     blsWorker(_blsWorker),
     dkgManager(_dkgManager),
-    curSession(std::make_shared<CDKGSession>(_params, _blsWorker, _dkgManager)),
+    curSession(std::make_shared<CDKGSession>(_params, _blsWorker, _dkgManager, index)),
     pendingContributions((size_t)_params.size * 2), // we allow size*2 messages as we need to make sure we see bad behavior (double messages)
     pendingComplaints((size_t)_params.size * 2),
     pendingJustifications((size_t)_params.size * 2),
     pendingPrematureCommitments((size_t)_params.size * 2)
 {
     phaseHandlerThread = std::thread([this] {
-        RenameThread(strprintf("firo-q-phase-%d", (uint8_t)params.type).c_str());
+        RenameThread(strprintf("q-phase-%d-%d", params.type, sessionId.second).c_str());
         PhaseHandlerThread();
     });
 }
@@ -113,16 +115,23 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
     LOCK(cs);
 
     int quorumStageInt = pindexNew->nHeight % params.dkgInterval;
-    const CBlockIndex* pindexQuorum = pindexNew->GetAncestor(pindexNew->nHeight - quorumStageInt);
+    const int cycleHeight = pindexNew->nHeight - quorumStageInt;
+    if (Consensus::IsRotatedLLMQType(params.type)) {
+        quorumStageInt -= sessionId.second;
+        if (quorumStageInt < 0 || !IsRotationDkgCycle(params, cycleHeight)) {
+            quorumHeight = -1;
+            quorumHash.SetNull();
+            phase = QuorumPhase_Idle;
+            return;
+        }
+    }
+    const CBlockIndex* pindexQuorum = pindexNew->GetAncestor(cycleHeight + sessionId.second);
 
     quorumHeight = pindexQuorum->nHeight;
     quorumHash = pindexQuorum->GetBlockHash();
 
-    bool fNewPhase = (quorumStageInt % params.dkgPhaseBlocks) == 0;
     int phaseInt = quorumStageInt / params.dkgPhaseBlocks + 1;
-    if (fNewPhase && phaseInt >= QuorumPhase_Initialized && phaseInt <= QuorumPhase_Idle) {
-        phase = static_cast<QuorumPhase>(phaseInt);
-    }
+    phase = static_cast<QuorumPhase>(std::min(phaseInt, int(QuorumPhase_Idle)));
 }
 
 void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
@@ -145,19 +154,20 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pindexQuorum)
 
     FIRO_UNUSED const auto& consensus = Params().GetConsensus();
 
-    curSession = std::make_shared<CDKGSession>(params, blsWorker, dkgManager);
-
     if (!deterministicMNManager->IsDIP3Enforced(pindexQuorum->nHeight)) {
         return false;
     }
 
     auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pindexQuorum);
 
-    if (!curSession->Init(pindexQuorum, mns, activeMasternodeInfo.proTxHash)) {
+    auto session = std::make_shared<CDKGSession>(params, blsWorker, dkgManager, sessionId.second);
+    if (!session->Init(pindexQuorum, mns, activeMasternodeInfo.proTxHash)) {
         LogPrintf("CDKGSessionManager::%s -- quorum initialiation failed\n", __func__);
         return false;
     }
 
+    LOCK(cs);
+    curSession = std::move(session);
     return true;
 }
 
@@ -195,9 +205,9 @@ void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
     }
 
     if (nextPhase == QuorumPhase_Initialized) {
-        quorumDKGDebugManager->ResetLocalSessionStatus(params.type);
+        quorumDKGDebugManager->ResetLocalSessionStatus(sessionId);
     } else {
-        quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        quorumDKGDebugManager->UpdateLocalSessionStatus(sessionId, [&](CDKGDebugSessionStatus& status) {
             bool changed = status.phase != (uint8_t) nextPhase;
             status.phase = (uint8_t) nextPhase;
             return changed;
@@ -450,6 +460,7 @@ void CDKGSessionHandler::HandleDKGRound()
         pendingPrematureCommitments.Clear();
         curQuorumHash = quorumHash;
         curQuorumHeight = quorumHeight;
+        if (phase != QuorumPhase_Initialized || curQuorumHash.IsNull()) throw AbortPhaseException();
     }
 
     const CBlockIndex* pindexQuorum;
@@ -464,7 +475,7 @@ void CDKGSessionHandler::HandleDKGRound()
         throw AbortPhaseException();
     }
 
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+    quorumDKGDebugManager->UpdateLocalSessionStatus(sessionId, [&](CDKGDebugSessionStatus& status) {
         bool changed = status.phase != (uint8_t) QuorumPhase_Initialized;
         status.phase = (uint8_t) QuorumPhase_Initialized;
         return changed;
@@ -548,7 +559,7 @@ void CDKGSessionHandler::PhaseHandlerThread()
         try {
             HandleDKGRound();
         } catch (AbortPhaseException& e) {
-            quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+            quorumDKGDebugManager->UpdateLocalSessionStatus(sessionId, [&](CDKGDebugSessionStatus& status) {
                 status.debugStatus.status.aborted = true;
                 return true;
             });

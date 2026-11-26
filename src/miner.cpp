@@ -205,15 +205,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                        : pblock->GetBlockTime();
 
     if (fDIP0003Active_context) {
-        for (auto& p : chainparams.GetConsensus().llmqs) {
-            CTransactionRef qcTx;
-            if (llmq::quorumBlockProcessor->GetMinableCommitmentTx(p.first, nHeight, qcTx)) {
-                pblock->vtx.emplace_back(qcTx);
-                pblocktemplate->vTxFees.emplace_back(0);
-                pblocktemplate->vTxSigOpsCost.emplace_back(0);
-                nBlockSize += qcTx->GetTotalSize();
-                ++nBlockTx;
-            }
+        for (const auto& qcTx : llmq::quorumBlockProcessor->GetMinableCommitmentTxs(pindexPrev)) {
+            pblock->vtx.emplace_back(qcTx);
+            pblocktemplate->vTxFees.emplace_back(0);
+            pblocktemplate->vTxSigOpsCost.emplace_back(0);
+            nBlockSize += qcTx->GetTotalSize();
+            ++nBlockTx;
         }
     }
 

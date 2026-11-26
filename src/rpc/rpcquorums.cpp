@@ -53,7 +53,8 @@ UniValue quorum_list(const JSONRPCRequest& request)
     for (auto& p : Params().GetConsensus().llmqs) {
         UniValue v(UniValue::VARR);
 
-        auto quorums = llmq::quorumManager->ScanQuorums(p.first, chainActive.Tip(), count > -1 ? count : p.second.signingActiveQuorumCount);
+        auto quorums = llmq::quorumManager->ScanQuorums(p.first, chainActive.Tip(),
+            count > -1 ? count : p.second.signingActiveQuorumCount, count == -1);
         for (auto& q : quorums) {
             v.push_back(q->qc.quorumHash.ToString());
         }
@@ -83,6 +84,7 @@ UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMembers, b
     ret.push_back(Pair("height", quorum->pindexQuorum->nHeight));
     ret.push_back(Pair("type", quorum->params.name));
     ret.push_back(Pair("quorumHash", quorum->qc.quorumHash.ToString()));
+    if (quorum->qc.IsIndexed()) ret.push_back(Pair("quorumIndex", int(quorum->qc.quorumIndex)));
     ret.push_back(Pair("minedBlock", quorum->minedBlockHash.ToString()));
 
     if (includeMembers) {
@@ -170,16 +172,14 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     auto ret = status.ToJson(detailLevel);
 
     LOCK(cs_main);
-    int tipHeight = chainActive.Height();
 
     UniValue minableCommitments(UniValue::VOBJ);
     for (const auto& p : Params().GetConsensus().llmqs) {
         auto& params = p.second;
-        llmq::CFinalCommitment fqc;
-        if (llmq::quorumBlockProcessor->GetMinableCommitment(params.type, tipHeight, fqc)) {
+        for (const auto& fqc : llmq::quorumBlockProcessor->GetMinableCommitments(params.type, chainActive.Tip())) {
             UniValue obj(UniValue::VOBJ);
             fqc.ToJson(obj);
-            minableCommitments.push_back(Pair(params.name, obj));
+            minableCommitments.push_back(Pair(fqc.IsIndexed() ? strprintf("%s_%d", params.name, fqc.quorumIndex) : params.name, obj));
         }
     }
 
@@ -235,7 +235,7 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
         if (scanQuorumsCount != -1) {
             count = (size_t)scanQuorumsCount;
         }
-        auto quorums = llmq::quorumManager->ScanQuorums(params.type, count);
+        auto quorums = llmq::quorumManager->ScanQuorums(params.type, pindexTip, count, scanQuorumsCount == -1);
         for (auto& quorum : quorums) {
             if (quorum->IsMember(dmn->proTxHash)) {
                 auto json = BuildQuorumInfo(quorum, false, false);

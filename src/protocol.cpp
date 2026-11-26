@@ -45,6 +45,8 @@ namespace NetMsgType {
     const char *SYNCSTATUSCOUNT="ssc";
     const char *GETMNLISTDIFF="getmnlistd";
     const char *MNLISTDIFF="mnlistdiff";
+    const char *GETQRINFO="getqrinfo";
+    const char *QRINFO="qrinfo";
     const char *QSENDRECSIGS="qsendrecsigs";
     const char *QFCOMMITMENT="qfcommit";
     const char *QCONTRIB="qcontrib";
@@ -99,6 +101,8 @@ const static std::string allNetMessageTypes[] = {
     //znode
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
+    NetMsgType::GETQRINFO,
+    NetMsgType::QRINFO,
     NetMsgType::SYNCSTATUSCOUNT,
     NetMsgType::QSENDRECSIGS,
     NetMsgType::QFCOMMITMENT,

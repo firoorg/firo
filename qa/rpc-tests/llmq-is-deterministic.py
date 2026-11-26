@@ -202,7 +202,7 @@ class LLMQ_IS_Deterministic(EvoZnodeTestFramework):
         assert_equal(self.log_count(0, "invalid sig in islock"), invalid_sigs + 1)
 
         # an unknown version is ignored
-        self.assert_refused(msg_isdlock(inputs, txid, int(quorum_hash, 16), sig, version=2), MSG_ISDLOCK, True)
+        self.assert_refused(msg_isdlock(inputs, txid, int(quorum_hash, 16), sig, version=3), MSG_ISDLOCK, True)
 
         # The cycleHash must be the first block of a DKG cycle. The peer gets disconnected for this one.
         sender = self.connect_test_node()

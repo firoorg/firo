@@ -25,7 +25,7 @@ private:
     CBLSWorker& blsWorker;
     ctpl::thread_pool messageHandlerPool;
 
-    std::map<Consensus::LLMQType, CDKGSessionHandler> dkgSessionHandlers;
+    std::map<DKGSessionId, CDKGSessionHandler> dkgSessionHandlers;
 
     CCriticalSection contributionsCacheCs;
     struct ContributionsCacheKey {

@@ -151,6 +151,7 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 
 /** Allows tests to exercise the deterministic InstantSend lock (DIP22) activation. */
 void UpdateRegtestInstantSendDeterministicHeight(int height);
+void UpdateRegtestDip24Height(int height);
 
 /** Allows tests to exercise the single-input Spark consensus activation. */
 void UpdateRegtestSparkSingleInputHeight(int height);

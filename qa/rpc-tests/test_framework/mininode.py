@@ -1207,6 +1207,7 @@ class CFinalCommitment:
         self.nVersion = 0
         self.llmqType = 0
         self.quorumHash = 0
+        self.quorumIndex = 0
         self.signers = []
         self.validMembers = []
         self.quorumPublicKey = b'\\x0' * 48
@@ -1218,6 +1219,7 @@ class CFinalCommitment:
         self.nVersion = struct.unpack("<H", f.read(2))[0]
         self.llmqType = struct.unpack("<B", f.read(1))[0]
         self.quorumHash = deser_uint256(f)
+        self.quorumIndex = struct.unpack("<H", f.read(2))[0] if self.nVersion == 2 and self.llmqType in (5, 103) else 0
         self.signers = deser_dyn_bitset(f, False)
         self.validMembers = deser_dyn_bitset(f, False)
         self.quorumPublicKey = f.read(48)
@@ -1230,6 +1232,8 @@ class CFinalCommitment:
         r += struct.pack("<H", self.nVersion)
         r += struct.pack("<B", self.llmqType)
         r += ser_uint256(self.quorumHash)
+        if self.nVersion == 2 and self.llmqType in (5, 103):
+            r += struct.pack("<H", self.quorumIndex)
         r += ser_dyn_bitset(self.signers, False)
         r += ser_dyn_bitset(self.validMembers, False)
         r += self.quorumPublicKey

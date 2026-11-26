@@ -262,6 +262,8 @@ extern const char *TXLOCKVOTE;
 extern const char *SYNCSTATUSCOUNT;
 extern const char *GETMNLISTDIFF;
 extern const char *MNLISTDIFF;
+extern const char *GETQRINFO;
+extern const char *QRINFO;
 extern const char *QSENDRECSIGS;
 extern const char *QFCOMMITMENT;
 extern const char *QCONTRIB;

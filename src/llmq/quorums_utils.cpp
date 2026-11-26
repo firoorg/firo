@@ -3,6 +3,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "quorums.h"
+#include "quorums_blockprocessor.h"
+#include "quorums_rotation.h"
+#include "quorums_signing.h"
 #include "quorums_utils.h"
 
 #include "chainparams.h"
@@ -15,6 +18,9 @@ namespace llmq
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
 {
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    if (Consensus::IsRotatedLLMQType(llmqType)) {
+        return GetRotatedQuorumMembers(params, pindexQuorum);
+    }
     auto allMns = deterministicMNManager->GetListForBlock(pindexQuorum);
     auto modifier = ::SerializeHash(std::make_pair((uint8_t) llmqType, pindexQuorum->GetBlockHash()));
     return allMns.CalculateQuorum(params.size, modifier);
@@ -98,6 +104,21 @@ std::set<size_t> CLLMQUtils::CalcDeterministicWatchConnections(Consensus::LLMQTy
 bool CLLMQUtils::IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quorumHash)
 {
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    if (Consensus::IsRotatedLLMQType(llmqType)) {
+        LOCK(cs_main);
+        const auto it = mapBlockIndex.find(quorumHash);
+        if (it == mapBlockIndex.end() || !chainActive.Contains(it->second)) return false;
+        const int index = it->second->nHeight % params.dkgInterval;
+        if (index >= params.signingActiveQuorumCount) return false;
+        const int cycle = GetCompletedRotationCycle(params, chainActive.Height() - CSigningManager::SIGN_HEIGHT_OFFSET);
+        if (cycle < 0) return false;
+        for (int height : {cycle, cycle - params.dkgInterval}) {
+            if (!IsRotationDkgCycle(params, height)) continue;
+            const auto* end = chainActive[height + params.dkgMiningWindowEnd];
+            if (quorumBlockProcessor->GetMinedCommitmentByIndex(llmqType, end, index) == it->second) return true;
+        }
+        return false;
+    }
 
     // sig shares and recovered sigs are only accepted from recent/active quorums
     // we allow one more active quorum as specified in consensus, as otherwise there is a small window where things could

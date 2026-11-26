@@ -159,6 +159,7 @@ public:
     // This is called when a recovered signature can be safely removed from the DB. This is only safe when some other
     // mechanism prevents possible conflicts. As an example, ChainLocks prevent conflicts in confirmed TXs InstantSend votes
     void RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id);
+    bool PrepareForRotatedResigning(const CRecoveredSig& stale);
 
 private:
     void ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredSig& recoveredSig, CConnman& connman);
@@ -179,7 +180,8 @@ public:
     void RegisterRecoveredSigsListener(CRecoveredSigsListener* l);
     void UnregisterRecoveredSigsListener(CRecoveredSigsListener* l);
 
-    bool AsyncSignIfMember(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash, bool allowReSign = false);
+    bool AsyncSignIfMember(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash, bool allowReSign = false,
+                           const CQuorumCPtr& selectedQuorum = nullptr, Consensus::LLMQType otherType = Consensus::LLMQ_NONE);
     bool HasRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
     bool HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id);
     bool HasRecoveredSigForSession(const uint256& signHash);

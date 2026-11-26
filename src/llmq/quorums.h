@@ -88,6 +88,7 @@ private:
     CCriticalSection quorumsCacheCs;
     std::map<std::pair<Consensus::LLMQType, uint256>, CQuorumPtr> quorumsCache;
     unordered_lru_cache<std::pair<Consensus::LLMQType, uint256>, std::vector<CQuorumCPtr>, StaticSaltedHasher, 32> scanQuorumsCache;
+    decltype(scanQuorumsCache) activeIndexedQuorumsCache;
 
 public:
     CQuorumManager(CEvoDB& _evoDb, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager);
@@ -101,8 +102,8 @@ public:
     CQuorumCPtr GetNewestQuorum(Consensus::LLMQType llmqType);
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, size_t maxCount);
 
-    // this one is cs_main-free
-    std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t maxCount);
+    // For rotated types, activeOnly selects one commitment per slot.
+    std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t maxCount, bool activeOnly = false);
 
 private:
     // all private methods here are cs_main-free

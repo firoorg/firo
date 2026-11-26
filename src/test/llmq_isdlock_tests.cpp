@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(deterministic_reader_reports_the_version_it_read)
 {
     // A reader that expects a deterministic lock still consumes the whole message when the version byte is unknown,
     // and is left with that version so that it can reject the lock.
-    for (uint8_t nVersion : {uint8_t(0), uint8_t(2)}) {
+    for (uint8_t nVersion : {uint8_t(0), uint8_t(3)}) {
         llmq::CInstantSendLock islock = MakeLock(llmq::CInstantSendLock::DETERMINISTIC_VERSION);
         std::vector<unsigned char> bytes = Serialize(islock);
         bytes[0] = nVersion;
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(deterministic_reader_reports_the_version_it_read)
     }
 }
 
-BOOST_AUTO_TEST_CASE(db_reads_both_formats)
+BOOST_AUTO_TEST_CASE(db_reads_legacy_and_both_deterministic_versions)
 {
     CDBWrapper db("", 1 << 20, true, true);
 
@@ -126,16 +126,21 @@ BOOST_AUTO_TEST_CASE(db_reads_both_formats)
     deterministic.inputs = {COutPoint(uint256S("13"), 0)};
     const uint256 legacyHash = ::SerializeHash(legacy);
     const uint256 deterministicHash = ::SerializeHash(deterministic);
+    llmq::CInstantSendLock rotated = MakeLock(llmq::CInstantSendLock::ROTATED_VERSION);
+    rotated.txid = uint256S("23");
+    rotated.inputs = {COutPoint(uint256S("14"), 0)};
+    const uint256 rotatedHash = ::SerializeHash(rotated);
 
     {
         llmq::CInstantSendDb writer(db);
         writer.WriteNewInstantSendLock(legacyHash, legacy);
         writer.WriteNewInstantSendLock(deterministicHash, deterministic);
+        writer.WriteNewInstantSendLock(rotatedHash, rotated);
     }
 
     // a new instance has empty caches, so everything is read from disk
     llmq::CInstantSendDb reader(db);
-    BOOST_CHECK_EQUAL(reader.GetInstantSendLockCount(), 2U);
+    BOOST_CHECK_EQUAL(reader.GetInstantSendLockCount(), 3U);
 
     llmq::CInstantSendLockPtr readLegacy = reader.GetInstantSendLockByHash(legacyHash);
     BOOST_REQUIRE(readLegacy);
@@ -152,6 +157,10 @@ BOOST_AUTO_TEST_CASE(db_reads_both_formats)
     llmq::CInstantSendLockPtr byInput = reader.GetInstantSendLockByInput(deterministic.inputs[0]);
     BOOST_REQUIRE(byInput);
     BOOST_CHECK(::SerializeHash(*byInput) == deterministicHash);
+    auto readRotated = reader.GetInstantSendLockByInput(rotated.inputs[0]);
+    BOOST_REQUIRE(readRotated);
+    BOOST_CHECK(readRotated->IsRotated());
+    BOOST_CHECK(::SerializeHash(*readRotated) == rotatedHash);
 
     BOOST_CHECK(!reader.GetInstantSendLockByHash(uint256S("99")));
 
@@ -164,6 +173,7 @@ BOOST_AUTO_TEST_CASE(db_reads_both_formats)
     CDBBatch batch(db);
     reader.RemoveInstantSendLock(batch, legacyHash, nullptr);
     reader.RemoveInstantSendLock(batch, deterministicHash, nullptr);
+    reader.RemoveInstantSendLock(batch, rotatedHash, nullptr);
     db.WriteBatch(batch);
     llmq::CInstantSendDb afterRemoval(db);
     BOOST_CHECK_EQUAL(afterRemoval.GetInstantSendLockCount(), 0U);
