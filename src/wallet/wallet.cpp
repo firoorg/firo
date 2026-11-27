@@ -6215,9 +6215,13 @@ bool CWallet::CreateSparkMintTransactions(
     std::string& strFailReason,
     bool fSplit,
     const CCoinControl *coinControl,
-    bool autoMintAll)
+    bool autoMintAll,
+    const std::vector<CRecipient>* transparentRecipients)
 {
-    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, fSplit, coinControl, autoMintAll);
+    return sparkWallet->CreateSparkMintTransactions(
+        outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut,
+        subtractFeeFromAmount, strFailReason, fSplit, coinControl, autoMintAll,
+        transparentRecipients);
 }
 
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()

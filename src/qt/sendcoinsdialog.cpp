@@ -682,13 +682,15 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount txFee = 0;
     CAmount totalAmount = 0;
     const bool isSparkSpend = fAnonymousMode && spark::IsSparkAllowed();
+    const bool isSparkMint = !fAnonymousMode && sparkAddressCount > 0 &&
+        spark::IsSparkAllowed();
 
     if (isSparkSpend) {
         prepareStatus = runWalletOperation([&] {
             return model->prepareSpendSparkTransactions(
                 sparkSpendTransactions, recipients, &ctrl);
         });
-    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
+    } else if (!fAnonymousMode && sparkAddressCount > 0) {
         if (spark::IsSparkAllowed())
             prepareStatus = runWalletOperation([&] {
                 return model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
@@ -698,7 +700,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             fNewRecipientAllowed = true;
             return;
         }
-    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
+    } else if (!fAnonymousMode && (sparkAddressCount == 0)) {
         prepareStatus = runWalletOperation([&] {
             return model->prepareTransaction(currentTransaction, &ctrl);
         });
@@ -709,9 +711,12 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // process prepareStatus and on error generate message shown to user
     CAmount feeForMessage = currentTransaction.getTransactionFee();
-    if (isSparkSpend) {
+    if (isSparkSpend || isSparkMint) {
         feeForMessage = 0;
-        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+        auto& preparedTransactions = isSparkSpend
+            ? sparkSpendTransactions
+            : transactions;
+        for (WalletModelTransaction& transaction : preparedTransactions) {
             feeForMessage += transaction.getTransactionFee();
         }
     }
@@ -771,7 +776,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if (isSparkMint)
     {
         for(int i = 0; i < recipients.size(); i++) {
             recipients[i].amount = 0;
@@ -871,7 +876,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     double txSize = 0.0;
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if (isSparkMint)
     {
         for (auto &transaction : transactions) {
             txFee += transaction.getTransactionFee();
@@ -919,11 +924,17 @@ void SendCoinsDialog::on_sendButton_clicked()
                                  "linked to each other, and if one of them is rejected the "
                                  "recipients will have been paid only in part.")
                                   .arg(sparkSpendTransactions.size()));
+    } else if (isSparkMint && transactions.size() > 1) {
+        questionString.append("<hr />");
+        questionString.append(tr("This payment could not be included in one transaction and will be sent as "
+                                 "%1 separate transactions. Each pays its own fee. If one is rejected after "
+                                 "another was sent, recipients will have been paid only in part.")
+                                  .arg(transactions.size()));
     }
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if (isSparkMint)
     {
         totalAmount = mintSparkAmount + txFee;
     } else if (isSparkSpend) {
@@ -965,7 +976,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         sendStatus = runWalletOperation([&] {
             return model->spendSparkCoins(sparkSpendTransactions);
         });
-    } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
+    } else if (isSparkMint) {
         sendStatus = runWalletOperation([&] {
             return model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
         });

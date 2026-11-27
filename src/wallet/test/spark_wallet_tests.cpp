@@ -345,6 +345,77 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(create_mixed_spark_and_transparent_mint_transaction)
+{
+    GenerateBlocks(1001);
+
+    uint160 externalKey;
+    GetRandBytes(externalKey.begin(), externalKey.size());
+    const CScript transparentScript =
+        GetScriptForDestination(CKeyID(externalKey));
+    const CRecipient transparentRecipient{
+        transparentScript, COIN, false, {}, {}};
+    CScript opReturnScript;
+    opReturnScript << OP_RETURN << std::vector<unsigned char>{1};
+    const CRecipient opReturnRecipient{
+        opReturnScript, 0, false, {}, {}};
+
+    spark::MintedCoinData sparkOutput;
+    sparkOutput.address = pwalletMain->sparkWallet->getDefaultAddress();
+    sparkOutput.v = COIN;
+    sparkOutput.memo = "mixed payment";
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    const std::vector<CRecipient> transparentRecipients{
+        transparentRecipient, opReturnRecipient};
+    CAmount fee = 0;
+    std::list<CReserveKey> reservekeys;
+    int changePos = -1;
+    std::string error;
+    BOOST_REQUIRE(pwalletMain->CreateSparkMintTransactions(
+        {sparkOutput}, wtxAndFee, fee, reservekeys, changePos, true, error,
+        false, nullptr, false, &transparentRecipients));
+    BOOST_REQUIRE_EQUAL(wtxAndFee.size(), 1);
+
+    const CWalletTx& walletTx = wtxAndFee.front().first;
+    const CTransaction& tx = *walletTx.tx;
+    const auto transparentOutput = std::find_if(
+        tx.vout.begin(), tx.vout.end(),
+        [&transparentScript](const CTxOut& output) {
+            return output.scriptPubKey == transparentScript;
+        });
+    BOOST_REQUIRE(transparentOutput != tx.vout.end());
+    BOOST_CHECK_LT(transparentOutput->nValue, COIN);
+    BOOST_CHECK_GT(transparentOutput->nValue, 0);
+
+    BOOST_CHECK(std::any_of(
+        tx.vout.begin(), tx.vout.end(),
+        [&opReturnScript](const CTxOut& output) {
+            return output.scriptPubKey == opReturnScript;
+        }));
+
+    const auto sparkOutputTx = std::find_if(
+        tx.vout.begin(), tx.vout.end(),
+        [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkMint();
+        });
+    BOOST_REQUIRE(sparkOutputTx != tx.vout.end());
+    BOOST_CHECK_LT(sparkOutputTx->nValue, COIN);
+    BOOST_CHECK_GT(sparkOutputTx->nValue, 0);
+    BOOST_REQUIRE_EQUAL(walletTx.pendingSparkOutputRecords.size(), 1);
+    BOOST_CHECK_EQUAL(
+        walletTx.pendingSparkOutputRecords.front().second.amount,
+        sparkOutputTx->nValue);
+
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool, state, walletTx.tx, false, nullptr));
+    }
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(tx)}));
+}
+
 BOOST_AUTO_TEST_CASE(list_spark_mints)
 {
     GenerateBlocks(1001);
