@@ -86,6 +86,24 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     CAmount nDebit = wtx.GetDebit(ISMINE_ALL);
     CAmount nNet = nCredit - nDebit;
 
+    bool hasSparkOutput = false;
+    bool hasTransparentOutput = false;
+    if (nDebit > 0) {
+        for (const CTxOut& txout : wtx.tx->vout) {
+            if (wtx.IsChange(txout)) {
+                continue;
+            }
+            if (txout.scriptPubKey.IsSparkMint()) {
+                hasSparkOutput = true;
+            }
+            CTxDestination address;
+            if (ExtractDestination(txout.scriptPubKey, address)) {
+                hasTransparentOutput = true;
+            }
+        }
+    }
+    const bool isMixedSparkSend = hasSparkOutput && hasTransparentOutput;
+
     strHTML += "<b>" + tr("Status") + ":</b> " + FormatTxStatus(wtx);
     int nRequests = wtx.GetRequestCount();
     if (nRequests != -1)
@@ -148,8 +166,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // To
     //
-    if (wtx.mapValue.count("to") && !wtx.mapValue["to"].empty())
-    {
+    if (!isMixedSparkSend && wtx.mapValue.count("to") && !wtx.mapValue["to"].empty()) {
         // Online transaction
         std::string strAddress = wtx.mapValue["to"];
         strHTML += "<b>" + tr("To") + ":</b> ";
@@ -210,13 +227,17 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             //
             BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
             {
+                if (isMixedSparkSend && txout.scriptPubKey.IsSparkMint()) {
+                    strHTML += "<b>" + tr("Spark output") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, txout.nValue) + "<br>";
+                    continue;
+                }
+
                 // Ignore change
                 isminetype toSelf = wallet->IsMine(txout, *wtx.tx);
                 if ((toSelf == ISMINE_SPENDABLE) && (fAllFromMe == ISMINE_SPENDABLE))
                     continue;
                 CSparkOutputTx sparkOutput;
-                if (!wtx.mapValue.count("to") || wtx.mapValue["to"].empty())
-                {
+                if (isMixedSparkSend || !wtx.mapValue.count("to") || wtx.mapValue["to"].empty()) {
                     // Offline transaction
                     CTxDestination address;
                     strHTML += "<b>" + tr("To") + ":</b> ";

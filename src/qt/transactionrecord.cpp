@@ -251,6 +251,32 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             //
             // Debit
             //
+            bool hasSparkOutput = false;
+            std::string firstTransparentAddress;
+            for (const CTxOut& txout : wtx.tx->vout) {
+                if (wtx.IsChange(txout)) {
+                    continue;
+                }
+                if (txout.scriptPubKey.IsSparkMint()) {
+                    hasSparkOutput = true;
+                }
+                CTxDestination address;
+                if (firstTransparentAddress.empty() && ExtractDestination(txout.scriptPubKey, address)) {
+                    firstTransparentAddress = CBitcoinAddress(address).ToString();
+                }
+            }
+
+            if (hasSparkOutput && !firstTransparentAddress.empty()) {
+                TransactionRecord sub(hash, nTime);
+                sub.type = TransactionRecord::SendToAddress;
+                sub.address = firstTransparentAddress;
+                sub.debit = -(nDebit - wtx.GetChange());
+                sub.idx = parts.size();
+                sub.involvesWatchAddress = involvesWatchAddress;
+                parts.append(sub);
+                return parts;
+            }
+
             CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
 
             if (wtx.tx->IsSparkSpend() && wtx.tx->vin.size() > 0) {
