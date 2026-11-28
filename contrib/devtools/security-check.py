@@ -190,8 +190,16 @@ def check_NX(executable) -> bool:
 
 def check_control_flow(executable) -> bool:
     '''
-    Check for control flow instrumentation
+    Check for control flow instrumentation (x86_64 only)
     '''
+    # Mach-O cputype is the little-endian uint32 after the magic. Read it
+    # directly: lief's CPU type enum differs between versions.
+    with open(executable, 'rb') as f:
+        f.seek(4)
+        cputype = int.from_bytes(f.read(4), 'little')
+    if cputype != 0x01000007: # CPU_TYPE_X86_64; endbr64 is x86-only
+        return True
+
     binary = lief.parse(executable)
 
     content = binary.get_content_from_virtual_address(binary.entrypoint, 4, lief.Binary.VA_TYPES.AUTO)
@@ -215,36 +223,19 @@ CHECKS = {
     ('HIGH_ENTROPY_VA', check_PE_HIGH_ENTROPY_VA),
     ('NX', check_NX),
     ('RELOC_SECTION', check_PE_RELOC_SECTION),
-    ('CONTROL_FLOW', check_PE_control_flow),
-]
-
-BASE_MACHO = [
+],
+'MACHO': [
     ('NOUNDEFS', check_MACHO_NOUNDEFS),
     ('LAZY_BINDINGS', check_MACHO_LAZY_BINDINGS),
     ('Canary', check_MACHO_Canary),
+    ('PIE', check_PIE),
+    ('NX', check_NX),
+    ('CONTROL_FLOW', check_control_flow),
 ]
-
-CHECKS = {
-    lief.EXE_FORMATS.ELF: {
-        lief.ARCHITECTURES.X86: BASE_ELF + [('CONTROL_FLOW', check_ELF_control_flow)],
-        lief.ARCHITECTURES.ARM: BASE_ELF,
-        lief.ARCHITECTURES.ARM64: BASE_ELF,
-        lief.ARCHITECTURES.PPC: BASE_ELF,
-        LIEF_ELF_ARCH_RISCV: BASE_ELF,
-    },
-    lief.EXE_FORMATS.PE: {
-        lief.ARCHITECTURES.X86: BASE_PE,
-    },
-    lief.EXE_FORMATS.MACHO: {
-        lief.ARCHITECTURES.X86: BASE_MACHO + [('PIE', check_PIE),
-                                              ('NX', check_NX),
-                                              ('CONTROL_FLOW', check_MACHO_control_flow)],
-        lief.ARCHITECTURES.ARM64: BASE_MACHO,
-    }
 }
 
 def identify_executable(executable) -> Optional[str]:
-    with open(filename, 'rb') as f:
+    with open(executable, 'rb') as f:
         magic = f.read(4)
     if magic.startswith(b'MZ'):
         return 'PE'
