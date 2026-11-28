@@ -142,6 +142,20 @@ optimize-pngs.py
 A script to optimize png files in the bitcoin
 repository (requires pngcrush).
 
+preflight.sh
+============
+
+Checks that the current branch is ready for review: committed, based on the
+latest `origin/master` (or `$BASE`), and free of whitespace errors and agent
+tags in added lines. Then it builds with the flags of the CI Linux Debug job
+and runs the unit tests and the RPC tests named on the command line. The build
+goes to `build/` (or `$BUILD_DIR`) and replaces the configuration found there.
+Run it on Linux with `depends/` built:
+
+```
+contrib/devtools/preflight.sh decodescript.py
+```
+
 security-check.py and test-security-check.py
 ============================================
 

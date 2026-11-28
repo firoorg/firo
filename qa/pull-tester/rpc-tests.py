@@ -250,6 +250,9 @@ def runtests():
         for t in testScripts + testScriptsExt:
             if t in opts or re.sub(".py$", "", t) in opts:
                 test_list.append(t)
+    unknown = [o for o in opts if o not in ('-extended', '-win') and o not in test_list and o + '.py' not in test_list]
+    if unknown:
+        sys.exit("Not an option or a test in testScripts or testScriptsExt: " + " ".join(sorted(unknown)))
 
     if print_help:
         # Only print help of the first script and exit

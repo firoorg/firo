@@ -5,7 +5,7 @@ This file is a concise guide for coding agents working in the Firo repository. I
 ## Project snapshot
 
 - Privacy-focused cryptocurrency forked from Bitcoin Core
-- Current version in `CMakeLists.txt`: `0.14.15.3`
+- Version: `CLIENT_VERSION_*` in `CMakeLists.txt`
 - Languages: C++20 and C11
 - Build system: CMake 3.22+ with out-of-tree builds only
 - Main executables:
@@ -166,6 +166,8 @@ Useful environment variables:
 - `FIROD` - defaults to `build/src/firod`
 - `FIROCLI` - defaults to `build/src/firo-cli`
 
+GitHub Actions runs these tests on Python 3.8, so keep test code compatible with it. The framework imports `asyncore`, which Python 3.12 removed; run the tests locally on Python 3.11 or older.
+
 ### Benchmarks and fuzzing
 
 Benchmarks:
@@ -176,7 +178,7 @@ cmake --build build
 ./build/bin/bench_firo
 ```
 
-Fuzz targets live in `src/fuzz/`. See `doc/fuzzing.md` for setup details.
+Fuzz harnesses for libspark live in `src/fuzz/` and build with honggfuzz; see `src/fuzz/README.md`. `-DBUILD_FUZZ_BINARY=ON`, which the CI Linux Debug job sets, builds the CMake fuzz targets in `src/test/fuzz/`.
 
 ## CI reference
 
@@ -184,15 +186,18 @@ The main workflow is `.github/workflows/ci-master.yml`.
 
 Current CI behavior:
 
-- Runs on pushes to all branches and PRs targeting `master`
+- Runs on pushes to `master` and on PRs targeting `master`; a PR based on another PR's branch gets no GitHub Actions run
 - Ignores `doc/**` and `**/README.md`
-- Linux matrix: Release and Debug, with unit tests and RPC tests
-- Windows matrix: Release and Debug cross-builds on Ubuntu
-- macOS matrix: Release and Debug builds
+- Linux matrix: RelWithDebInfo and Debug, with unit tests and the extended RPC tests; Debug also builds the fuzz binary
+- Windows matrix: RelWithDebInfo and Debug cross-builds on Ubuntu
+- macOS matrix: RelWithDebInfo and Debug builds
+- Guix builds for five hosts
 - Uses `ccache`
 - Caches `depends/` artifacts
 
-If you want to reproduce CI most closely, use Ninja, the `depends/` toolchain, and the same build flags shown above.
+Jenkins runs `Jenkinsfile` (a Linux Release build, the unit tests and the extended RPC tests) on PRs and on branches of this repository, stacked PR branches included.
+
+`contrib/devtools/preflight.sh` reproduces the Linux Debug job locally; see "Before opening a PR".
 
 ## Coding conventions
 
@@ -215,6 +220,8 @@ Important rules:
 - Avoid variable shadowing; `-Wshadow` is enabled
 - Use `uint8_t` or `int8_t` instead of plain `char` when signedness matters
 - Assertions must not have side effects
+- Use `.data()` instead of `&v[0]`, and check bounds before indexing
+- Follow the naming of the surrounding code: `C`-prefixed classes, `f`-prefixed flags, `UPPER_CASE` constants, `BITCOIN_<PATH>_<FILE>_H` header guards
 
 Threading and locking:
 
@@ -237,14 +244,30 @@ Be especially careful in these parts of the tree:
 - Wallet correctness and privacy spends: `src/wallet/`, `src/spark/`, `src/liblelantus/`, `src/libspark/`
 - LLMQ / masternodes: `src/llmq/`, `src/evo/`
 
-Guidelines for agents:
+Treat privacy, consensus, wallet balance accounting, serialization, and networking as high-regression areas. When touching a subtree directory such as `src/secp256k1`, `src/leveldb`, `src/univalue`, or `src/crypto/ctaes`, verify whether the change belongs upstream.
 
-- Keep changes minimal and localized
-- Do not mix pure formatting changes with behavior changes
-- Add or update tests when behavior changes
-- Treat privacy, consensus, wallet balance accounting, serialization, and networking as high-regression areas
+## Keeping changes small
+
+A reviewer should be able to read the diff once and see that every line serves the PR's intention.
+
+- Fix the root cause in the code all callers go through, with the smallest diff that does it
+- No unrelated renames, refactors, reformatting or comment rewrites; never mix pure formatting changes with behavior changes
+- Delete code your change leaves unused, and any one-off investigation or probe code, before pushing
+- No new dependency, option or abstraction without a second real use
+- Add or update tests when behavior changes; a new test should fail without the change
 - Prefer exposing new behavior through RPC before adding GUI surfaces
-- When touching a subtree directory such as `src/secp256k1`, `src/leveldb`, `src/univalue`, or `src/crypto/ctaes`, verify whether the change belongs upstream
+- No tool or agent tags in code or comments (such as `ponytail:`); write a plain comment where the code would otherwise look wrong
+
+## Reusing what exists
+
+Search before writing a helper (`git grep`), and follow the nearest similar code. Common starting points:
+
+- Unit test fixtures: `BasicTestingSetup`, `TestingSetup` and `TestChain100Setup` in `src/test/test_bitcoin.h`; `SparkTestingSetup` in `src/test/fixtures.h`
+- Functional tests: `qa/rpc-tests/test_framework/` (`test_framework.py`, `util.py`, `mininode.py`, `mn_utils.py`); register new scripts in `testScripts`, or `testScriptsExt` for long ones, in `qa/pull-tester/rpc-tests.py`
+- RPC arguments: `RPCTypeCheck`, `ParseHashV` and `AmountFromValue` in `src/rpc/server.h`
+- Locking: `LOCK`, `LOCK2` and `AssertLockHeld` in `src/sync.h`; annotations such as `EXCLUSIVE_LOCKS_REQUIRED` in `src/threadsafety.h`
+- Qt helpers: `GUIUtil` in `src/qt/guiutil.h`
+- Build: put wallet-only sources in `src/wallet/CMakeLists.txt`. The fuzz targets in `src/test/fuzz/` link `firo_node` once, before `firo_wallet`, so a node-library file that only wallet code uses fails to link there
 
 ## Network ports
 
@@ -256,6 +279,19 @@ Guidelines for agents:
 | Regtest | 18444 | 28888 |
 
 Use `-regtest` for local multi-node functional testing and `-testnet` for public test network behavior.
+
+## Before opening a PR
+
+- Branch from a freshly fetched `origin/master`, and rebase right before pushing: `master` moves often
+- Commit everything, then run `contrib/devtools/preflight.sh <RPC tests that cover the change>` on Linux with `depends/` built. It checks that the branch is based on the latest `master` and that the added lines are clean, then builds with the CI Linux Debug flags and runs the unit tests and the named RPC tests. The build replaces the configuration in `build/`; set `BUILD_DIR` to use another directory. Skip the script for a change to `doc/` and `README.md` files only, which CI ignores too
+- Check what reviewers keep flagging:
+  - Shared maps are locked the way their other users lock them (for example `pool.cs` around mempool maps)
+  - Chain and mempool changes cover `-txindex=0`, reorgs, and transactions that arrive out of order
+  - New CMake targets link everything they use
+  - No second copy of an existing helper's body
+  - No overlap with another open PR, and the title and description match what the diff does
+- A PR based on another PR's branch gets no GitHub Actions run, only the Jenkins one; say so in the description
+- In Claude Code, run the `firo-preflight` skill before opening or updating a pull request; it walks through this section
 
 ## PR and commit conventions
 
@@ -273,16 +309,17 @@ Preferred PR title prefixes:
 - `Scripts and tools:`
 - `Trivial:`
 
-PR template: `.github/pull_request_template.md`
+PR descriptions fill the two sections of `.github/pull_request_template.md` in at most 1,500 characters:
 
-It expects:
-
-1. `## PR intention`
-2. `## Code changes brief`
+- PR intention: 1-3 sentences on the problem and its effect, plus `Fixes #N` when there is an issue
+- Code changes brief: only what the diff does not show (design choice, behavior or consensus impact, what was kept on purpose), and the test that fails without the change when there is one
+- Leave out validation logs, run counts, commit SHAs and dates, bot and linter output, CI status, commit-history narration, and a file-by-file retelling of the diff
+- Good models: PR 2010 (small change) and PR 2003 (large change); read them with `gh pr view <n> -R firoorg/firo`
 
 Commit guidance:
 
 - Keep commits atomic
+- Order commits so a reviewer can read them one at a time, and fold fix-ups into the commit they fix before the first push
 - Do not mix formatting-only changes into logic commits
 - Use a short subject line, ideally 50 characters or less
 - Add a blank line before the body when a body is needed
@@ -290,8 +327,8 @@ Commit guidance:
 
 ## Related docs worth reading
 
-- `CLAUDE.md`
+- `contrib/devtools/README.md`
 - `doc/developer-notes.md`
 - `.github/workflows/ci-master.yml`
 - `src/.clang-format`
-- `doc/fuzzing.md`
+- `src/fuzz/README.md`
