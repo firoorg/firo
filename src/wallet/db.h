@@ -70,9 +70,9 @@ public:
     bool Open(const boost::filesystem::path& path);
     void Close();
     void Flush(bool fShutdown);
-    void CheckpointLSN(const std::string& strFile);
+    bool CheckpointLSN(const std::string& strFile);
 
-    void CloseDb(const std::string& strFile);
+    bool CloseDb(const std::string& strFile);
     bool RemoveDb(const std::string& strFile);
 
     DbTxn* TxnBegin(int flags = DB_TXN_WRITE_NOSYNC)
