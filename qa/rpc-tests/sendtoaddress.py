@@ -65,6 +65,7 @@ class SendToAddressTest(BitcoinTestFramework):
         self.test_sendtoaddress_4spark_all_complex()
 
         self.test_sendtoaddress_complex_all_complex()
+        self.test_sendtoaddress_mixed_failure_receipt()
 
     def test_sendtoaddress_1transparent_simple(self):
         """Test sendtoaddress with simple format."""
@@ -493,6 +494,38 @@ class SendToAddressTest(BitcoinTestFramework):
         total_amount_transparent = sum([detail['amount'] for detail in details_transparent]) + details_transparent[0]['fee']
         total_amount = total_amount_spark + total_amount_transparent
         self.assert_equal_float(-total_amount, total_expected_amounts)
+
+    def test_sendtoaddress_mixed_failure_receipt(self):
+        """Reject an over-budget batch before minting; report a later partial send."""
+        payer = self.nodes[0]
+        balance = payer.getbalance()
+        spark_address = self.nodes[1].getnewsparkaddress()[0]
+        transparent_address = self.nodes[2].getnewaddress()
+
+        try:
+            payer.sendtoaddress({
+                spark_address: {"amount": Decimal('0.30')},
+                transparent_address: {"amount": balance - Decimal('0.10')},
+            })
+            raise AssertionError("Over-budget mixed send was accepted")
+        except JSONRPCException as e:
+            assert e.error['code'] == -6
+            assert 'combined Spark and transparent payments' in e.error['message']
+        assert payer.getbalance() == balance
+
+        try:
+            payer.sendtoaddress({
+                spark_address: {"amount": Decimal('0.30')},
+                transparent_address: {"amount": balance - Decimal('0.30')},
+            })
+            raise AssertionError("Fee-deficient mixed send was accepted")
+        except JSONRPCException as e:
+            assert e.error['code'] == -6
+            committed = e.error['committed_txids']
+            assert len(committed) == 1
+            assert committed[0] in e.error['message']
+            assert 'Do not retry' in e.error['message']
+            assert payer.gettransaction(committed[0])
 
     def assert_comments(self, actual_comments, expected_comments):
         """
