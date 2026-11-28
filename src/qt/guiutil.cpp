@@ -391,7 +391,7 @@ QString ExtractFirstSuffixFromFilter(const QString& filter)
 
 QString getSaveFileName(QWidget *parent, const QString &caption, const QString &dir,
     const QString &filter,
-    QString *selectedSuffixOut)
+    QString *selectedSuffixOut, bool confirmOverwrite)
 {
     QString selectedFilter;
     QString myDir;
@@ -407,8 +407,16 @@ QString getSaveFileName(QWidget *parent, const QString &caption, const QString &
     {
         myDir = dir;
     }
+    QFileDialog::Options options = confirmOverwrite ? QFileDialog::Options() : QFileDialog::DontConfirmOverwrite;
+#if defined(Q_OS_MAC)
+    // Native macOS dialogs ignore DontConfirmOverwrite.
+    if (!confirmOverwrite) {
+        options |= QFileDialog::DontUseNativeDialog;
+    }
+#endif
     /* Directly convert path to native OS path separators */
-    QString result = QDir::toNativeSeparators(QFileDialog::getSaveFileName(parent, caption, myDir, filter, &selectedFilter));
+    QString result = QDir::toNativeSeparators(QFileDialog::getSaveFileName(parent, caption, myDir, filter, &selectedFilter,
+        options));
 
     QString selectedSuffix = ExtractFirstSuffixFromFilter(selectedFilter);
 

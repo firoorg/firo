@@ -621,12 +621,13 @@ WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
     }
 }
 
-bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString &passphrase)
+bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString &passphrase, CWallet::EncryptionStatus* status)
 {
+    if (status) *status = CWallet::EncryptionStatus::UNCHANGED;
     if(encrypted)
     {
         // Encrypt
-        return wallet->EncryptWallet(passphrase);
+        return wallet->EncryptWallet(passphrase, status);
     }
     else
     {
@@ -659,20 +660,48 @@ void WalletModel::lockWalletDelayed(int seconds)
     QTimer::singleShot(seconds * 1000, this, &WalletModel::lockWallet);
 }
 
-bool WalletModel::changePassphrase(const SecureString &oldPass, const SecureString &newPass)
+bool WalletModel::changePassphrase(
+    const SecureString& oldPass,
+    const SecureString& newPass,
+    bool* indeterminate,
+    bool* databaseError)
 {
     bool retval;
     {
         LOCK(wallet->cs_wallet);
         wallet->Lock(); // Make sure wallet is locked before attempting pass change
-        retval = wallet->ChangeWalletPassphrase(oldPass, newPass);
+        retval = wallet->ChangeWalletPassphrase(
+            oldPass,
+            newPass,
+            indeterminate,
+            databaseError);
     }
     return retval;
 }
 
-bool WalletModel::backupWallet(const QString &filename)
+bool WalletModel::backupWallet(
+    const QString& filename)
 {
-    return wallet->BackupWallet(filename.toLocal8Bit().data());
+    QString error;
+    return backupWallet(filename, error);
+}
+
+bool WalletModel::backupWallet(
+    const QString& filename,
+    QString& error)
+{
+    if (wallet->GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        error.clear();
+        return wallet->BackupWallet(
+            GUIUtil::qstringToBoostPath(filename));
+    }
+
+    std::string backupError;
+    const bool success = wallet->BackupWallet(
+        GUIUtil::qstringToBoostPath(filename),
+        backupError);
+    error = QString::fromLocal8Bit(backupError.c_str());
+    return success;
 }
 
 // Handlers for core signals
@@ -1284,18 +1313,24 @@ QString WalletModel::signSparkMessage(const QString& sparkAddress, const QString
     }
 }
 
-QString WalletModel::generateSparkAddress()
+QString WalletModel::generateSparkAddress(const QString& label)
 {
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
 
-    {
+    try {
         LOCK(wallet->cs_wallet);
         address = wallet->sparkWallet->generateNewAddress();
         unsigned char network = spark::GetNetworkType();
 
-        wallet->SetSparkAddressBook(address.encode(network), "", "receive");
+        wallet->SetSparkAddressBook(address.encode(network), label.toStdString(), "receive");
         return QString::fromStdString(address.encode(network));
+    } catch (const std::exception& e) {
+        LogPrintf("Spark address creation failed: %s\n", e.what());
+        Q_EMIT message(tr("Address creation failed"),
+            tr("Could not save the new Spark address. Please check the debug log."),
+            CClientUIInterface::MSG_ERROR);
+        return QString();
     }
 }
 

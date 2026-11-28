@@ -4258,7 +4258,7 @@ BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
 {
     auto params = Params::get_default();
     CSparkWallet* wallet = pwalletMain->sparkWallet.get();
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
 
     // Build a meta for a coin generated from foreign keys: trial decryption
     // with the wallet's view key can never identify it, so any positive
@@ -4344,7 +4344,7 @@ BOOST_AUTO_TEST_CASE(wallet_cache_verification)
 {
     auto params = Params::get_default();
     CSparkWallet* wallet = pwalletMain->sparkWallet.get();
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CWalletDB walletdb(pwalletMain->GetDatabase());
 
     // A record whose coin was built from the wallet's own keys, so
     // identification confirms it

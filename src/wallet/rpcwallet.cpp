@@ -2994,6 +2994,9 @@ UniValue backupwallet(const JSONRPCRequest& request)
         throw std::runtime_error(
             "backupwallet \"destination\"\n"
             "\nSafely copies current wallet file to destination, which can be a directory or a path with filename.\n"
+            "SQLite backups never overwrite an existing destination.\n"
+            "To restore offline, stop Firo, retain the original wallet, copy the backup with owner-only permissions\n"
+            "to a new absent flat wallet filename with no -journal, -wal, or -shm side files, then start with -wallet=<filename>.\n"
             "\nArguments:\n"
             "1. \"destination\"   (string) The destination directory or file\n"
             "\nExamples:\n"
@@ -3014,8 +3017,20 @@ UniValue backupwallet(const JSONRPCRequest& request)
     // We don't need to worry about pwallet->BackupWallet() due to it already thread safe.
 
     std::string strDest = request.params[0].get_str();
-    if (!pwallet->BackupWallet(strDest)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: Wallet backup failed!");
+    if (pwallet->GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        if (!pwallet->BackupWallet(strDest)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error: Wallet backup failed!");
+        }
+        return NullUniValue;
+    }
+
+    std::string error;
+    if (!pwallet->BackupWallet(strDest, error)) {
+        throw JSONRPCError(
+            RPC_WALLET_ERROR,
+            error.empty() ?
+                "Error: Wallet backup failed!" :
+                error);
     }
 
     return NullUniValue;
@@ -3052,9 +3067,7 @@ UniValue keypoolrefill(const JSONRPCRequest& request)
     }
 
     EnsureWalletIsUnlocked(pwallet);
-    pwallet->TopUpKeyPool(kpSize);
-
-    if (pwallet->GetKeyPoolSize() < kpSize) {
+    if (!pwallet->TopUpKeyPool(kpSize) || pwallet->GetKeyPoolSize() < kpSize) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Error refreshing keypool.");
     }
 
@@ -3219,7 +3232,28 @@ UniValue walletpassphrasechange(const JSONRPCRequest& request)
             "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
             "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
 
-    if (!pwallet->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass)) {
+    bool indeterminate = false;
+    bool databaseError = false;
+    if (!pwallet->ChangeWalletPassphrase(
+            strOldWalletPass,
+            strNewWalletPass,
+            &indeterminate,
+            &databaseError)) {
+        if (pwallet->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+            indeterminate) {
+            throw JSONRPCError(
+                RPC_WALLET_ERROR,
+                "Error: Wallet passphrase change did not complete cleanly, and the new passphrase may already be required. "
+                "Retain both the old and new passphrases. Firo server is stopping; restart and try both passphrases before making another change.");
+        }
+        if (databaseError) {
+            throw JSONRPCError(
+                RPC_WALLET_ERROR,
+                strprintf(
+                    "Error: SQLite wallet '%s': failed to store the new passphrase. "
+                    "The old passphrase remains valid; resolve the database error before retrying.",
+                    pwallet->strWalletFile));
+        }
         throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
     }
 
@@ -3299,26 +3333,70 @@ UniValue encryptwallet(const JSONRPCRequest& request)
         );
     }
 
-    LOCK2(cs_main, pwallet->cs_wallet);
+    if (pwallet->GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        LOCK2(cs_main, pwallet->cs_wallet);
 
-    if (request.fHelp)
-        return true;
-    if (pwallet->IsCrypted()) {
-        throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        if (request.fHelp)
+            return true;
+        if (pwallet->IsCrypted()) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        }
+
+        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
+        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
+        SecureString strWalletPass;
+        strWalletPass.reserve(100);
+        strWalletPass = request.params[0].get_str().c_str();
+
+        if (strWalletPass.length() < 1)
+            throw std::runtime_error(
+                "encryptwallet <passphrase>\n"
+                "Encrypts the wallet with <passphrase>.");
+
+        if (!pwallet->EncryptWallet(strWalletPass)) {
+            throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
+        }
+
+        // BDB seems to have a bad habit of writing old data into
+        // slack space in .dat files; that is bad if the old data is
+        // unencrypted private keys. So:
+        StartShutdown();
+
+        return "wallet encrypted; Firo server stopping, restart to run with encrypted wallet.";
     }
 
     // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
     // Alternately, find a way to make request.params[0] mlock()'d to begin with.
     SecureString strWalletPass;
-    strWalletPass.reserve(100);
-    strWalletPass = request.params[0].get_str().c_str();
+    {
+        LOCK2(cs_main, pwallet->cs_wallet);
 
-    if (strWalletPass.length() < 1)
-        throw std::runtime_error(
-            "encryptwallet <passphrase>\n"
-            "Encrypts the wallet with <passphrase>.");
+        if (request.fHelp)
+            return true;
+        if (pwallet->IsCrypted()) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        }
 
-    if (!pwallet->EncryptWallet(strWalletPass)) {
+        strWalletPass.reserve(100);
+        strWalletPass = request.params[0].get_str().c_str();
+
+        if (strWalletPass.length() < 1)
+            throw std::runtime_error(
+                "encryptwallet <passphrase>\n"
+                "Encrypts the wallet with <passphrase>.");
+    }
+
+    CWallet::EncryptionStatus encryptionStatus;
+    if (!pwallet->EncryptWallet(strWalletPass, &encryptionStatus)) {
+        if (encryptionStatus == CWallet::EncryptionStatus::ALREADY_ENCRYPTED) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        }
+        if (encryptionStatus == CWallet::EncryptionStatus::ENCRYPTION_STARTED) {
+            throw JSONRPCError(
+                RPC_WALLET_ENCRYPTION_FAILED,
+                "Error: Wallet encryption did not complete cleanly, but encrypted wallet data may already have been written. "
+                "Retain the new passphrase; it may be required after restart. Firo server is stopping.");
+        }
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
     }
 
@@ -3514,6 +3592,7 @@ UniValue getwalletinfo(const JSONRPCRequest& request)
             "Returns an object containing various wallet state info.\n"
             "\nResult:\n"
             "{\n"
+            "  \"format\": \"format\",           (string) the wallet database format (sqlite or bdb)\n"
             "  \"walletversion\": xxxxx,       (numeric) the wallet version\n"
             "  \"balance\": xxxxxxx,           (numeric) the total confirmed balance of the wallet in " + CURRENCY_UNIT + "\n"
             "  \"unconfirmed_balance\": xxx,   (numeric) the total unconfirmed balance of the wallet in " + CURRENCY_UNIT + "\n"
@@ -3533,6 +3612,7 @@ UniValue getwalletinfo(const JSONRPCRequest& request)
     LOCK2(cs_main, pwallet->cs_wallet);
 
     UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("format", DatabaseFormatName(pwallet->GetDatabase().Format())));
     obj.push_back(Pair("walletversion", pwallet->GetVersion()));
     obj.push_back(Pair("balance",       ValueFromAmount(pwallet->GetBalance())));
     obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwallet->GetUnconfirmedBalance())));
@@ -4167,7 +4247,7 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
     EnsureSparkWalletIsAvailable();
 
     std::vector<CSparkMintMeta> listMints;
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
     listMints = pwallet->sparkWallet->ListSparkMints();
 
     BOOST_FOREACH(CSparkMintMeta& mint, listMints) {
@@ -4200,7 +4280,7 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
     pwallet->sparkWallet->WaitForPendingTasks();
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
     CSparkMintMeta coinMeta = pwallet->sparkWallet->getMintMeta(lTagHash);
 
     if (coinMeta != CSparkMintMeta()) {
@@ -5156,7 +5236,7 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
     if (!GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock))
         throw std::runtime_error(
                 "Transaction is not found by the given txHash.");
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
 
     UniValue results(UniValue::VOBJ);
     results.push_back(Pair("Old availableBalance",pwallet->sparkWallet->getAvailableBalance()));

@@ -12,6 +12,7 @@ from test_framework.util import (
 )
 import os
 import shutil
+import stat
 from test_framework.test_helper import get_dumpwallet_otp 
 
 
@@ -70,12 +71,27 @@ class WalletHDTest(BitcoinTestFramework):
         assert_equal(self.nodes[1].getbalance(), num_hd_adds + 1)
 
         print("Restore backup ...")
+        wallet_format = self.nodes[1].getwalletinfo()["format"]
         self.stop_node(1)
         # we need to delete the complete regtest directory
         # otherwise node1 would auto-recover all funds in flag the keypool keys as used
         shutil.rmtree(tmpdir + "/node1/regtest/blocks")
         shutil.rmtree(tmpdir + "/node1/regtest/chainstate")
-        shutil.copyfile(tmpdir + "/hd.bak", tmpdir + "/node1/regtest/wallet.dat")
+        backup_path = tmpdir + "/hd.bak"
+        restore_path = tmpdir + "/node1/regtest/wallet.dat"
+        shutil.copy2(backup_path, restore_path)
+        if os.name == "posix":
+            backup_stat = os.lstat(backup_path)
+            restore_stat = os.lstat(restore_path)
+            assert_equal(
+                stat.S_IMODE(restore_stat.st_mode),
+                stat.S_IMODE(backup_stat.st_mode))
+            if wallet_format == "sqlite":
+                assert_equal(restore_stat.st_uid, os.geteuid())
+                assert_equal(restore_stat.st_nlink, 1)
+                assert_equal(
+                    stat.S_IMODE(restore_stat.st_mode),
+                    0o600)
         self.nodes[1] = start_node(1, self.options.tmpdir, self.node_args[1])
 
         # Assert that derivation is deterministic

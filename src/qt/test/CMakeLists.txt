@@ -47,6 +47,9 @@ target_link_libraries(test_firo-qt
   $<TARGET_NAME_IF_EXISTS:firo_wallet>
   $<$<BOOL:${WIN32}>:windows_system>
 )
+if(ENABLE_SQLITE_WALLET)
+  target_link_libraries(test_firo-qt PRIVATE SQLite3::SQLite3)
+endif()
 
 apply_wrapped_exception_flags(test_firo-qt)
 
