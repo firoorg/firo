@@ -149,6 +149,9 @@ void ValidateSparkActivationHeights(const Consensus::Params& consensus);
  */
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
 
+/** Allows tests to exercise the deterministic InstantSend lock (DIP22) activation. */
+void UpdateRegtestInstantSendDeterministicHeight(int height);
+
 /** Allows tests to exercise the single-input Spark consensus activation. */
 void UpdateRegtestSparkSingleInputHeight(int height);
 
