@@ -82,6 +82,33 @@ public:
         const std::map<uint64_t, uint256>& block_hashes = {}
 	);
 
+    /**
+     * Build a V2 spend whose authorizing Chaum proof is produced afterwards by
+     * the threshold signers of a multisig wallet (see multisig.h). Until
+     * setChaumProof is called it carries a placeholder proof that does not verify.
+     * @param[out] output_nonces Nonce of each generated coin, in output order. With
+     *     it a cosigner can recompute the coin and so check its address, value and memo.
+     */
+    SpendTransaction(
+        const Params* params,
+        const FullViewKey& full_view_key,
+        const std::vector<InputCoinData>& inputs,
+        const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+        const uint64_t f,
+        const uint64_t vout,
+        const std::vector<OutputCoinData>& outputs,
+        const std::map<uint64_t, uint256>& block_hashes,
+        std::vector<Scalar>& output_nonces
+    );
+
+    // The statement a V2 Chaum proof authorizes. The binding hash and context
+    // need the output coins, cover sets and transparent value to be set first.
+    const std::vector<GroupElement>& getS1() const { return S1; }
+    Scalar getBindingHash() const;
+    ChaumV2Context getChaumContext() const;
+    void setChaumProof(const ChaumProofV2& proof);
+
 	uint64_t getFee();
     SpendTransactionVersion getVersion() const { return version; }
     const std::vector<GroupElement>& getUsedLTags() const;
@@ -171,6 +198,24 @@ public:
 
     const std::map<uint64_t, uint256>& getBlockHashes();
 private:
+    // Shared by the public constructors. A null spend key leaves the Chaum
+    // proof as a placeholder; output_nonces, if set, receives the coin nonces.
+    SpendTransaction(
+        const Params* params,
+        const FullViewKey& full_view_key,
+        const SpendKey* spend_key,
+        const std::vector<InputCoinData>& inputs,
+        const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+        const uint64_t f,
+        const uint64_t vout,
+        const std::vector<OutputCoinData>& outputs,
+        SpendTransactionVersion version,
+        const uint256& extension_commitment,
+        const std::map<uint64_t, uint256>& block_hashes,
+        std::vector<Scalar>* output_nonces
+    );
+
 	template <typename Stream, typename Operation, typename T>
     void ReadWriteFixedVector(
         Stream& s,

@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+# Copyright (c) 2026 The Firo Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Test Spark threshold multisig: 2-of-3 on nodes 0-2, node 3 is an outsider."""
+
+import os
+import time
+from decimal import Decimal
+
+from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import *
+
+COIN = 10**8
+GROUP = [0, 1, 2]
+
+
+class SparkMultisigTest(BitcoinTestFramework):
+    def __init__(self):
+        super().__init__()
+        self.num_nodes = 5  # node 4 tests a competing setup without changing the spend group
+        self.setup_clean_chain = False
+
+    def setup_network(self, split=False):
+        super().setup_network(split)
+        connect_nodes_bi(self.nodes, 3, 4)
+        self.sync_all()
+
+    # ---- helpers
+
+    def restart(self, i, extra_args=None):
+        self.nodes[i] = start_node(i, self.options.tmpdir, extra_args)
+
+    def reconnect(self):
+        for a, b in ((0, 1), (1, 2), (2, 3), (3, 4)):
+            connect_nodes_bi(self.nodes, a, b)
+
+    def fails(self, fun, *args):
+        try:
+            fun(*args)
+        except JSONRPCException as e:
+            return e.error['message']
+        raise AssertionError("expected a JSON-RPC error from %s" % fun)
+
+    def balances(self, expected=None):
+        """Wait until all participants report the same (and, if given, the expected) spark balance."""
+        deadline = time.time() + 60
+        while True:
+            vals = [self.nodes[i].getsparkbalance() for i in GROUP]
+            if all(v == vals[0] for v in vals) and (expected is None or vals[0]['availableBalance'] == expected):
+                return vals[0]['availableBalance']
+            if time.time() > deadline:
+                raise AssertionError("balances did not settle: %s (expected %s)" % (vals, expected))
+            time.sleep(0.5)
+
+    def mine(self, n=1):
+        self.nodes[3].generate(n)
+        self.sync_all()
+
+    def new_spend(self, recipients=None):
+        if recipients is None:
+            recipients = {self.spark3: {"amount": 1, "memo": "x", "subtractFee": False}}
+        return self.nodes[0].createsparkmultisigspend(recipients)['hex']
+
+    # ---- scenarios
+
+    def competing_setup(self):
+        """One RPC batch cannot finalize two different groups for the same wallet."""
+        n = self.nodes
+        shared = n[4].validateaddress(n[4].getnewaddress())['pubkey']
+
+        # A node that is still downloading blocks cannot tell whether its wallet holds
+        # Spark coins. Two days ahead of its chain tip, node 4 takes itself for one.
+        stop_node(n[4], 4)
+        self.restart(4, ['-mocktime=%d' % (int(time.time()) + 2 * 24 * 60 * 60)])
+        remote = n[0].validateaddress(n[0].getnewaddress())['pubkey']
+        assert_raises_jsonrpc(-10, "downloading blocks", n[4].addsparkmultisigaddress, 2, [shared, remote])
+        stop_node(n[4], 4)
+        self.restart(4)
+        self.reconnect()
+
+        rounds = []
+        for other in (0, 1):
+            remote = n[other].validateaddress(n[other].getnewaddress())['pubkey']
+            keys = [shared, remote]
+            first = [n[i].addsparkmultisigaddress(2, keys)['hex'] for i in (4, other)]
+            remote_second = n[other].addsparkmultisigaddress(2, keys, [first[0]])['hex']
+            rounds.append((keys, remote_second))
+        calls = [dict(method='addsparkmultisigaddress', params=[2, keys, [data]], id=i)
+                 for i, (keys, data) in enumerate(rounds)]
+        # Nor does a later call of the batch get an address from the keys the wallet is leaving
+        calls.append(dict(method='getnewsparkaddress', params=[], id=len(calls)))
+        replies = n[4].auth_service_proxy_instance._batch(calls)
+        assert replies[0]['error'] is None and replies[0]['result']['complete'] is True
+        assert 'already completed' in replies[1]['error']['message']
+        assert replies[2]['error'] and 'already completed' in replies[2]['error']['message'], replies[2]
+        group_address = replies[0]['result']['address']
+        self.competing_keys = rounds[0][0]
+        wait_node(4)
+        self.restart(4)
+        self.reconnect()
+        assert_equal(n[4].getsparkdefaultaddress()[0], group_address)
+
+        # Key-only salvage must keep the group even though it drops the cached view key.
+        stop_node(n[4], 4)
+        self.restart(4, ['-salvagewallet'])
+        self.reconnect()
+        assert_equal(n[4].getsparkdefaultaddress()[0], group_address)
+        assert n[4].addsparkmultisigaddress(2, self.competing_keys)['complete'] is True
+
+        # With a group key record that cannot be read the wallet does not start. Salvage
+        # drops such a record, which leaves a wallet that can repeat the setup. The
+        # record's value sits in front of its key and starts with version 1, 2 required,
+        # 2 participants.
+        stop_node(n[4], 4)
+        path = os.path.join(self.options.tmpdir, "node4", "regtest", "wallet.dat")
+        with open(path, "rb") as f:
+            data = bytearray(f.read())
+        damaged = 0
+        key_at = data.find(b"sparkMultisigKey")
+        while key_at >= 0:
+            value_at = data.rfind(b"\x01\x02\x00\x00\x00\x02", max(0, key_at - 1024), key_at)
+            if value_at >= 0:
+                data[value_at] = 0xff
+                damaged += 1
+            key_at = data.find(b"sparkMultisigKey", key_at + 1)
+        assert damaged > 0
+        with open(path, "wb") as f:
+            f.write(data)
+        self.restart(4, ['-salvagewallet'])
+        self.reconnect()
+        assert n[4].getsparkdefaultaddress()[0] != group_address
+        assert n[4].addsparkmultisigaddress(2, self.competing_keys)['complete'] is False
+
+    def funded_setup_is_rejected(self):
+        """A pending incoming mint must be seen before replacing the wallet's keys."""
+        n = self.nodes
+        own = n[3].validateaddress(n[3].getnewaddress())['pubkey']
+        remote = n[0].validateaddress(n[0].getnewaddress())['pubkey']
+        keys = [own, remote]
+        first = [n[i].addsparkmultisigaddress(2, keys)['hex'] for i in (3, 0)]
+        remote_second = n[0].addsparkmultisigaddress(2, keys, [first[0]])['hex']
+
+        n[2].mintspark({self.spark3: {"amount": 5, "memo": ""}})
+        sync_mempools(n)
+        assert "holds Spark coins" in self.fails(n[3].addsparkmultisigaddress, 2, keys, [remote_second])
+        self.mine(1)
+        deadline = time.time() + 60
+        while n[3].getsparkbalance()['availableBalance'] != 5 * COIN and time.time() < deadline:
+            time.sleep(0.5)
+        assert_equal(n[3].getsparkbalance()['availableBalance'], 5 * COIN)
+
+    def setup_group(self):
+        self.addrs = [self.nodes[i].getnewaddress() for i in GROUP]
+        keys = [self.nodes[i].validateaddress(self.addrs[i])['pubkey'] for i in GROUP]
+        self.keys = keys
+        n = self.nodes
+
+        # pass 1 is stateless and independent of key order
+        r1 = [n[i].addsparkmultisigaddress(2, keys) for i in GROUP]
+        for i in GROUP:
+            assert r1[i]['complete'] is False and 'address' not in r1[i]
+            assert_equal(n[i].addsparkmultisigaddress(2, keys), r1[i])
+            assert_equal(n[i].addsparkmultisigaddress(2, keys[::-1]), r1[i])
+        d1 = [r['hex'] for r in r1]
+
+        # error cases
+        assert_raises_jsonrpc(-8, "nrequired", n[0].addsparkmultisigaddress, 0, keys)
+        assert_raises_jsonrpc(-8, "nrequired", n[0].addsparkmultisigaddress, 4, keys)
+        assert_raises_jsonrpc(-5, "Exactly one", n[3].addsparkmultisigaddress, 2, keys)
+        second = n[0].validateaddress(n[0].getnewaddress())['pubkey']
+        assert_raises_jsonrpc(-5, "Exactly one", n[0].addsparkmultisigaddress, 2, [keys[0], second, keys[1]])
+        self.fails(n[0].addsparkmultisigaddress, 2, keys, [d1[1]])  # data from only one other participant
+        self.fails(n[0].addsparkmultisigaddress, 2, keys, ["zz", d1[2]])
+        self.fails(n[0].addsparkmultisigaddress, 2, keys, ["00ff", "00ff"])
+
+        # pass 2
+        d2 = []
+        for i in GROUP:
+            r = n[i].addsparkmultisigaddress(2, keys, [d1[j] for j in GROUP if j != i])
+            assert r['complete'] is False
+            d2.append(r['hex'])
+
+        # pass 3 stops each node
+        addrs = []
+        for i in GROUP:
+            r = n[i].addsparkmultisigaddress(2, keys, [d2[j] for j in GROUP if j != i])
+            assert r['complete'] is True
+            addrs.append(r['address'])
+        assert addrs[0] == addrs[1] == addrs[2]
+        self.group_addr = addrs[0]
+        for i in GROUP:
+            wait_node(i)
+        for i in GROUP:
+            self.restart(i)
+        self.reconnect()
+
+        n = self.nodes
+        for i in GROUP:
+            assert_equal(n[i].getsparkdefaultaddress()[0], self.group_addr)
+            r = n[i].addsparkmultisigaddress(2, keys)
+            assert r['complete'] is True and r['address'] == self.group_addr
+            n[i].getblockcount()  # still running
+        assert_raises_jsonrpc(-4, "other parameters", n[0].addsparkmultisigaddress, 1, keys)
+        self.sync_all()
+
+    def fund(self):
+        for _ in range(4):
+            self.nodes[3].mintspark({self.group_addr: {"amount": 5, "memo": ""}})
+        self.mine(211)  # well past the Chaum V2 activation height of 700
+        assert self.nodes[0].getblockcount() >= 710
+        self.total = self.balances()
+        assert_equal(self.total, 20 * COIN)
+        # the wallet no longer spends or signs with its Spark addresses on its own
+        for spend in (self.nodes[0].spendspark, self.nodes[0].spendsparksplit):
+            msg = self.fails(spend, {self.spark3: {"amount": 1, "subtractFee": False}})
+            assert "createsparkmultisigspend" in msg, msg
+        self.fails(self.nodes[0].signmessagewithsparkaddress, self.group_addr, "message")
+
+    def finish(self, hexstr):
+        """Broadcast a complete spend from the outsider, mine it and return its txid."""
+        txid = self.nodes[3].sendrawtransaction(hexstr)
+        sync_mempools(self.nodes)
+        self.mine(1)
+        return txid
+
+    def spend_a(self):
+        n = self.nodes
+        t_addr = n[3].getnewaddress()
+        spark3_before = n[3].getsparkbalance()['availableBalance']
+        hexstr = self.new_spend({
+            self.spark3: {"amount": 1, "memo": "hi", "subtractFee": False},
+            t_addr: {"amount": 2, "subtractFee": False},
+        })
+        dec = n[1].decodesparkmultisigspend(hexstr)
+        assert_equal(dec['nrequired'], 2)
+        assert_equal(dec['signers'], [])
+        assert_equal(len(dec['inputs']), 1)
+        assert_equal(len(dec['transparent_outputs']), 1)
+        assert_equal(dec['transparent_outputs'][0]['address'], t_addr)
+        assert_equal(dec['transparent_outputs'][0]['amount'], Decimal(2))
+        pay = [o for o in dec['outputs'] if o['address'] == self.spark3]
+        assert len(pay) == 1 and pay[0]['amount'] == Decimal(1) and pay[0]['memo'] == "hi" and not pay[0]['ismine']
+        change = [o for o in dec['outputs'] if o['ismine']]
+        assert len(change) == 1 and change[0]['amount'] > 0
+        fee = int(dec['fee'] * COIN)
+        assert fee > 0
+
+        # Each signer approves, and once both have, each signs. Every copy of the
+        # spend carries the same id.
+        r = n[0].approvesparkmultisigspend(hexstr)
+        assert r['complete'] is False and r['id'] == dec['id']
+        dec = n[1].decodesparkmultisigspend(r['hex'])
+        assert len(dec['signers']) == 1 and dec['id'] == r['id']
+        r = n[1].approvesparkmultisigspend(r['hex'])
+        assert r['complete'] is False
+        assert_equal([s['signed'] for s in n[2].decodesparkmultisigspend(r['hex'])['signers']], [False, False])
+        r = n[1].signsparkmultisigspend(r['hex'])
+        assert r['complete'] is False
+        r = n[0].signsparkmultisigspend(r['hex'])
+        assert r['complete'] is True and r['id'] == dec['id']
+        txid = self.finish(r['hex'])
+
+        assert_equal(n[3].getreceivedbyaddress(t_addr), Decimal(2))
+        deadline = time.time() + 60
+        while n[3].getsparkbalance()['availableBalance'] != spark3_before + COIN and time.time() < deadline:
+            time.sleep(0.5)
+        assert_equal(n[3].getsparkbalance()['availableBalance'], spark3_before + COIN)
+        self.total = self.balances(self.total - 3 * COIN - fee)  # includes node 2, who never saw the spend
+
+        # The signers recorded whom the spend pays. Node 2 has the chain to go by, which
+        # shows it the total but not the Spark recipient, until it is given the spend.
+        def payment(node):
+            details = [d for d in node.gettransaction(txid)['details'] if d['category'] == 'spend' and d.get('address') != t_addr]
+            assert_equal(len(details), 1)
+            return details[0]
+        for i in (0, 1):
+            p = payment(n[i])
+            assert p['address'] == self.spark3 and p['amount'] == Decimal(-1), p
+        assert_equal(n[2].gettransaction(txid)['amount'], n[0].gettransaction(txid)['amount'])
+        p = payment(n[2])
+        assert 'address' not in p and p['amount'] == 0, p
+        assert n[2].combinesparkmultisigspend([hexstr])['complete'] is False
+        p = payment(n[2])
+        assert p['address'] == self.spark3 and p['amount'] == Decimal(-1), p
+
+    def spend_b(self):
+        n = self.nodes
+        spark3_before = n[3].getsparkbalance()['availableBalance']
+        hexstr = self.new_spend()
+        fee = int(n[2].decodesparkmultisigspend(hexstr)['fee'] * COIN)
+        a1 = n[1].approvesparkmultisigspend(hexstr)
+        a2 = n[2].approvesparkmultisigspend(hexstr)
+        assert a1['complete'] is False and a2['complete'] is False
+        c = n[0].combinesparkmultisigspend([a1['hex'], a2['hex']])
+        assert c['complete'] is False
+        assert_equal(len(n[0].decodesparkmultisigspend(c['hex'])['signers']), 2)
+        b1 = n[1].signsparkmultisigspend(c['hex'])
+        b2 = n[2].signsparkmultisigspend(c['hex'])
+        assert b1['complete'] is False and b2['complete'] is False
+        done = n[0].combinesparkmultisigspend([b1['hex'], b2['hex']])
+        assert done['complete'] is True
+        self.finish(done['hex'])
+        deadline = time.time() + 60
+        while n[3].getsparkbalance()['availableBalance'] != spark3_before + COIN and time.time() < deadline:
+            time.sleep(0.5)
+        assert_equal(n[3].getsparkbalance()['availableBalance'], spark3_before + COIN)
+        self.total = self.balances(self.total - COIN - fee)
+
+    def sign_chain(self, hexstr, first, second):
+        """Pass a spend along two signers and back, broadcast it and return its fee."""
+        n = self.nodes
+        fee = int(n[first].decodesparkmultisigspend(hexstr)['fee'] * COIN)
+        r = n[first].approvesparkmultisigspend(hexstr)
+        assert r['complete'] is False
+        r = n[second].approvesparkmultisigspend(r['hex'])
+        assert r['complete'] is False
+        r = n[second].signsparkmultisigspend(r['hex'])
+        assert r['complete'] is False
+        r = n[first].signsparkmultisigspend(r['hex'])
+        assert r['complete'] is True
+        self.finish(r['hex'])
+        return fee
+
+    def spend_multi_input(self):
+        """No single coin covers the amount, so every signer signs several inputs."""
+        n = self.nodes
+        hexstr = self.new_spend({self.spark3: {"amount": 9, "subtractFee": False}})
+        assert len(n[2].decodesparkmultisigspend(hexstr)['inputs']) > 1
+        fee = self.sign_chain(hexstr, 2, 1)
+        self.total = self.balances(self.total - 9 * COIN - fee)
+
+    def rejoin(self):
+        """A participant that lost its wallet repeats the setup with its key and the others' data."""
+        n = self.nodes
+        key = dumpprivkey_otac(n[2], self.addrs[2])
+        stop_node(n[2], 2)
+        os.remove(os.path.join(self.options.tmpdir, "node2", "regtest", "wallet.dat"))
+        self.restart(2)
+        self.reconnect()
+        n = self.nodes
+        n[2].importprivkey(key, "", False)
+        assert n[2].getsparkdefaultaddress()[0] != self.group_addr
+        assert "not a Spark multisig wallet" in self.fails(n[2].createsparkmultisigspend, {self.spark3: {"amount": 1, "subtractFee": False}})
+
+        # the others are set up already and still hand out their data
+        d1 = {i: n[i].addsparkmultisigaddress(2, self.keys) for i in GROUP}
+        assert d1[0]['complete'] is True and d1[1]['complete'] is True and d1[2]['complete'] is False
+        d2 = {i: n[i].addsparkmultisigaddress(2, self.keys, [d1[j]['hex'] for j in GROUP if j != i]) for i in GROUP}
+        r = n[2].addsparkmultisigaddress(2, self.keys, [d2[0]['hex'], d2[1]['hex']])
+        assert r['complete'] is True
+        assert_equal(r['address'], self.group_addr)
+        wait_node(2)
+        self.restart(2, ['-rescan'])
+        self.reconnect()
+        n = self.nodes
+        n[0].getblockcount()  # the others kept running
+        n[1].getblockcount()
+        assert_equal(n[2].getsparkdefaultaddress()[0], self.group_addr)
+        self.balances(self.total)
+
+        # and its share signs again
+        fee = self.sign_chain(self.new_spend(), 2, 0)
+        self.total = self.balances(self.total - COIN - fee)
+
+    def locked_wallet(self):
+        """Only approving and signing take the wallet passphrase."""
+        n = self.nodes
+        n[1].encryptwallet("pass")
+        wait_node(1)
+        self.restart(1)
+        self.reconnect()
+        n = self.nodes
+        assert_equal(n[1].getsparkdefaultaddress()[0], self.group_addr)
+
+        hexstr = n[1].createsparkmultisigspend({self.spark3: {"amount": 1, "subtractFee": False}})['hex']
+        n[1].decodesparkmultisigspend(hexstr)
+        assert n[1].combinesparkmultisigspend([hexstr])['complete'] is False
+        r = n[1].addsparkmultisigaddress(2, self.keys)
+        assert r['complete'] is True and r['address'] == self.group_addr and 'hex' not in r
+        assert_raises_jsonrpc(-13, "walletpassphrase", n[1].approvesparkmultisigspend, hexstr)
+
+        n[1].walletpassphrase("pass", 600)
+        fee = self.sign_chain(hexstr, 1, 0)
+        self.total = self.balances(self.total - COIN - fee)
+
+    def misuse(self):
+        n = self.nodes
+
+        # signing takes an approval first, and the approvals of all signers
+        s = self.new_spend()
+        assert "has not approved" in self.fails(n[0].signsparkmultisigspend, s)
+        h0 = n[0].approvesparkmultisigspend(s)['hex']
+        assert "approved this spend already" in self.fails(n[0].approvesparkmultisigspend, h0)
+        assert "needs 1 more" in self.fails(n[0].signsparkmultisigspend, h0)
+
+        # a third signer cannot join after two approved
+        h1 = n[1].approvesparkmultisigspend(h0)['hex']
+        assert "already has its signers" in self.fails(n[2].approvesparkmultisigspend, h1)
+
+        # a nonce is single-use: node 0 completes, then cannot sign the same pre-signature again
+        h2 = n[1].signsparkmultisigspend(h1)['hex']
+        assert "signed this spend already" in self.fails(n[1].signsparkmultisigspend, h2)
+        r = n[0].signsparkmultisigspend(h2)
+        assert r['complete'] is True
+        assert "no longer holds the nonce" in self.fails(n[0].signsparkmultisigspend, h2)
+        # (r['hex'] is never broadcast)
+
+        # A signer that is handed another spend in place of the one it approved does not
+        # sign it. Node 1 answers node 0's approval of x with a spend y of its own, which
+        # it approved: one more approval would make y ready to sign.
+        x = n[0].approvesparkmultisigspend(self.new_spend())
+        y = n[1].approvesparkmultisigspend(n[1].createsparkmultisigspend({self.spark3: {"amount": 3, "subtractFee": False}})['hex'])
+        assert x['id'] != y['id']
+        assert "has not approved" in self.fails(n[0].signsparkmultisigspend, y['hex'])
+        # Approving y is a step of its own, and does not sign either
+        y = n[0].approvesparkmultisigspend(y['hex'])
+        assert y['complete'] is False
+        assert_equal([s['signed'] for s in n[2].decodesparkmultisigspend(y['hex'])['signers']], [False, False])
+        # None of this cost node 0 its approval of x
+        x = n[1].approvesparkmultisigspend(x['hex'])
+        x = n[1].signsparkmultisigspend(x['hex'])
+        assert n[0].signsparkmultisigspend(x['hex'])['complete'] is True
+
+        # a signer restarted between approving and signing can no longer sign
+        s = self.new_spend()
+        h0 = n[0].approvesparkmultisigspend(s)['hex']
+        h1 = n[1].approvesparkmultisigspend(h0)['hex']
+        stop_node(n[0], 0)
+        self.restart(0)
+        self.reconnect()
+        n = self.nodes
+        assert "no longer holds the nonce" in self.fails(n[0].signsparkmultisigspend, h1)
+
+        # combine of two different spends
+        x = self.new_spend()
+        y = self.new_spend({self.spark3: {"amount": 2, "subtractFee": False}})
+        assert "not copies" in self.fails(n[0].combinesparkmultisigspend, [x, y])
+
+        # a flipped character
+        bad = x[:100] + ('0' if x[100] != '0' else '1') + x[101:]
+        for fun in (n[1].decodesparkmultisigspend, n[1].approvesparkmultisigspend, n[1].signsparkmultisigspend):
+            assert "group" in self.fails(fun, bad)
+
+        # not a multisig wallet / outside the group
+        for fun, arg in ((n[3].createsparkmultisigspend, {self.spark3: {"amount": 1, "subtractFee": False}}),
+                         (n[3].approvesparkmultisigspend, x),
+                         (n[3].signsparkmultisigspend, x),
+                         (n[3].decodesparkmultisigspend, x),
+                         (n[3].combinesparkmultisigspend, [x])):
+            assert "not a Spark multisig wallet" in self.fails(fun, arg)
+
+        assert_equal(len(n[3].getrawmempool()), 0)
+
+    def run_test(self):
+        self.nodes[3].generate(501)
+        self.sync_all()
+        self.spark3 = self.nodes[3].getsparkdefaultaddress()[0]
+        self.competing_setup()
+        self.funded_setup_is_rejected()
+        self.setup_group()   # A
+        self.fund()          # B
+        self.spend_a()       # C
+        self.spend_b()       # D
+        self.spend_multi_input()
+        self.misuse()        # E
+        self.rejoin()
+        self.locked_wallet()
+
+
+if __name__ == '__main__':
+    SparkMultisigTest().main()

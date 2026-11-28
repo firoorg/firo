@@ -34,6 +34,8 @@ public:
 	FullViewKey();
     FullViewKey(const Params* params);
 	FullViewKey(const SpendKey& spend_key);
+	// A key whose spend key `r`, with `D = rG`, is not held in one place (see multisig.h)
+	FullViewKey(const Params* params, const Scalar& s1, const Scalar& s2, const GroupElement& D);
 	const Params* get_params() const;
 	const Scalar& get_s1() const;
 	const Scalar& get_s2() const;

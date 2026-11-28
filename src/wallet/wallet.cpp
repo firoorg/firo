@@ -6358,6 +6358,13 @@ bool CWallet::GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& outp
     return  walletdb.ReadSparkOutputTx(scriptPubKey, output);
 }
 
+bool CWallet::WriteSparkOutputTxs(const std::vector<std::pair<CScript, CSparkOutputTx>>& records)
+{
+    LOCK(cs_wallet);
+    std::vector<CScript> persisted;
+    return WritePendingSparkOutputsAtomically(strWalletFile, records, persisted);
+}
+
 bool CWallet::SetRAPAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)
 {
     bool fUpdated = false;
