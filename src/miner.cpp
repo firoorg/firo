@@ -34,10 +34,12 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
+#include "crypto/progpow.h"
 #include "evo/spork.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <chrono>
 #include <queue>
 #include <unistd.h>
 
@@ -1083,6 +1085,7 @@ void static FiroMiner(const CChainParams &chainparams) {
         }
 
         while (true) {
+            boost::this_thread::interruption_point();
             if (chainparams.MiningRequiresPeers()) {
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
@@ -1109,10 +1112,6 @@ void static FiroMiner(const CChainParams &chainparams) {
             // Create new block
             //
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
-            CBlockIndex *pindexPrev = chainActive.Tip();
-            if (pindexPrev) {
-                LogPrintf("loop pindexPrev->nHeight=%d\n", pindexPrev->nHeight);
-            }
             LogPrintf("BEFORE: pblocktemplate\n");
             std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, {});
             LogPrintf("AFTER: pblocktemplate\n");
@@ -1121,7 +1120,14 @@ void static FiroMiner(const CChainParams &chainparams) {
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;
-            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+            CBlockIndex* pindexPrev;
+            {
+                LOCK(cs_main);
+                pindexPrev = chainActive.Tip();
+                if (pblock->hashPrevBlock != pindexPrev->GetBlockHash())
+                    continue;
+                IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+            }
 
             LogPrintf("Running FiroMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
@@ -1145,10 +1151,15 @@ void static FiroMiner(const CChainParams &chainparams) {
                 // Check if something found
                 uint256 thash;
                 uint256 mix_hash;
+                bool found = false;
+                const bool fProgPow = pblock->IsProgPow();
+                const auto headerHash = fProgPow ? progpow_header_hash(pblock->GetProgPowHeader()) : ethash::hash256{};
+                // Bound stale work by elapsed time as well as the nonce count.
+                const auto batchEnd = std::chrono::steady_clock::now() + std::chrono::seconds(1);
 
                 while (true) {
-                    if (pblock->IsProgPow()) {
-                        thash = pblock->GetProgPowHashFull(mix_hash);
+                    if (fProgPow) {
+                        thash = progpow_hash_full(headerHash, pblock->nHeight, pblock->nNonce64, mix_hash);
                     } else if (pblock->IsMTP()) {
                         thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
                         pblock->mtpHashValue = thash;
@@ -1194,27 +1205,32 @@ void static FiroMiner(const CChainParams &chainparams) {
                         // In regression test mode, stop mining after a block is found.
                         if (chainparams.MineBlocksOnDemand())
                             throw boost::thread_interrupted();
+                        found = true;
                         break;
                     }
                     pblock->nNonce += 1;
                     pblock->nNonce64 += 1;
-                    if ((pblock->nNonce & 0xFF) == 0)
+                    if ((pblock->nNonce & 0xFF) == 0 || std::chrono::steady_clock::now() >= batchEnd)
                         break;
                 }
+                // Rebuild after any solution, including a stale or rejected block.
+                if (found)
+                    break;
                 // Regtest mode doesn't require peers
-                if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 && chainparams.MiningRequiresPeers())
+                if (chainparams.MiningRequiresPeers() && g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
                     break;
                 if (pblock->nNonce >= 0xffff0000)
                     break;
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
-                if (pindexPrev != chainActive.Tip())
-                    break;
+                {
+                    LOCK(cs_main);
+                    if (pindexPrev != chainActive.Tip())
+                        break;
 
-                // Update nTime every few seconds
-                if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
-                    break; // Recreate the block if the clock has run backwards,
-                // so that we can use the correct time.
+                    if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
+                        break; // Recreate the block if the clock has run backwards.
+                }
                 if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks) {
                     // Changing pblock->nTime can change work required on testnet:
                     hashTarget.SetCompact(pblock->nBits);
@@ -1234,30 +1250,42 @@ void static FiroMiner(const CChainParams &chainparams) {
 
 void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
-    static boost::thread_group* minerThreads = NULL;
+    // Workers need cs_main while stopping; callers must not hold it across join_all().
+    AssertLockNotHeld(cs_main);
+    static CCriticalSection cs_miner;
+    LOCK(cs_miner);
+    boost::this_thread::disable_interruption noInterrupt;
+    static std::unique_ptr<boost::thread_group> minerThreads;
 
     if (nThreads < 0)
         nThreads = GetNumCores();
 
-    if (minerThreads != NULL)
+    if (minerThreads)
     {
         minerThreads->interrupt_all();
-        delete minerThreads;
-        minerThreads = NULL;
+        minerThreads->join_all();
+        minerThreads.reset();
     }
 
     if (nThreads == 0 || !fGenerate)
         return;
 
-    minerThreads = new boost::thread_group();
-    for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&FiroMiner, boost::cref(chainparams)));
+    minerThreads = std::make_unique<boost::thread_group>();
+    try {
+        for (int i = 0; i < nThreads; ++i)
+            minerThreads->create_thread(boost::bind(&FiroMiner, boost::cref(chainparams)));
+    } catch (...) {
+        minerThreads->interrupt_all();
+        minerThreads->join_all();
+        minerThreads.reset();
+        throw;
+    }
 }
 
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
 {
     // Update nExtraNonce
-    static uint256 hashPrevBlock;
+    static thread_local uint256 hashPrevBlock;
     if (hashPrevBlock != pblock->hashPrevBlock)
     {
         nExtraNonce = 0;
