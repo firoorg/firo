@@ -190,8 +190,16 @@ def check_NX(executable) -> bool:
 
 def check_control_flow(executable) -> bool:
     '''
-    Check for control flow instrumentation
+    Check for control flow instrumentation (x86_64 only)
     '''
+    # Mach-O cputype is the little-endian uint32 after the magic. Read it
+    # directly: lief's CPU type enum differs between versions.
+    with open(executable, 'rb') as f:
+        f.seek(4)
+        cputype = int.from_bytes(f.read(4), 'little')
+    if cputype != 0x01000007: # CPU_TYPE_X86_64; endbr64 is x86-only
+        return True
+
     binary = lief.parse(executable)
 
     content = binary.get_content_from_virtual_address(binary.entrypoint, 4, lief.Binary.VA_TYPES.AUTO)
