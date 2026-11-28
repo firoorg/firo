@@ -21,11 +21,13 @@ class CFinalCommitment
 {
 public:
     static const uint16_t CURRENT_VERSION = 1;
+    static const uint16_t INDEXED_VERSION = 2;
 
 public:
     uint16_t nVersion{CURRENT_VERSION};
     uint8_t llmqType{Consensus::LLMQ_NONE};
     uint256 quorumHash;
+    uint16_t quorumIndex{0};
     std::vector<bool> signers;
     std::vector<bool> validMembers;
 
@@ -37,7 +39,14 @@ public:
 
 public:
     CFinalCommitment() {}
-    CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash);
+    CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash, uint16_t index = 0);
+
+    bool IsIndexed() const
+    {
+        return Consensus::IsRotatedLLMQType(Consensus::LLMQType(llmqType));
+    }
+
+    bool MatchesQuorumBase(const CBlockIndex* base) const;
 
     int CountSigners() const
     {
@@ -63,6 +72,11 @@ public:
         READWRITE(nVersion);
         READWRITE(llmqType);
         READWRITE(quorumHash);
+        if (IsIndexed() && nVersion == INDEXED_VERSION) {
+            READWRITE(quorumIndex);
+        } else if (ser_action.ForRead()) {
+            quorumIndex = 0;
+        }
         READWRITE(DYNBITSET(signers));
         READWRITE(DYNBITSET(validMembers));
         READWRITE(quorumPublicKey);

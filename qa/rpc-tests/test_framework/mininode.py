@@ -1207,6 +1207,7 @@ class CFinalCommitment:
         self.nVersion = 0
         self.llmqType = 0
         self.quorumHash = 0
+        self.quorumIndex = 0
         self.signers = []
         self.validMembers = []
         self.quorumPublicKey = b'\\x0' * 48
@@ -1218,6 +1219,7 @@ class CFinalCommitment:
         self.nVersion = struct.unpack("<H", f.read(2))[0]
         self.llmqType = struct.unpack("<B", f.read(1))[0]
         self.quorumHash = deser_uint256(f)
+        self.quorumIndex = struct.unpack("<H", f.read(2))[0] if self.nVersion == 2 and self.llmqType in (5, 103) else 0
         self.signers = deser_dyn_bitset(f, False)
         self.validMembers = deser_dyn_bitset(f, False)
         self.quorumPublicKey = f.read(48)
@@ -1230,6 +1232,8 @@ class CFinalCommitment:
         r += struct.pack("<H", self.nVersion)
         r += struct.pack("<B", self.llmqType)
         r += ser_uint256(self.quorumHash)
+        if self.nVersion == 2 and self.llmqType in (5, 103):
+            r += struct.pack("<H", self.quorumIndex)
         r += ser_dyn_bitset(self.signers, False)
         r += ser_dyn_bitset(self.validMembers, False)
         r += self.quorumPublicKey
@@ -1930,6 +1934,35 @@ class msg_islock(object):
     def __repr__(self):
         return "msg_islock(inputs=%s, txid=%064x)" % (repr(self.inputs), self.txid)
 
+class msg_isdlock(object):
+    command = b"isdlock"
+
+    def __init__(self, inputs=[], txid=0, cycleHash=0, sig=b'\\x0' * 96, version=1):
+        self.version = version
+        self.inputs = inputs
+        self.txid = txid
+        self.cycleHash = cycleHash
+        self.sig = sig
+
+    def deserialize(self, f):
+        self.version = struct.unpack("<B", f.read(1))[0]
+        self.inputs = deser_vector(f, COutPoint)
+        self.txid = deser_uint256(f)
+        self.cycleHash = deser_uint256(f)
+        self.sig = f.read(96)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<B", self.version)
+        r += ser_vector(self.inputs)
+        r += ser_uint256(self.txid)
+        r += ser_uint256(self.cycleHash)
+        r += self.sig
+        return r
+
+    def __repr__(self):
+        return "msg_isdlock(version=%d, inputs=%s, txid=%064x, cycleHash=%064x)" % (self.version, repr(self.inputs), self.txid, self.cycleHash)
+
 # This is what a callback should look like for NodeConn
 # Reimplement the on_* functions to provide handling for events
 class NodeConnCB(object):
@@ -2028,6 +2061,7 @@ class NodeConnCB(object):
     def on_mnlistdiff(self, conn, message): pass
     def on_clsig(self, conn, message): pass
     def on_islock(self, conn, message): pass
+    def on_isdlock(self, conn, message): pass
 
 class msg_witness_blocktxn(msg_blocktxn):
     def serialize(self):
@@ -2099,7 +2133,8 @@ class NodeConn(asyncore.dispatcher):
         b"blocktxn": msg_blocktxn,
         b"mnlistdiff": msg_mnlistdiff,
         b"clsig": msg_clsig,
-        b"islock": msg_islock
+        b"islock": msg_islock,
+        b"isdlock": msg_isdlock
     }
     MAGIC_BYTES = {
         "mainnet": b"\xe3\xd9\xfe\xf1",   # mainnet

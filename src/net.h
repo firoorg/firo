@@ -773,6 +773,7 @@ public:
     const CAddress addr;
     std::atomic<int> nNumWarningsSkipped;
     std::atomic<int> nVersion;
+    int64_t nLastQuorumRotationInfo{0}; // Protected by cs_main.
     // strSubVer is whatever byte array we read from the wire. However, this field is intended
     // to be printed out, displayed to humans in various forms and so on. So we sanitize it and
     // store the sanitized version in cleanSubVer. The original should be used when dealing with

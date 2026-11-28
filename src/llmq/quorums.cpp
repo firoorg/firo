@@ -9,6 +9,8 @@
 #include "quorums_dkgsessionmgr.h"
 #include "quorums_init.h"
 #include "quorums_utils.h"
+#include "quorums_rotation.h"
+#include "quorums_signing.h"
 
 #include "evo/specialtx.h"
 
@@ -34,6 +36,7 @@ static uint256 MakeQuorumKey(const CQuorum& q)
     CHashWriter hw(SER_NETWORK, 0);
     hw << (uint8_t)q.params.type;
     hw << q.qc.quorumHash;
+    if (q.qc.IsIndexed()) hw << ::SerializeHash(q.qc);
     for (const auto& dmn : q.members) {
         hw << dmn->proTxHash;
     }
@@ -120,7 +123,8 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
     uint256 dbKey = MakeQuorumKey(*this);
 
     BLSVerificationVector qv;
-    if (evoDb.Read(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), qv)) {
+    if (evoDb.Read(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), qv) &&
+        (!qc.IsIndexed() || ::SerializeHash(qv) == qc.quorumVvecHash)) {
         quorumVvec = std::make_shared<BLSVerificationVector>(std::move(qv));
     } else {
         return false;
@@ -184,8 +188,23 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
 
     // don't remove connections for the currently in-progress DKG round
     int curDkgHeight = pindexNew->nHeight - (pindexNew->nHeight % params.dkgInterval);
-    auto curDkgBlock = pindexNew->GetAncestor(curDkgHeight)->GetBlockHash();
-    connmanQuorumsToDelete.erase(curDkgBlock);
+    if (Consensus::IsRotatedLLMQType(llmqType)) {
+        if (IsRotationDkgCycle(params, curDkgHeight)) {
+            for (int index = 0; index < params.signingActiveQuorumCount && curDkgHeight + index <= pindexNew->nHeight; ++index) {
+                connmanQuorumsToDelete.erase(pindexNew->GetAncestor(curDkgHeight + index)->GetBlockHash());
+            }
+        }
+        const int cycle = GetCompletedRotationCycle(params, pindexNew->nHeight - CSigningManager::SIGN_HEIGHT_OFFSET);
+        if (cycle >= 0) {
+            for (int height : {cycle, cycle - params.dkgInterval}) {
+                if (!IsRotationDkgCycle(params, height)) continue;
+                auto quorums = ScanQuorums(llmqType, pindexNew->GetAncestor(height + params.dkgMiningWindowEnd), params.signingActiveQuorumCount, true);
+                lastQuorums.insert(lastQuorums.end(), quorums.begin(), quorums.end());
+            }
+        }
+    } else {
+        connmanQuorumsToDelete.erase(pindexNew->GetAncestor(curDkgHeight)->GetBlockHash());
+    }
 
     for (auto& quorum : lastQuorums) {
         if (!quorum->IsMember(myProTxHash) && !GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS)) {
@@ -273,7 +292,7 @@ bool CQuorumManager::BuildQuorumContributions(const CFinalCommitment& fqc, std::
 
     cxxtimer::Timer t2(true);
     quorumVvec = blsWorker.BuildQuorumVerificationVector(vvecs);
-    if (quorumVvec == nullptr) {
+    if (!quorumVvec || (fqc.IsIndexed() && ::SerializeHash(*quorumVvec) != fqc.quorumVvecHash)) {
         LogPrint("llmq", "CQuorumManager::%s -- failed to build quorumVvec\n", __func__);
         // without the quorum vvec, there can't be a skShare, so we fail here. Failure is not fatal here, as it still
         // allows to use the quorum as a non-member (verification through the quorum pub key)
@@ -310,14 +329,19 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return ScanQuorums(llmqType, pindex, maxCount);
 }
 
-std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t maxCount)
+std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t maxCount, bool activeOnly)
 {
     if (!pindexStart) {
         return {};
     }
 
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    const bool rotated = Consensus::IsRotatedLLMQType(llmqType);
+    LOCK(rotated ? &cs_main : nullptr);
+    if (rotated && !chainActive.Contains(pindexStart)) return {};
 
+    activeOnly = rotated && activeOnly;
+    auto& cache = activeOnly ? activeIndexedQuorumsCache : scanQuorumsCache;
     auto cacheKey = std::make_pair(llmqType, pindexStart->GetBlockHash());
     const size_t cacheMaxSize = params.signingActiveQuorumCount + 1;
 
@@ -325,7 +349,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
     if (maxCount <= cacheMaxSize) {
         LOCK(quorumsCacheCs);
-        if (scanQuorumsCache.get(cacheKey, result)) {
+        if (cache.get(cacheKey, result)) {
             if (result.size() > maxCount) {
                 result.resize(maxCount);
             }
@@ -340,19 +364,22 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         storeCache = true;
     }
 
-    auto quorumIndexes = quorumBlockProcessor->GetMinedCommitmentsUntilBlock(params.type, pindexStart, maxCount2);
+    auto quorumIndexes = activeOnly
+        ? quorumBlockProcessor->GetActiveIndexedCommitments(params.type, pindexStart, maxCount2)
+        : quorumBlockProcessor->GetMinedCommitmentsUntilBlock(params.type, pindexStart, maxCount2);
     result.reserve(quorumIndexes.size());
 
     for (auto& quorumIndex : quorumIndexes) {
         assert(quorumIndex);
         auto quorum = GetQuorum(params.type, quorumIndex);
+        if (!quorum && rotated) return {};
         assert(quorum != nullptr);
         result.emplace_back(quorum);
     }
 
     if (storeCache) {
         LOCK(quorumsCacheCs);
-        scanQuorumsCache.insert(cacheKey, result);
+        cache.insert(cacheKey, result);
     }
 
     if (result.size() > maxCount) {
@@ -381,6 +408,9 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint25
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
 {
     assert(pindexQuorum);
+    const bool rotated = Consensus::IsRotatedLLMQType(llmqType);
+    LOCK(rotated ? &cs_main : nullptr);
+    if (rotated && !chainActive.Contains(pindexQuorum)) return nullptr;
 
     auto quorumHash = pindexQuorum->GetBlockHash();
 
@@ -393,7 +423,7 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const CBlock
     LOCK(quorumsCacheCs);
 
     auto it = quorumsCache.find(std::make_pair(llmqType, quorumHash));
-    if (it != quorumsCache.end()) {
+    if (it != quorumsCache.end() && !rotated) {
         return it->second;
     }
 
@@ -401,6 +431,10 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const CBlock
     uint256 minedBlockHash;
     if (!quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, qc, minedBlockHash)) {
         return nullptr;
+    }
+    if (it != quorumsCache.end()) {
+        if (it->second->minedBlockHash == minedBlockHash) return it->second;
+        quorumsCache.erase(it);
     }
 
     auto& params = Params().GetConsensus().llmqs.at(llmqType);

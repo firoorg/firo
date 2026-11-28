@@ -4,6 +4,7 @@
 
 #include "quorums_chainlocks.h"
 #include "quorums_instantsend.h"
+#include "quorums_rotation.h"
 #include "quorums_utils.h"
 #include "evo/spork.h"
 
@@ -39,6 +40,78 @@ uint256 CInstantSendLock::GetRequestId() const
     return hw.GetHash();
 }
 
+static int GetInstantSendLockInvType(const CInstantSendLock& islock)
+{
+    return islock.IsDeterministic() ? MSG_ISDLOCK : MSG_ISLOCK;
+}
+
+static int GetInstantSendLockMinProtoVersion(const CInstantSendLock& islock)
+{
+    if (islock.IsRotated()) return DIP24_PROTO_VERSION;
+    return islock.IsDeterministic() ? ISDLOCK_PROTO_VERSION : LLMQS_PROTO_VERSION;
+}
+
+static const CBlockIndex* GetInstantSendRotationCycle()
+{
+    AssertLockHeld(cs_main);
+    const auto& consensus = Params().GetConsensus();
+    const auto it = consensus.llmqs.find(consensus.llmqForRotatedInstantSend);
+    if (it == consensus.llmqs.end()) return nullptr;
+    const auto& params = it->second;
+    const int height = GetCompletedRotationCycle(params, chainActive.Height() - CSigningManager::SIGN_HEIGHT_OFFSET);
+    if (height < 0) return nullptr;
+    // Do not switch until every index has formed a quorum. Once formed, a
+    // failed DKG retains its predecessor, so all slots remain available.
+    const auto quorums = quorumSigningManager->GetActiveQuorumSet(params.type, chainActive.Height());
+    return quorums.size() == size_t(params.signingActiveQuorumCount) ? chainActive[height] : nullptr;
+}
+
+static CQuorumCPtr GetRotatedLockQuorum(const CInstantSendLock& islock)
+{
+    AssertLockHeld(cs_main);
+    const auto* current = GetInstantSendRotationCycle();
+    if (!current) return nullptr;
+    const auto& consensus = Params().GetConsensus();
+    const auto& params = consensus.llmqs.at(consensus.llmqForRotatedInstantSend);
+    const auto it = mapBlockIndex.find(islock.cycleHash);
+    if (it == mapBlockIndex.end() || !chainActive.Contains(it->second)) return nullptr;
+    const int height = it->second->nHeight;
+    if ((height != current->nHeight && height != current->nHeight - params.dkgInterval) ||
+        !IsRotationDkgCycle(params, height)) return nullptr;
+    auto quorums = quorumSigningManager->GetActiveQuorumSet(params.type,
+        height + params.dkgMiningWindowEnd + CSigningManager::SIGN_HEIGHT_OFFSET);
+    // A partially populated bootstrap set never authorized any rotated lock.
+    if (quorums.size() != size_t(params.signingActiveQuorumCount)) return nullptr;
+    return quorums[GetRotatedSigningIndex(params, islock.GetRequestId())];
+}
+
+// Nodes create deterministic locks from this height on
+static bool IsDeterministicInstantSendActive(int nTipHeight)
+{
+    return nTipHeight >= Params().GetConsensus().nInstantSendDeterministicStartHeight;
+}
+
+// Not all nodes are at the same height when the format switches, so both formats are accepted for one DKG interval
+// before and after the switch. A legacy and a deterministic lock for the same TX carry the same signature, which means
+// that anyone can convert one into the other. Outside of this window only one format is accepted, so that a converted
+// lock can never replace the one the rest of the network relays.
+static int GetInstantSendFormatGracePeriod()
+{
+    const auto& consensus = Params().GetConsensus();
+    return consensus.llmqs.at(consensus.llmqForInstantSend).dkgInterval;
+}
+
+static bool IsLegacyInstantSendLockAccepted(int nTipHeight)
+{
+    // written this way to not overflow when the start height is not scheduled (INT_MAX)
+    return nTipHeight - GetInstantSendFormatGracePeriod() < Params().GetConsensus().nInstantSendDeterministicStartHeight;
+}
+
+static bool IsDeterministicInstantSendLockAccepted(int nTipHeight)
+{
+    return nTipHeight + GetInstantSendFormatGracePeriod() >= Params().GetConsensus().nInstantSendDeterministicStartHeight;
+}
+
 namespace isutils
 {
 static int16_t const INSTANTSEND_ADAPTED_TX = std::numeric_limits<int16_t>::min();
@@ -51,7 +124,9 @@ CTransaction AdaptPrivateTx(CTransaction const & tx);
 void CInstantSendDb::WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock)
 {
     CDBBatch batch(db);
-    batch.Write(std::make_tuple(std::string("is_i"), hash), islock);
+    // Deterministic locks get their own prefix. A version of the software that only knows legacy locks would otherwise
+    // misread them, while a lock it can't find is simply no lock.
+    batch.Write(std::make_tuple(std::string(islock.IsDeterministic() ? "is_d" : "is_i"), hash), islock);
     batch.Write(std::make_tuple(std::string("is_tx"), islock.txid), hash);
     for (auto& in : islock.inputs) {
         batch.Write(std::make_tuple(std::string("is_in"), in), hash);
@@ -75,7 +150,7 @@ void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash,
         }
     }
 
-    batch.Erase(std::make_tuple(std::string("is_i"), hash));
+    batch.Erase(std::make_tuple(std::string(islock->IsDeterministic() ? "is_d" : "is_i"), hash));
     batch.Erase(std::make_tuple(std::string("is_tx"), islock->txid));
     for (auto& in : islock->inputs) {
         batch.Erase(std::make_tuple(std::string("is_in"), in));
@@ -186,20 +261,23 @@ bool CInstantSendDb::HasArchivedInstantSendLock(const uint256& islockHash)
 size_t CInstantSendDb::GetInstantSendLockCount()
 {
     auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
-    auto firstKey = std::make_tuple(std::string("is_i"), uint256());
-
-    it->Seek(firstKey);
 
     size_t cnt = 0;
-    while (it->Valid()) {
-        decltype(firstKey) curKey;
-        if (!it->GetKey(curKey) || std::get<0>(curKey) != "is_i") {
-            break;
+    for (const std::string prefix : {"is_i", "is_d"}) {
+        auto firstKey = std::make_tuple(prefix, uint256());
+
+        it->Seek(firstKey);
+
+        while (it->Valid()) {
+            decltype(firstKey) curKey;
+            if (!it->GetKey(curKey) || std::get<0>(curKey) != prefix) {
+                break;
+            }
+
+            cnt++;
+
+            it->Next();
         }
-
-        cnt++;
-
-        it->Next();
     }
 
     return cnt;
@@ -212,10 +290,13 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash
         return ret;
     }
 
-    ret = std::make_shared<CInstantSendLock>();
-    bool exists = db.Read(std::make_tuple(std::string("is_i"), hash), *ret);
-    if (!exists) {
-        ret = nullptr;
+    ret = std::make_shared<CInstantSendLock>(CInstantSendLock::DETERMINISTIC_VERSION);
+    if (!db.Read(std::make_tuple(std::string("is_d"), hash), *ret) ||
+        (ret->nVersion != CInstantSendLock::DETERMINISTIC_VERSION && !ret->IsRotated())) {
+        ret = std::make_shared<CInstantSendLock>();
+        if (!db.Read(std::make_tuple(std::string("is_i"), hash), *ret)) {
+            ret = nullptr;
+        }
     }
     islockCache.insert(hash, ret);
     return ret;
@@ -407,13 +488,17 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
     // In case the islock was received before the TX, filtered announcement might have missed this islock because
     // we were unable to check for filter matches deep inside the TX. Now we have the TX, so we should retry.
     uint256 islockHash;
+    CInstantSendLockPtr relayIslock;
     {
         LOCK(cs);
         islockHash = db.GetInstantSendLockHashByTxid(tx.GetHash());
+        if (!islockHash.IsNull()) {
+            relayIslock = db.GetInstantSendLockByHash(islockHash);
+        }
     }
-    if (!islockHash.IsNull()) {
-        CInv inv(MSG_ISLOCK, islockHash);
-        g_connman->RelayInvFiltered(inv, tx, LLMQS_PROTO_VERSION);
+    if (relayIslock) {
+        CInv inv(GetInstantSendLockInvType(*relayIslock), islockHash);
+        g_connman->RelayInvFiltered(inv, tx, GetInstantSendLockMinProtoVersion(*relayIslock));
     }
 
     auto conflictingLock = GetConflictingLock(tx);
@@ -429,6 +514,12 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
                   tx.GetHash().ToString());
         return false;
     }
+
+    {
+        LOCK(cs_main);
+        if (GetInstantSendRotationCycle()) llmqType = params.llmqForRotatedInstantSend;
+    }
+    const auto otherType = llmqType == params.llmqForInstantSend ? params.llmqForRotatedInstantSend : params.llmqForInstantSend;
 
     std::vector<uint256> ids;
     ids.reserve(tx.vin.size());
@@ -458,6 +549,7 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
     if (!allowReSigning && alreadyVotedCount == ids.size()) {
         LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: already voted on all inputs, bailing out\n", __func__,
                  tx.GetHash().ToString());
+        if (Consensus::IsRotatedLLMQType(llmqType)) TrySignInstantSendLock(tx);
         return true;
     }
 
@@ -473,7 +565,7 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
         }
         LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: trying to vote on input %s with id %s. allowReSigning=%d\n", __func__,
                  tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), allowReSigning);
-        if (quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), allowReSigning)) {
+        if (quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), allowReSigning, nullptr, otherType)) {
             LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: voted on input %s with id %s\n", __func__,
                       tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString());
         }
@@ -582,11 +674,11 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
         return;
     }
 
-    auto llmqType = Params().GetConsensus().llmqForInstantSend;
-    if (llmqType == Consensus::LLMQ_NONE) {
+    const auto& consensus = Params().GetConsensus();
+    if (recoveredSig.llmqType != consensus.llmqForInstantSend &&
+        recoveredSig.llmqType != consensus.llmqForRotatedInstantSend) {
         return;
     }
-    FIRO_UNUSED auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 txid;
     bool isInstantSendLock = false;
@@ -636,7 +728,17 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
 
 void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 {
-    auto llmqType = Params().GetConsensus().llmqForInstantSend;
+    const auto& consensus = Params().GetConsensus();
+    auto llmqType = consensus.llmqForInstantSend;
+    CInstantSendLock islock;
+    {
+        LOCK(cs_main);
+        if (const auto* cycle = GetInstantSendRotationCycle()) {
+            llmqType = consensus.llmqForRotatedInstantSend;
+            islock.nVersion = CInstantSendLock::ROTATED_VERSION;
+            islock.cycleHash = cycle->GetBlockHash();
+        }
+    }
 
     for (auto& in : tx.vin) {
         auto id = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in.prevout));
@@ -648,28 +750,40 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
     LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: got all recovered sigs, creating CInstantSendLock\n", __func__,
             tx.GetHash().ToString());
 
-    CInstantSendLock islock;
     islock.txid = tx.GetHash();
     for (auto& in : tx.vin) {
         islock.inputs.emplace_back(in.prevout);
     }
 
     auto id = islock.GetRequestId();
+    CQuorumCPtr selectedQuorum;
+    if (islock.IsRotated()) {
+        LOCK(cs_main);
+        selectedQuorum = GetRotatedLockQuorum(islock);
+        if (!selectedQuorum) return;
+    }
 
-    if (quorumSigningManager->HasRecoveredSigForId(llmqType, id)) {
-        return;
+    CRecoveredSig existingSig;
+    if (quorumSigningManager->GetRecoveredSigForId(llmqType, id, existingSig)) {
+        if (!islock.IsRotated() || existingSig.msgHash != islock.txid) return;
+        if (TryFinalizeInstantSendLock(islock, existingSig)) return;
+        if (!quorumSigningManager->PrepareForRotatedResigning(existingSig)) return;
     }
 
     {
         LOCK(cs);
-        auto e = creatingInstantSendLocks.emplace(id, std::move(islock));
+        auto e = creatingInstantSendLocks.try_emplace(id, std::move(islock));
         if (!e.second) {
-            return;
+            auto& existing = e.first->second;
+            if (existing.txid != islock.txid ||
+                (existing.nVersion == islock.nVersion && existing.cycleHash == islock.cycleHash)) return;
+            existing = std::move(islock);
         }
-        txToCreatingInstantSendLocks.emplace(tx.GetHash(), &e.first->second);
+        txToCreatingInstantSendLocks.emplace(tx.GetHash(), id);
     }
 
-    quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash());
+    const auto otherType = llmqType == consensus.llmqForInstantSend ? consensus.llmqForRotatedInstantSend : consensus.llmqForInstantSend;
+    quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), bool(selectedQuorum), selectedQuorum, otherType);
 }
 
 void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
@@ -679,23 +793,60 @@ void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CReco
     {
         LOCK(cs);
         auto it = creatingInstantSendLocks.find(recoveredSig.id);
-        if (it == creatingInstantSendLocks.end()) {
+        if (it == creatingInstantSendLocks.end() ||
+            it->second.IsRotated() != Consensus::IsRotatedLLMQType(Consensus::LLMQType(recoveredSig.llmqType))) {
             return;
         }
 
-        islock = std::move(it->second);
-        creatingInstantSendLocks.erase(it);
-        txToCreatingInstantSendLocks.erase(islock.txid);
+        islock = it->second;
     }
 
+    TryFinalizeInstantSendLock(std::move(islock), recoveredSig);
+}
+
+bool CInstantSendManager::TryFinalizeInstantSendLock(CInstantSendLock islock, const CRecoveredSig& recoveredSig)
+{
     if (islock.txid != recoveredSig.msgHash) {
         LogPrintf("CInstantSendManager::%s -- txid=%s: islock conflicts with %s, dropping own version", __func__,
                 islock.txid.ToString(), recoveredSig.msgHash.ToString());
-        return;
+        return false;
     }
 
+    CQuorumCPtr verifiedQuorum;
+    {
+        LOCK(cs_main);
+        if (islock.IsRotated()) {
+            const auto* cycle = GetInstantSendRotationCycle();
+            if (!cycle) return false;
+            const auto& consensus = Params().GetConsensus();
+            const auto& params = consensus.llmqs.at(consensus.llmqForRotatedInstantSend);
+            if (recoveredSig.llmqType != params.type) return false;
+            // The callback can arrive after we have already retried in the
+            // next cycle. Use the set that actually authorized the signature.
+            for (int height : {cycle->nHeight, cycle->nHeight - params.dkgInterval}) {
+                if (!IsRotationDkgCycle(params, height)) continue;
+                islock.cycleHash = chainActive[height]->GetBlockHash();
+                auto quorum = GetRotatedLockQuorum(islock);
+                if (quorum && quorum->qc.quorumHash == recoveredSig.quorumHash) {
+                    verifiedQuorum = std::move(quorum);
+                    break;
+                }
+            }
+            if (!verifiedQuorum) return false;
+        } else {
+            if (GetInstantSendRotationCycle()) return false;
+            if (IsDeterministicInstantSendActive(chainActive.Height())) {
+                islock.nVersion = CInstantSendLock::DETERMINISTIC_VERSION;
+                islock.cycleHash = recoveredSig.quorumHash;
+            }
+        }
+    }
+
+    if (verifiedQuorum && !recoveredSig.sig.Get().VerifyInsecure(verifiedQuorum->qc.quorumPublicKey,
+                                                                 CLLMQUtils::BuildSignHash(recoveredSig))) return false;
     islock.sig = recoveredSig.sig;
-    ProcessInstantSendLock(-1, ::SerializeHash(islock), islock);
+    ProcessInstantSendLock(-1, ::SerializeHash(islock), islock, verifiedQuorum);
+    return true;
 }
 
 void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
@@ -707,6 +858,15 @@ void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCom
     if (strCommand == NetMsgType::ISLOCK) {
         CInstantSendLock islock;
         vRecv >> islock;
+        ProcessMessageInstantSendLock(pfrom, islock, connman);
+    } else if (strCommand == NetMsgType::ISDLOCK) {
+        CInstantSendLock islock(CInstantSendLock::DETERMINISTIC_VERSION);
+        vRecv >> islock;
+        if (islock.nVersion != CInstantSendLock::DETERMINISTIC_VERSION &&
+            (islock.nVersion != CInstantSendLock::ROTATED_VERSION || pfrom->nVersion < DIP24_PROTO_VERSION)) {
+            // A newer version we don't know about, not necessarily the peer's fault
+            return;
+        }
         ProcessMessageInstantSendLock(pfrom, islock, connman);
     }
 }
@@ -729,6 +889,12 @@ void CInstantSendManager::ProcessMessageInstantSendLock(CNode* pfrom, const llmq
         return;
     }
     if (pendingInstantSendLocks.count(hash)) {
+        return;
+    }
+    auto otherIsLock = db.GetInstantSendLockByTxid(islock.txid);
+    if (otherIsLock != nullptr && (islock.IsDeterministic() || otherIsLock->IsDeterministic())) {
+        // The TX is locked already and at least one of both locks names its quorum, so this can only be the same lock
+        // in the other format or a lock by another quorum for the same TX. There is nothing to gain from it.
         return;
     }
 
@@ -755,6 +921,32 @@ bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CI
         }
     }
 
+    const auto& consensus = Params().GetConsensus();
+    if (consensus.llmqForInstantSend == Consensus::LLMQ_NONE) {
+        return false;
+    }
+
+    LOCK(cs_main);
+    if (islock.IsRotated()) return bool(GetRotatedLockQuorum(islock));
+    if (GetInstantSendRotationCycle()) return false;
+    if (!islock.IsDeterministic()) {
+        return IsLegacyInstantSendLockAccepted(chainActive.Height());
+    }
+    if (!IsDeterministicInstantSendLockAccepted(chainActive.Height())) {
+        return false;
+    }
+
+    auto it = mapBlockIndex.find(islock.cycleHash);
+    if (it == mapBlockIndex.end() || !chainActive.Contains(it->second)) {
+        // We might be behind or on another chain, so this is not necessarily the peer's fault
+        return false;
+    }
+    if (it->second->nHeight % consensus.llmqs.at(consensus.llmqForInstantSend).dkgInterval != 0) {
+        // not the first block of a DKG cycle, so no quorum can ever be identified by it
+        retBan = true;
+        return false;
+    }
+
     return true;
 }
 
@@ -773,6 +965,23 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
 
     if (!IsNewInstantSendEnabled())
         return false;
+
+    // Deterministic locks name their quorum, so they do not depend on the current active set
+    decltype(pendingInstantSendLocks) pendDeterministic;
+    for (auto it = pend.begin(); it != pend.end(); ) {
+        if (it->second.second.IsDeterministic()) {
+            pendDeterministic.emplace(it->first, std::move(it->second));
+            it = pend.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (!pendDeterministic.empty()) {
+        ProcessPendingDeterministicInstantSendLocks(pendDeterministic);
+    }
+    if (pend.empty()) {
+        return true;
+    }
 
     int tipHeight;
     {
@@ -910,7 +1119,180 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
     return badISLocks;
 }
 
-void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock)
+void CInstantSendManager::ProcessPendingDeterministicInstantSendLocks(const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend)
+{
+    const auto& consensus = Params().GetConsensus();
+
+    CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, true, 8);
+    std::unordered_map<uint256, CQuorumCPtr, StaticSaltedHasher> quorums;
+    std::unordered_set<uint256, StaticSaltedHasher> alreadyVerified;
+
+    for (const auto& p : pend) {
+        auto& hash = p.first;
+        auto nodeId = p.second.first;
+        auto& islock = p.second.second;
+
+        if (batchVerifier.badSources.count(nodeId)) {
+            continue;
+        }
+
+        if (!islock.sig.Get().IsValid()) {
+            batchVerifier.badSources.emplace(nodeId);
+            continue;
+        }
+
+        auto id = islock.GetRequestId();
+
+        CQuorumCPtr quorum;
+        if (islock.IsRotated()) {
+            LOCK(cs_main);
+            quorum = GetRotatedLockQuorum(islock);
+        } else {
+            quorum = quorumManager->GetQuorum(consensus.llmqForInstantSend, islock.cycleHash);
+        }
+        if (!quorum) {
+            // No quorum was mined for this cycle, or we don't know about it yet
+            continue;
+        }
+        const auto llmqType = Consensus::LLMQType(quorum->qc.llmqType);
+
+        // no need to verify the signature of an ISDLOCK if we already have verified the recovered sig that belongs to it
+        CRecoveredSig recSig;
+        if (!islock.IsRotated() && quorumSigningManager->GetRecoveredSigForId(llmqType, id, recSig) && recSig.msgHash == islock.txid &&
+            recSig.quorumHash == quorum->qc.quorumHash && recSig.sig.Get() == islock.sig.Get()) {
+            alreadyVerified.emplace(hash);
+            quorums.emplace(hash, std::move(quorum));
+            continue;
+        }
+
+        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, islock.txid);
+        batchVerifier.PushMessage(nodeId, hash, signHash, islock.sig.Get(), quorum->qc.quorumPublicKey);
+        quorums.emplace(hash, std::move(quorum));
+    }
+
+    batchVerifier.Verify();
+
+    if (!batchVerifier.badSources.empty()) {
+        LOCK(cs_main);
+        for (auto& nodeId : batchVerifier.badSources) {
+            // Let's not be too harsh, the peer might be on a fork that mined another commitment for this quorum
+            Misbehaving(nodeId, 20);
+        }
+    }
+    for (const auto& p : pend) {
+        auto& hash = p.first;
+        auto nodeId = p.second.first;
+        auto& islock = p.second.second;
+
+        auto it = quorums.find(hash);
+        if (it == quorums.end()) {
+            continue;
+        }
+        if (!alreadyVerified.count(hash) && (batchVerifier.badSources.count(nodeId) || batchVerifier.badMessages.count(hash))) {
+            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: invalid sig in islock, peer=%d\n", __func__,
+                     islock.txid.ToString(), hash.ToString(), nodeId);
+            continue;
+        }
+
+        auto& quorum = it->second;
+        auto id = islock.GetRequestId();
+        const auto llmqType = Consensus::LLMQType(quorum->qc.llmqType);
+        if (!islock.IsRotated() && !IsQuorumResponsible(llmqType, quorum, id)) {
+            // The signature is valid, but the quorum is not (or not anymore) one that may sign this request. We might
+            // also just not have seen the block yet that made it responsible, so don't punish the peer.
+            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: quorum %s is not responsible for this islock, peer=%d\n", __func__,
+                     islock.txid.ToString(), hash.ToString(), islock.cycleHash.ToString(), nodeId);
+            continue;
+        }
+
+        ProcessInstantSendLock(nodeId, hash, islock, quorum);
+        if (alreadyVerified.count(hash)) {
+            continue;
+        }
+
+        // Pass a reconstructed recovered sig to the signing manager to avoid double-verification of the sig.
+        if (!quorumSigningManager->HasRecoveredSigForId(llmqType, id)) {
+            CRecoveredSig recSig;
+            recSig.llmqType = llmqType;
+            recSig.quorumHash = quorum->qc.quorumHash;
+            recSig.id = id;
+            recSig.msgHash = islock.txid;
+            recSig.sig = islock.sig;
+            recSig.UpdateHash();
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: passing reconstructed recSig to signing mgr, peer=%d\n", __func__,
+                     islock.txid.ToString(), hash.ToString(), nodeId);
+            quorumSigningManager->PushReconstructedRecoveredSig(recSig, quorum);
+        }
+    }
+}
+
+/**
+ * A deterministic lock names its quorum, so without further checks any quorum, including one that was replaced long
+ * ago, could lock any TX. Legacy locks limit a quorum to the requests the current active set assigns to it. Keep that
+ * limit:
+ *   1. The quorum must be in the active set at the tip, or have left it less than one DKG interval ago.
+ *   2. One of the active sets the quorum was part of must have selected it for the request.
+ *
+ * The active set is made of the signingActiveQuorumCount newest quorums, so all sets the quorum was part of are
+ * windows of that size over the quorums ordered by the height their commitment was mined at.
+ */
+bool CInstantSendManager::IsQuorumResponsible(Consensus::LLMQType llmqType, const CQuorumCPtr& quorum, const uint256& id)
+{
+    const auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    const size_t setSize = (size_t)params.signingActiveQuorumCount;
+
+    const CBlockIndex* pindexTip;
+    {
+        LOCK(cs_main);
+        pindexTip = chainActive.Tip();
+    }
+
+    // newest first
+    auto quorums = quorumManager->ScanQuorums(llmqType, pindexTip, setSize * 2);
+
+    size_t pos = 0;
+    while (pos < quorums.size() && quorums[pos]->qc.quorumHash != quorum->qc.quorumHash) {
+        ++pos;
+    }
+    if (pos > setSize || pos >= quorums.size()) {
+        // unknown on our chain, or replaced by more than one newer quorum
+        return false;
+    }
+    if (pos == setSize) {
+        // replaced by the newest quorum, which is only tolerated for a short time
+        LOCK(cs_main);
+        auto it = mapBlockIndex.find(quorums[0]->minedBlockHash);
+        if (it == mapBlockIndex.end() || pindexTip->nHeight - it->second->nHeight >= params.dkgInterval) {
+            return false;
+        }
+    }
+
+    // The set that had quorums[first] as its newest member
+    for (size_t first = pos + 1 > setSize ? pos + 1 - setSize : 0; first <= pos; ++first) {
+        size_t end = std::min(first + setSize, quorums.size());
+        size_t selected = first;
+        uint256 selectedScore;
+        for (size_t i = first; i < end; ++i) {
+            // same as CSigningManager::SelectQuorumForSigning
+            CHashWriter h(SER_NETWORK, 0);
+            h << (uint8_t)llmqType;
+            h << quorums[i]->qc.quorumHash;
+            h << id;
+            uint256 score = h.GetHash();
+            if (i == first || score < selectedScore) {
+                selected = i;
+                selectedScore = score;
+            }
+        }
+        if (selected == pos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock,
+                                                const CQuorumCPtr& verifiedQuorum)
 {
     {
         LOCK(cs_main);
@@ -939,19 +1321,37 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     }
 
     {
+        // Publish against the same commitment that was verified. Disconnects
+        // may replace the mined key without changing the quorum base block.
+        const bool checkRotation = islock.IsRotated() || Params().GetConsensus().nDIP24Height != std::numeric_limits<int>::max();
+        LOCK(checkRotation ? &cs_main : nullptr);
+        if (islock.IsRotated()) {
+            auto activeQuorum = GetRotatedLockQuorum(islock);
+            if (!verifiedQuorum || !activeQuorum || activeQuorum->minedBlockHash != verifiedQuorum->minedBlockHash ||
+                activeQuorum->qc.quorumHash != verifiedQuorum->qc.quorumHash) return;
+        } else if (checkRotation && GetInstantSendRotationCycle()) {
+            return;
+        }
         LOCK(cs);
 
         LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: processsing islock, peer=%d\n", __func__,
                  islock.txid.ToString(), hash.ToString(), from);
 
-        creatingInstantSendLocks.erase(islock.GetRequestId());
-        txToCreatingInstantSendLocks.erase(islock.txid);
+        auto creating = creatingInstantSendLocks.find(islock.GetRequestId());
+        if (creating != creatingInstantSendLocks.end()) {
+            txToCreatingInstantSendLocks.erase(creating->second.txid);
+            creatingInstantSendLocks.erase(creating);
+        }
 
         CInstantSendLockPtr otherIsLock;
         if (db.GetInstantSendLockByHash(hash)) {
             return;
         }
         otherIsLock = db.GetInstantSendLockByTxid(islock.txid);
+        if (otherIsLock != nullptr && (islock.IsDeterministic() || otherIsLock->IsDeterministic())) {
+            // Same TX, see ProcessMessageInstantSendLock. Both locks might have been pending at the same time.
+            return;
+        }
         if (otherIsLock != nullptr) {
             LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: duplicate islock, other islock=%s, peer=%d\n", __func__,
                      islock.txid.ToString(), hash.ToString(), ::SerializeHash(*otherIsLock).ToString(), from);
@@ -973,13 +1373,13 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         RemoveNonLockedTx(islock.txid, true);
     }
 
-    CInv inv(MSG_ISLOCK, hash);
+    CInv inv(GetInstantSendLockInvType(islock), hash);
     if (tx != nullptr) {
-        g_connman->RelayInvFiltered(inv, *tx, LLMQS_PROTO_VERSION);
+        g_connman->RelayInvFiltered(inv, *tx, GetInstantSendLockMinProtoVersion(islock));
     } else {
         // we don't have the TX yet, so we only filter based on txid. Later when that TX arrives, we will re-announce
         // with the TX taken into account.
-        g_connman->RelayInvFiltered(inv, islock.txid, LLMQS_PROTO_VERSION);
+        g_connman->RelayInvFiltered(inv, islock.txid, GetInstantSendLockMinProtoVersion(islock));
     }
 
     RemoveMempoolConflictsForLock(hash, islock);
@@ -1108,6 +1508,12 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
 {
     AssertLockHeld(cs);
 
+    auto creating = txToCreatingInstantSendLocks.find(txid);
+    if (creating != txToCreatingInstantSendLocks.end()) {
+        creatingInstantSendLocks.erase(creating->second);
+        txToCreatingInstantSendLocks.erase(creating);
+    }
+
     auto it = nonLockedTxs.find(txid);
     if (it == nonLockedTxs.end()) {
         return;
@@ -1169,6 +1575,28 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
+    if (fMasternodeMode && IsNewInstantSendEnabled() && Params().GetConsensus().nDIP24Height != std::numeric_limits<int>::max()) {
+        LOCK(cs_main);
+        const auto* cycle = GetInstantSendRotationCycle();
+        uint256 hash;
+        if (cycle) {
+            const auto& consensus = Params().GetConsensus();
+            const auto& params = consensus.llmqs.at(consensus.llmqForRotatedInstantSend);
+            hash = chainActive[cycle->nHeight + params.dkgMiningWindowEnd]->GetBlockHash();
+        }
+        LOCK(cs);
+        if (hash != lastRotationSigningBlock) {
+            lastRotationSigningBlock = hash;
+            // A reorg can change the signing set even if its cycle start
+            // survives. Retry under the new set rather than reusing attempts.
+            creatingInstantSendLocks.clear();
+            txToCreatingInstantSendLocks.clear();
+            for (const auto& [txid, info] : nonLockedTxs) {
+                if (info.tx) pendingRetryTxs.insert(txid);
+            }
+        }
+    }
+
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (fDIP0008Active && IsChainlocksEnabled()) {
@@ -1199,6 +1627,7 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         for (auto& p : removeISLocks) {
             auto& islockHash = p.first;
             auto& islock = p.second;
+            const auto type = islock->IsRotated() ? consensusParams.llmqForRotatedInstantSend : consensusParams.llmqForInstantSend;
             LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
                      islock->txid.ToString(), islockHash.ToString());
 
@@ -1208,11 +1637,11 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 
                 // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
                 // from now on. All inputs are spent now and can't be spend in any other TX.
-                quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, inputRequestId);
+                quorumSigningManager->RemoveRecoveredSig(type, inputRequestId);
             }
 
             // same as in the loop
-            quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, islock->GetRequestId());
+            quorumSigningManager->RemoveRecoveredSig(type, islock->GetRequestId());
         }
 
         // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
@@ -1438,6 +1867,11 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
     }
 
     int retryCount = 0;
+    uint256 rotationCycleHash;
+    {
+        LOCK(cs_main);
+        if (const auto* cycle = GetInstantSendRotationCycle()) rotationCycleHash = cycle->GetBlockHash();
+    }
     for (const auto& txid : retryTxs) {
         CTransactionRef tx;
         {
@@ -1452,7 +1886,9 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
                 continue;
             }
 
-            if (txToCreatingInstantSendLocks.count(tx->GetHash())) {
+            auto creating = txToCreatingInstantSendLocks.find(tx->GetHash());
+            if (creating != txToCreatingInstantSendLocks.end() &&
+                creatingInstantSendLocks.at(creating->second).cycleHash == rotationCycleHash) {
                 // we're already in the middle of locking this one
                 continue;
             }
@@ -1475,7 +1911,7 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
                      tx->GetHash().ToString());
         }
 
-        ProcessTx(*tx, false, Params().GetConsensus());
+        ProcessTx(*tx, !rotationCycleHash.IsNull(), Params().GetConsensus());
         retryCount++;
     }
 
@@ -1492,6 +1928,16 @@ bool CInstantSendManager::AlreadyHave(const CInv& inv)
 {
     if (!IsNewInstantSendEnabled()) {
         return true;
+    }
+
+    {
+        // don't request locks in a format that we would refuse
+        LOCK(cs_main);
+        const bool rotated = GetInstantSendRotationCycle() != nullptr;
+        if (inv.type == MSG_ISDLOCK ? !rotated && !IsDeterministicInstantSendLockAccepted(chainActive.Height())
+                                  : rotated || !IsLegacyInstantSendLockAccepted(chainActive.Height())) {
+            return true;
+        }
     }
 
     LOCK(cs);

@@ -211,6 +211,23 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     static std::map<Consensus::LLMQType, std::vector<uint256>> qcHashesCached;
 
     auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pindexPrev);
+    std::map<std::pair<Consensus::LLMQType, uint16_t>, uint256> indexedHashes;
+    for (auto it = quorums.begin(); it != quorums.end();) {
+        if (!Consensus::IsRotatedLLMQType(it->first)) {
+            ++it;
+            continue;
+        }
+        for (const auto* base : it->second) {
+            llmq::CFinalCommitment qc;
+            uint256 minedBlockHash;
+            if (!llmq::quorumBlockProcessor->GetMinedCommitment(it->first, base->GetBlockHash(), qc, minedBlockHash)) {
+                return state.Error("Unable to read indexed quorum commitment");
+            }
+            indexedHashes.emplace(std::make_pair(it->first, qc.quorumIndex), ::SerializeHash(qc));
+        }
+        // A reorg can replace a commitment without changing its quorum base hash.
+        it = quorums.erase(it);
+    }
     std::map<Consensus::LLMQType, std::vector<uint256>> qcHashes;
     size_t hashCount = 0;
 
@@ -254,6 +271,10 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
             }
             auto qcHash = ::SerializeHash(qc.commitment);
             const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qc.commitment.llmqType);
+            if (qc.commitment.IsIndexed()) {
+                indexedHashes[{params.type, qc.commitment.quorumIndex}] = qcHash;
+                continue;
+            }
             auto& v = qcHashes[params.type];
             if (cmp::equal(v.size(), params.signingActiveQuorumCount)) {
                 v.pop_back();
@@ -265,13 +286,14 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     }
 
     std::vector<uint256> qcHashesVec;
-    qcHashesVec.reserve(hashCount);
+    qcHashesVec.reserve(hashCount + indexedHashes.size());
 
     for (const auto& p : qcHashes) {
         for (const auto& h : p.second) {
             qcHashesVec.emplace_back(h);
         }
     }
+    for (const auto& [key, hash] : indexedHashes) qcHashesVec.push_back(hash);
     std::sort(qcHashesVec.begin(), qcHashesVec.end());
 
     int64_t nTime4 = GetTimeMicros(); nTimeLoop += nTime4 - nTime3;

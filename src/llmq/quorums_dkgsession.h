@@ -15,6 +15,7 @@
 #include "evo/deterministicmns.h"
 
 #include "llmq/quorums_utils.h"
+#include "llmq/quorums_debug.h"
 
 class UniValue;
 
@@ -244,12 +245,13 @@ class CDKGSession
 
 private:
     const Consensus::LLMQParams& params;
+    const DKGSessionId sessionId;
 
     CBLSWorker& blsWorker;
     CBLSWorkerCache cache;
     CDKGSessionManager& dkgManager;
 
-    const CBlockIndex* pindexQuorum;
+    const CBlockIndex* pindexQuorum{nullptr};
 
 private:
     std::vector<std::unique_ptr<CDKGMember>> members;
@@ -283,8 +285,8 @@ private:
     std::set<uint256> validCommitments;
 
 public:
-    CDKGSession(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager) :
-        params(_params), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager) {}
+    CDKGSession(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager, uint16_t index = 0) :
+        params(_params), sessionId(_params.type, index), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager) {}
 
     bool Init(const CBlockIndex* pindexQuorum, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash);
 

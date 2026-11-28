@@ -17,24 +17,50 @@
 namespace llmq
 {
 
+/**
+ * An InstantSend lock. Legacy locks ("islock") carry no version and do not say which quorum signed them, so they can
+ * only be verified while that quorum is still selected for signing. Deterministic locks ("isdlock", DIP22) add a
+ * version and a cycleHash. Version 1 names the non-rotating signing quorum by its base hash. Version 2 names
+ * the completed DIP24 cycle whose signing set assigns the request to an indexed quorum.
+ */
 class CInstantSendLock
 {
 public:
+    static constexpr uint8_t LEGACY_VERSION = 0;
+    static constexpr uint8_t DETERMINISTIC_VERSION = 1;
+    static constexpr uint8_t ROTATED_VERSION = 2;
+
+    uint8_t nVersion{LEGACY_VERSION}; // only serialized for deterministic locks
     std::vector<COutPoint> inputs;
     uint256 txid;
+    uint256 cycleHash; // only serialized for deterministic locks
     CBLSLazySignature sig;
 
 public:
+    CInstantSendLock() = default;
+    explicit CInstantSendLock(uint8_t nVersionIn) : nVersion(nVersionIn) {}
+
     ADD_SERIALIZE_METHODS
 
     template<typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        // The format is chosen by the caller, not by the stream: a reader must construct the lock with the version of
+        // the format it expects and check nVersion afterwards.
+        const bool fDeterministic = IsDeterministic();
+        if (fDeterministic) {
+            READWRITE(nVersion);
+        }
         READWRITE(inputs);
         READWRITE(txid);
+        if (fDeterministic) {
+            READWRITE(cycleHash);
+        }
         READWRITE(sig);
     }
 
+    bool IsDeterministic() const { return nVersion != LEGACY_VERSION; }
+    bool IsRotated() const { return nVersion == ROTATED_VERSION; }
     uint256 GetRequestId() const;
 };
 
@@ -95,8 +121,8 @@ private:
      * When the recovered sig for the islock later arrives, we can finish the islock and propagate it.
      */
     std::unordered_map<uint256, CInstantSendLock, StaticSaltedHasher> creatingInstantSendLocks;
-    // maps from txid to the in-progress islock
-    std::unordered_map<uint256, CInstantSendLock*, StaticSaltedHasher> txToCreatingInstantSendLocks;
+    // Maps txid to the request ID of its in-progress lock.
+    std::unordered_map<uint256, uint256, StaticSaltedHasher> txToCreatingInstantSendLocks;
 
     // Incoming and not verified yet
     std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher> pendingInstantSendLocks;
@@ -112,6 +138,7 @@ private:
     std::unordered_multimap<uint256, std::pair<uint32_t, uint256>> nonLockedTxsByInputs;
 
     std::unordered_set<uint256, StaticSaltedHasher> pendingRetryTxs;
+    uint256 lastRotationSigningBlock;
     std::atomic_bool isNewInstantSendEnabled{false};
 
 public:
@@ -159,12 +186,16 @@ private:
     void HandleNewInstantSendLockRecoveredSig(const CRecoveredSig& recoveredSig);
 
     void TrySignInstantSendLock(const CTransaction& tx);
+    bool TryFinalizeInstantSendLock(CInstantSendLock islock, const CRecoveredSig& recoveredSig);
 
     void ProcessMessageInstantSendLock(CNode* pfrom, const CInstantSendLock& islock, CConnman& connman);
     bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
     bool ProcessPendingInstantSendLocks();
+    void ProcessPendingDeterministicInstantSendLocks(const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend);
+    bool IsQuorumResponsible(Consensus::LLMQType llmqType, const CQuorumCPtr& quorum, const uint256& id);
     std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban);
-    void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock);
+    void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock,
+                                const CQuorumCPtr& verifiedQuorum = nullptr);
     void UpdateWalletTransaction(const uint256& txid, const CTransactionRef& tx);
 
     void AddNonLockedTx(const CTransactionRef& tx);

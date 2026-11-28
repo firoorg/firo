@@ -565,6 +565,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitdescendantcount=<n>", strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DEFAULT_DESCENDANT_LIMIT));
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
+        strUsage += HelpMessageOpt("-isdlockheight=<n>", "Create and require deterministic InstantSend locks (DIP22) from height <n> (regtest-only)");
+        strUsage += HelpMessageOpt("-dip24height=<n>", "Start preparing rotated InstantSend quorums at the first cycle at or after height <n> (regtest-only)");
         strUsage += HelpMessageOpt("-sparksingleinputheight=<n>", "Activate single-input Spark V1 rules at height <n> (regtest-only)");
         strUsage += HelpMessageOpt("-sparkchaumv2height=<n>", "Activate versioned Spark Chaum V2 spends at height <n> (regtest-only; must not precede the single-input height)");
     }
@@ -1500,6 +1502,26 @@ bool AppInitParameterInteraction()
                 return InitError(strprintf("Invalid deployment (%s)", vDeploymentParams[0]));
             }
         }
+    }
+    if (IsArgSet("-isdlockheight")) {
+        if (!chainparams.MineBlocksOnDemand()) {
+            return InitError("The deterministic InstantSend lock height may only be overridden on regtest.");
+        }
+        int32_t isdlockHeight = 0;
+        if (!ParseInt32(GetArg("-isdlockheight", ""), &isdlockHeight) || isdlockHeight < 0) {
+            return InitError("Invalid -isdlockheight value.");
+        }
+        UpdateRegtestInstantSendDeterministicHeight(isdlockHeight);
+    }
+    if (IsArgSet("-dip24height")) {
+        if (chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
+            return InitError("The DIP24 activation height may only be overridden on regtest.");
+        }
+        int32_t height = 0;
+        if (!ParseInt32(GetArg("-dip24height", ""), &height) || height < chainparams.GetConsensus().DIP0003EnforcementHeight) {
+            return InitError("DIP24 requires a valid height at or after DIP3 enforcement.");
+        }
+        UpdateRegtestDip24Height(height);
     }
     if (IsArgSet("-sparksingleinputheight") ||
         IsArgSet("-sparkchaumv2height")) {

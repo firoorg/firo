@@ -13,6 +13,7 @@
 #include "version.h"
 
 class UniValue;
+class CBlockIndex;
 class CDeterministicMNList;
 class CDeterministicMN;
 

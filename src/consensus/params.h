@@ -7,6 +7,7 @@
 #define BITCOIN_CONSENSUS_PARAMS_H
 
 #include "uint256.h"
+#include <limits>
 #include <map>
 #include <string>
 #include <set>
@@ -46,11 +47,18 @@ enum LLMQType : uint8_t
     LLMQ_50_60 = 1, // 50 members, 30 (60%) threshold, one per hour
     LLMQ_400_60 = 2, // 400 members, 240 (60%) threshold, one every 12 hours
     LLMQ_400_85 = 3, // 400 members, 340 (85%) threshold, one every 24 hours
+    LLMQ_60_75 = 5,  // 60 members, 45 (75%) threshold, quarter rotation
 
     // for testing only
     LLMQ_10_70 = 4,  // 10 members, 7 (70%) threshold, one per hour
     LLMQ_5_60 = 100, // 5 members, 3 (60%) threshold, one per hour
+    LLMQ_TEST_DIP24 = 103,
 };
+
+constexpr bool IsRotatedLLMQType(LLMQType type)
+{
+    return type == LLMQ_60_75 || type == LLMQ_TEST_DIP24;
+}
 
 // Configures a LLMQ and its DKG
 // See https://github.com/dashpay/dips/blob/master/dip-0006.md for more details
@@ -222,6 +230,8 @@ struct Params {
     int nInstantSendConfirmationsRequired; // in blocks
     int nInstantSendKeepLock; // in blocks
     int nInstantSendBlockFilteringStartHeight;
+    /** Height from which InstantSend locks are deterministic (DIP22 "isdlock" carrying a cycleHash) */
+    int nInstantSendDeterministicStartHeight;
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;
@@ -437,6 +447,8 @@ struct Params {
     std::map<LLMQType, LLMQParams> llmqs;
     LLMQType llmqChainLocks;
     LLMQType llmqForInstantSend{LLMQ_NONE};
+    LLMQType llmqForRotatedInstantSend{LLMQ_NONE};
+    int nDIP24Height{std::numeric_limits<int>::max()};
 
     /** Time between blocks for LLMQ random time purposes. Can be less than actual average distance between blocks */
     int nLLMQPowTargetSpacing;

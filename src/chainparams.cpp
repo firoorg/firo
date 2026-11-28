@@ -133,6 +133,37 @@ static Consensus::LLMQParams llmq50_60 = {
         .keepOldConnections = 17,
 };
 
+static const Consensus::LLMQParams llmq60_75 = {
+        .type = Consensus::LLMQ_60_75,
+        .name = "llmq_60_75",
+        .size = 60,
+        .minSize = 50,
+        .threshold = 45,
+        .dkgInterval = 288,
+        .dkgPhaseBlocks = 2,
+        // All indexes share a window after the last staggered session finalizes.
+        .dkgMiningWindowStart = 42,
+        .dkgMiningWindowEnd = 50,
+        .dkgBadVotesThreshold = 48,
+        .signingActiveQuorumCount = 32,
+        .keepOldConnections = 64,
+};
+
+static const Consensus::LLMQParams llmqTestDip24 = {
+        .type = Consensus::LLMQ_TEST_DIP24,
+        .name = "llmq_test_dip24",
+        .size = 4,
+        .minSize = 3,
+        .threshold = 3,
+        .dkgInterval = 24,
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 12,
+        .dkgMiningWindowEnd = 20,
+        .dkgBadVotesThreshold = 3,
+        .signingActiveQuorumCount = 2,
+        .keepOldConnections = 4,
+};
+
 static Consensus::LLMQParams llmq400_60 = {
         .type = Consensus::LLMQ_400_60,
         .name = "llmq_400_60",
@@ -300,9 +331,12 @@ public:
         consensus.nLLMQPowTargetSpacing = 5*60;
         consensus.llmqChainLocks = Consensus::LLMQ_400_60;
         consensus.llmqForInstantSend = Consensus::LLMQ_50_60;
+        consensus.llmqs[Consensus::LLMQ_60_75] = llmq60_75;
+        consensus.llmqForRotatedInstantSend = Consensus::LLMQ_60_75;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 24;
         consensus.nInstantSendBlockFilteringStartHeight = 421150;   // Approx Nov 2 2021 06:00:00 GMT+0000
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // not scheduled yet
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -638,9 +672,17 @@ public:
         consensus.nLLMQPowTargetSpacing = 20;
         consensus.llmqChainLocks = Consensus::LLMQ_10_70;
         consensus.llmqForInstantSend = Consensus::LLMQ_10_70;
+        auto rotatedQuorum = llmq60_75;
+        rotatedQuorum.signingActiveQuorumCount = 8;
+        rotatedQuorum.keepOldConnections = 16;
+        rotatedQuorum.dkgMiningWindowStart = 18;
+        rotatedQuorum.dkgMiningWindowEnd = 26;
+        consensus.llmqs[Consensus::LLMQ_60_75] = rotatedQuorum;
+        consensus.llmqForRotatedInstantSend = Consensus::LLMQ_60_75;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 48136;
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // not scheduled yet
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
@@ -921,9 +963,12 @@ public:
         consensus.nLLMQPowTargetSpacing = 20;
         consensus.llmqChainLocks = Consensus::LLMQ_5_60;
         consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
+        consensus.llmqs[Consensus::LLMQ_TEST_DIP24] = llmqTestDip24;
+        consensus.llmqForRotatedInstantSend = Consensus::LLMQ_TEST_DIP24;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 1000;
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // not scheduled yet
 
         consensus.nMTPSwitchTime = 0;
         consensus.nMTPStartBlock = 1;
@@ -1171,6 +1216,9 @@ public:
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 500;
+        consensus.nInstantSendDeterministicStartHeight = INT_MAX; // off by default, see -isdlockheight
+        consensus.llmqs[Consensus::LLMQ_TEST_DIP24] = llmqTestDip24;
+        consensus.llmqForRotatedInstantSend = Consensus::LLMQ_TEST_DIP24;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
@@ -1329,6 +1377,16 @@ public:
     {
         consensus.nSparkChaumV2StartBlock = height;
     }
+
+    void UpdateInstantSendDeterministicHeight(int height)
+    {
+        consensus.nInstantSendDeterministicStartHeight = height;
+    }
+
+    void UpdateDip24Height(int height)
+    {
+        consensus.nDIP24Height = height;
+    }
 };
 static CRegTestParams regTestParams;
 
@@ -1372,6 +1430,16 @@ void ValidateSparkActivationHeights(const Consensus::Params& consensus)
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
 {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
+}
+
+void UpdateRegtestInstantSendDeterministicHeight(int height)
+{
+    regTestParams.UpdateInstantSendDeterministicHeight(height);
+}
+
+void UpdateRegtestDip24Height(int height)
+{
+    regTestParams.UpdateDip24Height(height);
 }
 
 void UpdateRegtestSparkSingleInputHeight(int height)

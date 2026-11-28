@@ -42,6 +42,7 @@
 #include "llmq/quorums_dkgsessionmgr.h"
 #include "llmq/quorums_init.h"
 #include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_rotationinfo.h"
 #include "llmq/quorums_signing.h"
 #include "llmq/quorums_signing_shares.h"
 
@@ -980,6 +981,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
     case MSG_ISLOCK:
+    case MSG_ISDLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
     }
     // Don't know what it is, just say we already got one
@@ -1251,7 +1253,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
                 if (!pushed && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
                     llmq::CFinalCommitment o;
-                    if (llmq::quorumBlockProcessor->GetMinableCommitmentByHash(inv.hash, o)) {
+                    if (llmq::quorumBlockProcessor->GetMinableCommitmentByHash(inv.hash, o) && (!o.IsIndexed() || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
                         pushed = true;
                     }
@@ -1259,35 +1261,40 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
                 if (!pushed && (inv.type == MSG_QUORUM_CONTRIB)) {
                     llmq::CDKGContribution o;
-                    if (llmq::quorumDKGSessionManager->GetContribution(inv.hash, o)) {
+                    if (llmq::quorumDKGSessionManager->GetContribution(inv.hash, o) &&
+                        (!Consensus::IsRotatedLLMQType(Consensus::LLMQType(o.llmqType)) || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
                         pushed = true;
                     }
                 }
                 if (!pushed && (inv.type == MSG_QUORUM_COMPLAINT)) {
                     llmq::CDKGComplaint o;
-                    if (llmq::quorumDKGSessionManager->GetComplaint(inv.hash, o)) {
+                    if (llmq::quorumDKGSessionManager->GetComplaint(inv.hash, o) &&
+                        (!Consensus::IsRotatedLLMQType(Consensus::LLMQType(o.llmqType)) || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
                         pushed = true;
                     }
                 }
                 if (!pushed && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
                     llmq::CDKGJustification o;
-                    if (llmq::quorumDKGSessionManager->GetJustification(inv.hash, o)) {
+                    if (llmq::quorumDKGSessionManager->GetJustification(inv.hash, o) &&
+                        (!Consensus::IsRotatedLLMQType(Consensus::LLMQType(o.llmqType)) || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
                         pushed = true;
                     }
                 }
                 if (!pushed && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
                     llmq::CDKGPrematureCommitment o;
-                    if (llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash, o)) {
+                    if (llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash, o) &&
+                        (!Consensus::IsRotatedLLMQType(Consensus::LLMQType(o.llmqType)) || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
                         pushed = true;
                     }
                 }
                 if (!pushed && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
                     llmq::CRecoveredSig o;
-                    if (llmq::quorumSigningManager->GetRecoveredSigForGetData(inv.hash, o)) {
+                    if (llmq::quorumSigningManager->GetRecoveredSigForGetData(inv.hash, o) &&
+                        (!Consensus::IsRotatedLLMQType(Consensus::LLMQType(o.llmqType)) || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSIGREC, o));
                         pushed = true;
                     }
@@ -1301,10 +1308,12 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (!pushed && (inv.type == MSG_ISLOCK)) {
+                if (!pushed && (inv.type == MSG_ISLOCK || inv.type == MSG_ISDLOCK)) {
                     llmq::CInstantSendLock o;
-                    if (llmq::quorumInstantSendManager->GetInstantSendLockByHash(inv.hash, o)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ISLOCK, o));
+                    // only answer with the format that was asked for
+                    if (llmq::quorumInstantSendManager->GetInstantSendLockByHash(inv.hash, o) &&
+                        o.IsDeterministic() == (inv.type == MSG_ISDLOCK) && (!o.IsRotated() || pfrom->nVersion >= DIP24_PROTO_VERSION)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(o.IsDeterministic() ? NetMsgType::ISDLOCK : NetMsgType::ISLOCK, o));
                         pushed = true;
                     }
                 }
@@ -1979,6 +1988,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             doubleRequestDelay = 5 * 1000000;
                             break;
                         case MSG_ISLOCK:
+                        case MSG_ISDLOCK:
                             doubleRequestDelay = 10 * 1000000;
                             break;
                     }
@@ -3144,6 +3154,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         CSimplifiedMNListDiff mnListDiff;
         std::string strError;
         if (BuildSimplifiedMNListDiff(cmd.baseBlockHash, cmd.blockHash, mnListDiff, strError)) {
+            if (pfrom->nVersion < DIP24_PROTO_VERSION &&
+                std::any_of(mnListDiff.newQuorums.begin(), mnListDiff.newQuorums.end(),
+                            [](const auto& qc) { return qc.IsIndexed(); })) return true;
             connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, mnListDiff));
         } else {
             LogPrint("net", "getmnlistdiff failed for baseBlockHash=%s, blockHash=%s. error=%s\n", cmd.baseBlockHash.ToString(), cmd.blockHash.ToString(), strError);
@@ -3152,11 +3165,30 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
 
-    else if (strCommand == NetMsgType::MNLISTDIFF) {
+    else if (strCommand == NetMsgType::GETQRINFO) {
+        if (pfrom->nVersion < DIP24_PROTO_VERSION) return true;
+        llmq::CGetQuorumRotationInfo request;
+        vRecv >> request;
+        if (!vRecv.empty()) return true;
+
+        LOCK(cs_main);
+        const auto now = GetTime();
+        if (pfrom->nLastQuorumRotationInfo + 5 > now) return true;
+        pfrom->nLastQuorumRotationInfo = now;
+        llmq::CQuorumRotationInfo response;
+        std::string error;
+        if (llmq::BuildQuorumRotationInfo(request, response, error)) {
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QRINFO, response));
+        } else {
+            LogPrint("net", "getqrinfo failed: %s\n", error);
+        }
+    }
+
+    else if (strCommand == NetMsgType::MNLISTDIFF || strCommand == NetMsgType::QRINFO) {
         // we have never requested this
         LOCK(cs_main);
         Misbehaving(pfrom->id, 100);
-        LogPrint("net", "received not-requested mnlistdiff. peer=%d\n", pfrom->id);
+        LogPrint("net", "received unsolicited %s. peer=%d\n", strCommand, pfrom->id);
     }
 
     else if (strCommand == NetMsgType::NOTFOUND) {

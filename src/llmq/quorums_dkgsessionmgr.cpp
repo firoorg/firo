@@ -6,6 +6,7 @@
 #include "quorums_blockprocessor.h"
 #include "quorums_debug.h"
 #include "quorums_init.h"
+#include "quorums_rotation.h"
 #include "quorums_utils.h"
 
 #include "chainparams.h"
@@ -20,6 +21,30 @@ CDKGSessionManager* quorumDKGSessionManager;
 static const std::string DB_VVEC = "qdkg_V";
 static const std::string DB_SKCONTRIB = "qdkg_S";
 
+static bool CanQueueRotatedDkgMessage(const Consensus::LLMQParams& params, QuorumPhase phase,
+                                     const std::string& command, size_t size)
+{
+    if (phase < QuorumPhase_Initialized) return false;
+    constexpr size_t compactSize = 9;
+    constexpr size_t common = 1 + 2 * 32 + BLS_CURVE_SIG_SIZE;
+    const size_t bitset = compactSize + 1 + (params.size + 7) / 8;
+    if (command == NetMsgType::QCONTRIB) {
+        const size_t verificationVector = compactSize + params.threshold * BLS_CURVE_PUBKEY_SIZE;
+        const size_t encryptedShares = BLS_CURVE_PUBKEY_SIZE + 32 + compactSize +
+            params.size * (compactSize + BLS_CURVE_SECKEY_SIZE);
+        return phase <= QuorumPhase_Contribute && size <= common + verificationVector + encryptedShares;
+    }
+    if (command == NetMsgType::QCOMPLAINT) {
+        return phase <= QuorumPhase_Complain && size <= common + 2 * bitset;
+    }
+    if (command == NetMsgType::QJUSTIFICATION) {
+        return phase <= QuorumPhase_Justify &&
+               size <= common + compactSize + params.size * (sizeof(uint32_t) + BLS_CURVE_SECKEY_SIZE);
+    }
+    return phase <= QuorumPhase_Commit &&
+           size <= common + bitset + BLS_CURVE_PUBKEY_SIZE + 32 + BLS_CURVE_SIG_SIZE;
+}
+
 CDKGSessionManager::CDKGSessionManager(CDBWrapper& _llmqDb, CBLSWorker& _blsWorker) :
     llmqDb(_llmqDb),
     blsWorker(_blsWorker)
@@ -32,10 +57,19 @@ CDKGSessionManager::~CDKGSessionManager()
 
 void CDKGSessionManager::StartMessageHandlerPool()
 {
-    for (const auto& qt : Params().GetConsensus().llmqs) {
-        dkgSessionHandlers.emplace(std::piecewise_construct,
-                std::forward_as_tuple(qt.first),
-                std::forward_as_tuple(qt.second, messageHandlerPool, blsWorker, *this));
+    const auto& consensus = Params().GetConsensus();
+    for (const auto& [type, params] : consensus.llmqs) {
+        int count = 1;
+        if (Consensus::IsRotatedLLMQType(type)) {
+            if (consensus.nDIP24Height == std::numeric_limits<int>::max() ||
+                (!fMasternodeMode && !GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS))) continue;
+            count = params.signingActiveQuorumCount;
+        }
+        for (int index = 0; index < count; ++index) {
+            dkgSessionHandlers.emplace(std::piecewise_construct,
+                    std::forward_as_tuple(type, index),
+                    std::forward_as_tuple(params, messageHandlerPool, blsWorker, *this, index));
+        }
     }
 
     messageHandlerPool.resize(2);
@@ -89,13 +123,33 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
 
     // peek into the message and see which LLMQType it is. First byte of all messages is always the LLMQType
     Consensus::LLMQType llmqType = (Consensus::LLMQType)*vRecv.begin();
-    if (!dkgSessionHandlers.count(llmqType)) {
+    if (Consensus::IsRotatedLLMQType(llmqType)) {
+        // The signed message prefix is (type, quorumHash) for every DKG phase.
+        uint256 hash;
+        if (pfrom->nVersion < DIP24_PROTO_VERSION || vRecv.size() < 1 + hash.size()) return;
+        std::copy_n(vRecv.begin() + 1, hash.size(), hash.begin());
+        LOCK(cs_main);
+        const auto& llmqs = Params().GetConsensus().llmqs;
+        auto params = llmqs.find(llmqType);
+        auto base = mapBlockIndex.find(hash);
+        if (params == llmqs.end() || base == mapBlockIndex.end() || !chainActive.Contains(base->second)) return;
+        const int index = base->second->nHeight % params->second.dkgInterval;
+        auto handler = dkgSessionHandlers.find({llmqType, index});
+        if (handler == dkgSessionHandlers.end()) return;
+        const auto [phase, currentHash] = handler->second.GetPhaseAndQuorumHash();
+        if (currentHash == hash && CanQueueRotatedDkgMessage(params->second, phase, strCommand, vRecv.size())) {
+            handler->second.ProcessMessage(pfrom, strCommand, vRecv, connman);
+        }
+        return;
+    }
+    auto handler = dkgSessionHandlers.find({llmqType, 0});
+    if (handler == dkgSessionHandlers.end()) {
         LOCK(cs_main);
         Misbehaving(pfrom->id, 100);
         return;
     }
 
-    dkgSessionHandlers.at(llmqType).ProcessMessage(pfrom, strCommand, vRecv, connman);
+    handler->second.ProcessMessage(pfrom, strCommand, vRecv, connman);
 }
 
 bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
@@ -117,7 +171,8 @@ bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& 
     for (const auto& p : dkgSessionHandlers) {
         auto& dkgType = p.second;
         LOCK2(dkgType.cs, dkgType.curSession->invCs);
-        if (dkgType.phase < QuorumPhase_Initialized || dkgType.phase > QuorumPhase_Contribute) {
+        if (!dkgType.curSession->pindexQuorum || dkgType.curSession->pindexQuorum->GetBlockHash() != dkgType.quorumHash ||
+            dkgType.phase < QuorumPhase_Initialized || dkgType.phase > QuorumPhase_Contribute) {
             continue;
         }
         auto it = dkgType.curSession->contributions.find(hash);
@@ -134,7 +189,8 @@ bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) c
     for (const auto& p : dkgSessionHandlers) {
         auto& dkgType = p.second;
         LOCK2(dkgType.cs, dkgType.curSession->invCs);
-        if (dkgType.phase < QuorumPhase_Contribute || dkgType.phase > QuorumPhase_Complain) {
+        if (!dkgType.curSession->pindexQuorum || dkgType.curSession->pindexQuorum->GetBlockHash() != dkgType.quorumHash ||
+            dkgType.phase < QuorumPhase_Contribute || dkgType.phase > QuorumPhase_Complain) {
             continue;
         }
         auto it = dkgType.curSession->complaints.find(hash);
@@ -151,7 +207,8 @@ bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification
     for (const auto& p : dkgSessionHandlers) {
         auto& dkgType = p.second;
         LOCK2(dkgType.cs, dkgType.curSession->invCs);
-        if (dkgType.phase < QuorumPhase_Complain || dkgType.phase > QuorumPhase_Justify) {
+        if (!dkgType.curSession->pindexQuorum || dkgType.curSession->pindexQuorum->GetBlockHash() != dkgType.quorumHash ||
+            dkgType.phase < QuorumPhase_Complain || dkgType.phase > QuorumPhase_Justify) {
             continue;
         }
         auto it = dkgType.curSession->justifications.find(hash);
@@ -168,7 +225,8 @@ bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematu
     for (const auto& p : dkgSessionHandlers) {
         auto& dkgType = p.second;
         LOCK2(dkgType.cs, dkgType.curSession->invCs);
-        if (dkgType.phase < QuorumPhase_Justify || dkgType.phase > QuorumPhase_Commit) {
+        if (!dkgType.curSession->pindexQuorum || dkgType.curSession->pindexQuorum->GetBlockHash() != dkgType.quorumHash ||
+            dkgType.phase < QuorumPhase_Justify || dkgType.phase > QuorumPhase_Commit) {
             continue;
         }
         auto it = dkgType.curSession->prematureCommitments.find(hash);

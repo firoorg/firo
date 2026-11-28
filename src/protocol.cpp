@@ -45,6 +45,8 @@ namespace NetMsgType {
     const char *SYNCSTATUSCOUNT="ssc";
     const char *GETMNLISTDIFF="getmnlistd";
     const char *MNLISTDIFF="mnlistdiff";
+    const char *GETQRINFO="getqrinfo";
+    const char *QRINFO="qrinfo";
     const char *QSENDRECSIGS="qsendrecsigs";
     const char *QFCOMMITMENT="qfcommit";
     const char *QCONTRIB="qcontrib";
@@ -59,6 +61,7 @@ namespace NetMsgType {
     const char *QSIGREC="qsigrec";
     const char *CLSIG="clsig";
     const char *ISLOCK="islock";
+    const char *ISDLOCK="isdlock";
     const char *MNAUTH="mnauth";
 };
 
@@ -98,6 +101,8 @@ const static std::string allNetMessageTypes[] = {
     //znode
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
+    NetMsgType::GETQRINFO,
+    NetMsgType::QRINFO,
     NetMsgType::SYNCSTATUSCOUNT,
     NetMsgType::QSENDRECSIGS,
     NetMsgType::QFCOMMITMENT,
@@ -113,6 +118,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::QSIGREC,
     NetMsgType::CLSIG,
     NetMsgType::ISLOCK,
+    NetMsgType::ISDLOCK,
     NetMsgType::MNAUTH,
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
@@ -235,6 +241,7 @@ std::string CInv::GetCommand() const
     case MSG_QUORUM_RECOVERED_SIG:          return cmd.append(NetMsgType::QSIGREC);
     case MSG_CLSIG:                         return cmd.append(NetMsgType::CLSIG);
     case MSG_ISLOCK:                        return cmd.append(NetMsgType::ISLOCK);
+    case MSG_ISDLOCK:                       return cmd.append(NetMsgType::ISDLOCK);
     default:
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }
