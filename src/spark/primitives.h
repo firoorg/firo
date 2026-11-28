@@ -5,6 +5,8 @@
 #include "serialize.h"
 #include "../uint256.h"
 
+#include <unordered_map>
+
 struct CSparkMintMeta
 {
     int nHeight;
@@ -131,6 +133,14 @@ struct CoinHash {
     std::size_t operator()(const spark::Coin& coin) const noexcept;
 };
 
+// Key equality matching CoinHash: coins are the same key only if their hashes
+// match. Coin::operator== alone treats every encoding of the point at infinity
+// as equal although they hash differently, which would make hash table lookups
+// depend on bucket layout.
+struct CoinEqual {
+    bool operator()(const spark::Coin& a, const spark::Coin& b) const;
+};
+
 // Custom hash for the linking tag. THIS IS NOT SECURE HASH FUNCTION
 struct CLTagHash {
     std::size_t operator()(const secp_primitives::GroupElement& tag) const noexcept;
@@ -142,6 +152,8 @@ struct CMintedCoinInfo {
 
     static CMintedCoinInfo make(int coinGroupId, int nHeight);
 };
+
+using mint_info_container = std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash, spark::CoinEqual>;
 
 }
 

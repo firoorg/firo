@@ -92,6 +92,11 @@ CSparkVerifyDBContext* CSparkVerifyDBContext::GetActive()
     return activeVerifyDBContext;
 }
 
+bool HasInfinityPoint(const spark::Coin& coin)
+{
+    return coin.S.isInfinity() || coin.K.isInfinity() || coin.C.isInfinity();
+}
+
 bool CheckSparkMintDuplicates(
         CValidationState& state,
         const std::vector<spark::Coin>& mints,
@@ -1555,7 +1560,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 catch (const std::exception &) {
                     continue;
                 }
-                if (coin == txCoin) {
+                if (CoinEqual()(coin, txCoin)) {
                     outPoint = COutPoint(tx->GetHash(), nIndex);
                     if (txOut)
                         *txOut = tx;
@@ -1628,7 +1633,7 @@ CSparkState::CSparkState(
 
 void CSparkState::CopyFrom(const CSparkState& other)
 {
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> coins;
+    mint_info_container coins;
     {
         LOCK(other.cs_minted_coins);
         coins = other.mintedCoins;
@@ -2226,7 +2231,7 @@ void CSparkState::GetCoinsForRecovery(
     }
 }
 
-std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> CSparkState::GetMints() const {
+mint_info_container CSparkState::GetMints() const {
     LOCK(cs_minted_coins);
     return mintedCoins;
 }

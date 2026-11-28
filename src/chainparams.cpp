@@ -417,6 +417,7 @@ public:
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = 1355970;
         consensus.nSparkChaumV2StartBlock = 1371000; // Approximately September 4 2026, 10:00 UTC
+        consensus.nSparkRejectInfinityStartBlock = INT_MAX; // set before release
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -737,6 +738,7 @@ public:
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = 210700; // H1
         consensus.nSparkChaumV2StartBlock = 210800;     // H2: 100 blocks after H1
+        consensus.nSparkRejectInfinityStartBlock = INT_MAX; // set before release
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -1006,6 +1008,7 @@ public:
         consensus.nSparkStartBlock = 1500;
         consensus.nSparkSingleInputStartBlock = 3600; // H1: ~87 blocks / ~7h15m after devnet height 3513
         consensus.nSparkChaumV2StartBlock = 3700;      // H2: ~187 blocks / ~15h35m after devnet height 3513
+        consensus.nSparkRejectInfinityStartBlock = INT_MAX; // set before release
         consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -1259,6 +1262,7 @@ public:
         consensus.nSparkStartBlock = 100;
         consensus.nSparkSingleInputStartBlock = 500;
         consensus.nSparkChaumV2StartBlock = 700;
+        consensus.nSparkRejectInfinityStartBlock = 1;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;

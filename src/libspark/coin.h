@@ -90,7 +90,7 @@ public:
     bool operator==(const Coin& other) const;
     bool operator!=(const Coin& other) const;
 
-    // type and v are not included in hash
+    // Hash of the serialized coin: type, S, K, C, the encrypted data and, for mint coins, v
     uint256 getHash() const;
 
     void setParams(const Params* params);

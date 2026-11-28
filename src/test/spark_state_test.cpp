@@ -1,5 +1,7 @@
 #include "../chainparams.h"
 #include "../hash.h"
+#include "../keystore.h"
+#include "../script/sign.h"
 #include "../spark/state.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
@@ -7,6 +9,7 @@
 #include "test_bitcoin.h"
 
 #include <climits>
+#include <cstring>
 #include <map>
 
 #include <boost/test/unit_test.hpp>
@@ -702,6 +705,93 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
         {replayMint}, activationHeight, historicalReplayState));
 
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(mint_lookup_independent_of_bucket_layout)
+{
+    // Coins whose S is the point at infinity under different encodings:
+    // Coin::operator== says they are equal, their hashes differ.
+    const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
+    const auto withInfinityS = [&](uint32_t x) {
+        unsigned char encoding[34] = {};
+        std::memcpy(encoding, &x, sizeof(x));
+        encoding[33] = 1;
+        spark::Coin coin = mint;
+        coin.S.deserialize(encoding);
+        return coin;
+    };
+
+    const spark::Coin coin1 = withInfinityS(1);
+    BOOST_REQUIRE(coin1.S.isInfinity());
+    sparkState->AddMint(coin1, spark::CMintedCoinInfo::make(1, 1));
+
+    // Pick an alias that shares coin1's bucket, where the lookup used to
+    // fall back to Coin::operator== and match it.
+    const auto mints = sparkState->GetMints();
+    spark::Coin coin2 = withInfinityS(2);
+    for (uint32_t x = 3; mints.bucket(coin2) != mints.bucket(coin1); ++x)
+        coin2 = withInfinityS(x);
+    BOOST_REQUIRE(coin2 == coin1);
+    BOOST_REQUIRE(coin2.getHash() != coin1.getHash());
+
+    // The copy is the map whose buckets were inspected, so this check does
+    // not depend on the state's own map having the same layout.
+    BOOST_CHECK(mints.find(coin2) == mints.end());
+    BOOST_CHECK(!sparkState->HasCoin(coin2));
+    CValidationState aliasState;
+    BOOST_CHECK(spark::CheckSparkMintDuplicates(aliasState, {coin2}, 2));
+    CValidationState copyState;
+    BOOST_CHECK(!spark::CheckSparkMintDuplicates(copyState, {coin1}, 2));
+
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(infinity_coin_rejected_from_activation)
+{
+    auto& consensus = const_cast<Consensus::Params&>(::Params().GetConsensus());
+    struct RestoreHeight {
+        int& height;
+        const int saved;
+        ~RestoreHeight() { height = saved; }
+    } restoreHeight{consensus.nSparkRejectInfinityStartBlock, consensus.nSparkRejectInfinityStartBlock};
+
+    // A mint's value proof covers only C, so an honest mint stays otherwise
+    // valid with S replaced by the point at infinity.
+    spark::SpendKey spendKey(params);
+    spark::FullViewKey fullViewKey(spendKey);
+    spark::IncomingViewKey incomingViewKey(fullViewKey);
+    spark::MintTransaction mint(
+        params,
+        {spark::MintedCoinData{spark::Address(incomingViewKey, 1), static_cast<uint64_t>(COIN), ""}},
+        random_char_vector());
+    const std::vector<CDataStream> serialized = mint.getMintedCoinsSerialized();
+    CScript mintScript;
+    mintScript << OP_SPARKMINT;
+    mintScript.insert(mintScript.end(), serialized[0].begin(), serialized[0].end());
+    const size_t sOffset = 2; // opcode, coin type, then S
+    std::fill(mintScript.begin() + sOffset, mintScript.begin() + sOffset + GroupElement::memoryRequired(), 0);
+    mintScript[sOffset + GroupElement::memoryRequired() - 1] = 1; // infinity flag
+
+    const CTransaction& funding = coinbaseTxns[0];
+    CMutableTransaction tx;
+    tx.vin.emplace_back(funding.GetHash(), 0);
+    tx.vout.emplace_back(COIN, mintScript);
+    tx.vout.emplace_back(funding.vout[0].nValue - COIN, funding.vout[0].scriptPubKey);
+    CBasicKeyStore keystore;
+    keystore.AddKey(coinbaseKey);
+    BOOST_REQUIRE(SignSignature(keystore, funding, tx, 0, SIGHASH_ALL));
+
+    const CBlock block = CreateBlock({tx}, script);
+    const auto blockValid = [&](int activationHeight, CValidationState& state) {
+        consensus.nSparkRejectInfinityStartBlock = activationHeight;
+        LOCK(cs_main);
+        return TestBlockValidity(state, ::Params(), block, chainActive.Tip(), false, false);
+    };
+    CValidationState beforeState;
+    BOOST_CHECK(blockValid(chainActive.Height() + 2, beforeState));
+    CValidationState atState;
+    BOOST_CHECK(!blockValid(chainActive.Height() + 1, atState));
+    BOOST_CHECK_EQUAL(atState.GetRejectReason(), "bad-txns-spark-coin-infinity");
 }
 
 BOOST_AUTO_TEST_CASE(copy_from_isolates_minted_coins)

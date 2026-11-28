@@ -984,6 +984,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             for (const auto& coin : sparkMintCoins) {
+                // The point at infinity has many encodings that compare equal
+                // but hash differently. Blocks reject it from
+                // nSparkRejectInfinityStartBlock.
+                if (spark::HasInfinityPoint(coin)) {
+                    return state.Invalid(false, REJECT_NONSTANDARD, "spark-coin-infinity");
+                }
                 if (!txSparkMints.insert(coin.getHash()).second ||
                         sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
                     LogPrintf("AcceptToMemoryPool(): duplicate Spark mint coin %s\n", coin.getHash().GetHex());
@@ -2962,6 +2968,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             !spark::CheckSparkMintDuplicates(
                 state, block.sparkTxInfo->mints, pindex->nHeight)) {
         return false;
+    }
+    if (pindex->nHeight >= chainparams.GetConsensus().nSparkRejectInfinityStartBlock) {
+        for (const auto& mint : block.sparkTxInfo->mints) {
+            if (spark::HasInfinityPoint(mint)) return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-coin-infinity");
+        }
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
