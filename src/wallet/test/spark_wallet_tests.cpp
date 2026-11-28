@@ -556,6 +556,59 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_spends)
     spark::CSparkState::GetState()->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(known_spend_marks_coin_before_worker_runs)
+{
+    GenerateBlocks(1001);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({2 * COIN, 2 * COIN}, mintTransactions);
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(5);
+
+    // A spend the wallet already knows, so that AddToWallet will not mark its
+    // input again, and whose mark is gone, as after a reorg rollback.
+    auto* wallet = pwalletMain->sparkWallet.get();
+    CAmount fee;
+    const CWalletTx wtx = wallet->CreateSparkSpendTransaction(
+        {{GetScriptForDestination(GenerateAddress().GetID()), COIN, false}}, {}, fee);
+    const auto lTags = spark::GetSparkUsedTags(*wtx.tx);
+    BOOST_REQUIRE_EQUAL(lTags.size(), 1);
+    const uint256 lTagHash = primitives::GetLTagHash(lTags[0]);
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        BOOST_REQUIRE(pwalletMain->AddToWallet(wtx));
+    }
+    wallet->setCoinUnused(lTags[0]);
+    BOOST_REQUIRE(!wallet->getMintMeta(lTagHash).isUsed);
+
+    {
+        // The worker needs cs_main, so only the synchronous mark can be seen here.
+        LOCK(cs_main);
+        CValidationState state;
+        BOOST_REQUIRE(AcceptToMemoryPool(mempool, state, wtx.tx, false, nullptr));
+        BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+    }
+
+    // Clear the mark again once the worker can no longer set it.
+    wallet->FinishTasks();
+    wallet->setCoinUnused(lTags[0]);
+    BOOST_REQUIRE(!wallet->getMintMeta(lTagHash).isUsed);
+
+    bool fChecked = false;
+    {
+        // Connected transaction notifications still hold cs_main as well.
+        boost::signals2::scoped_connection check(
+            GetMainSignals().SyncTransaction.connect(
+                [&](const CTransaction& tx, const CBlockIndex*, int posInBlock) {
+                    if (posInBlock < 0 || tx.GetHash() != wtx.GetHash()) return;
+                    AssertLockHeld(cs_main);
+                    BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+                    fChecked = true;
+                }));
+        BOOST_REQUIRE(GenerateBlock({CMutableTransaction(*wtx.tx)}));
+    }
+    BOOST_CHECK(fChecked);
+}
+
 BOOST_AUTO_TEST_CASE(spend)
 {
     pwalletMain->SetBroadcastTransactions(true);

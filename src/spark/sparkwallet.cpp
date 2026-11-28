@@ -764,7 +764,26 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
     UpdateSpendState(lTag, lTagHash, txHash, fUpdateMint);
 }
 
+void CSparkWallet::MarkCoinUsed(const GroupElement& lTag)
+{
+    AssertLockHeld(cs_main);
+    LOCK(cs_spark_wallet);
+    const uint256 lTagHash = primitives::GetLTagHash(lTag);
+    auto it = coinMeta.find(lTagHash);
+    if (it == coinMeta.end() || it->second.isUsed) return;
+    CSparkMintMeta mint = it->second;
+    mint.isUsed = true;
+    CWalletDB walletdb(strWalletFile);
+    addOrUpdateMint(mint, lTagHash, walletdb);
+}
+
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
+    // The worker below records the spend entries.
+    if (fUpdateMint) {
+        for (const auto& lTag : lTags) {
+            MarkCoinUsed(lTag);
+        }
+    }
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK2(cs_main, cs_spark_wallet);
         if (!mempool.exists(txHash) && !txpools.getStemTxPool().exists(txHash))
@@ -779,6 +798,13 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 }
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
+    // The worker below records the spend entries, which need the spending txid.
+    if (block.sparkTxInfo) {
+        for (const auto& spent : block.sparkTxInfo->spentLTags) {
+            MarkCoinUsed(spent.first);
+        }
+    }
+
     std::vector<CTransactionRef> vtxCopy = block.vtx;
     const uint256 blockHash = block.GetHash();
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {

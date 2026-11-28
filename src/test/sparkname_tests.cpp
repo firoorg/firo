@@ -110,7 +110,7 @@ public:
         if (fCommit) {
             CReserveKey reserveKey(pwalletMain);
             lastState = CValidationState();
-            pwalletMain->CommitTransaction(sparkNameWalletTx, reserveKey, g_connman.get(), lastState);
+            pwalletMain->CommitTransaction(sparkNameWalletTx, reserveKey, g_connman.get(), lastState, true);
         }
         return CMutableTransaction(*sparkNameWalletTx.tx);
     }
@@ -682,7 +682,7 @@ BOOST_AUTO_TEST_CASE(general)
 
     // now check the number of years is calculated correctly and yearly fee is checked
     CMutableTransaction tx5 = CreateSparkNameTx("testname5", GenerateSparkAddress(), 24*24*365*2, "x", true, 2*COIN);
-    BOOST_CHECK(lastState.IsValid());
+    BOOST_CHECK_MESSAGE(lastState.IsValid(), FormatStateMessage(lastState));
 
     CMutableTransaction tx6 = CreateSparkNameTx("testname6", GenerateSparkAddress(), 24*24*365*2, "x", true, 1*COIN);
     BOOST_CHECK(!lastState.IsValid());
