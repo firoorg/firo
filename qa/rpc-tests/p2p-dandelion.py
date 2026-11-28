@@ -48,21 +48,20 @@ class TestP2PConn(NodeConnCB):
         self.connection = conn
         self.peer_disconnected = False
 
-    def on_inv(self, conn, message):
+    def deliver(self, conn, message):
         """Receive message and dispatch message to appropriate callback.
 
         We keep a count of how many of each message type has been received
         and the most recent message of each type."""
         with mininode_lock:
-            try:
-                command = message.command.decode('ascii')
-                self.message_count[command] += 1
-                self.last_message[command] = message
-                getattr(self, 'on_' + command)(message)
-            except:
-                print("ERROR delivering %s (%s)" % (repr(message), sys.exc_info()[0]))
-                raise
+            command = message.command.decode('ascii')
+            self.message_count[command] += 1
+            self.last_message[command] = message
+        NodeConnCB.deliver(self, conn, message)
 
+    # Don't getdata announced txs, so 'tx' only counts replies to our own getdata
+    def on_inv(self, conn, message):
+        pass
 
     # Track the last getdata message we receive (used in the test)
     def on_getdata(self, conn, message):
@@ -119,7 +118,7 @@ class DandelionTest(BitcoinTestFramework):
         print("setup_nodes");
         return start_nodes(
             self.num_nodes, self.options.tmpdir, 
-            extra_args=[['-regtest', '-debug', '-whitelist=127.0.0.1']] * self.num_nodes)
+            extra_args=[args + ['-regtest', '-debug', '-whitelist=127.0.0.1'] for args in self.extra_args])
 
     def setup_network(self):
         print("Setting up network for dandelion.")
@@ -196,7 +195,11 @@ class DandelionTest(BitcoinTestFramework):
             # Test 3: Resistance to black holes
             test_node0.message_count['tx'] = 0
             time.sleep(44)
-            test_node0.send_dandeliontx_getdata(node0_tx.calc_sha256(True))
+            # Process expired embargoes before requesting the relayed tx.
+            ping_received = test_node0.sync_with_ping()
+            assert(ping_received)
+            # By now tx has been fluffed, so ask for it as a regular tx
+            test_node0.send_message(msg_getdata([CInv(1,node0_tx.calc_sha256(True))])) # 1: "Tx"
             time.sleep(1)
             try:
               assert(test_node0.message_count['tx']==1)
