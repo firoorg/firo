@@ -117,6 +117,7 @@ private:
     QAction *consolidateOutputsAction;
     QAction *signMessageAction;
     QAction *verifyMessageAction;
+    QAction *verifySpendProofAction;
     QAction *aboutAction;
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;

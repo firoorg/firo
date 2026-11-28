@@ -1092,6 +1092,22 @@ bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t 
         return wallet->AddDestData(sAddress, key, sRequest);
 }
 
+QString WalletModel::createSpendProof(uint256 hash, const QString &message, QString &error)
+{
+    // Unlike message signing, this reads the transaction and its cover sets from chain state.
+    LOCK2(cs_main, wallet->cs_wallet);
+    if (!wallet->sparkWallet) {
+        error = tr("Spark wallet is not available.");
+        return QString();
+    }
+    try {
+        return QString::fromStdString(wallet->sparkWallet->CreateSpendProof(hash, message.toStdString()));
+    } catch (const std::exception& e) {
+        error = QString::fromStdString(e.what());
+        return QString();
+    }
+}
+
 bool WalletModel::transactionCanBeAbandoned(uint256 hash) const
 {
     LOCK2(cs_main, wallet->cs_wallet);

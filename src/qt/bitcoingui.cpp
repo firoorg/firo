@@ -24,6 +24,7 @@
 #include "utilitydialog.h"
 
 #ifdef ENABLE_WALLET
+#include "spendproofdialog.h"
 #include "walletframe.h"
 #include "walletmodel.h"
 #endif // ENABLE_WALLET
@@ -123,6 +124,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     consolidateOutputsAction(0),
     signMessageAction(0),
     verifyMessageAction(0),
+    verifySpendProofAction(0),
     aboutAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
@@ -443,6 +445,10 @@ void BitcoinGUI::createActions()
     signMessageAction->setStatusTip(tr("Sign messages with your Firo addresses to prove you own them"));
     verifyMessageAction = new QAction(tr("&Verify message..."), this);
     verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Firo addresses"));
+    verifySpendProofAction = new QAction(tr("Verify spend &proof..."), this);
+    verifySpendProofAction->setStatusTip(tr("Verify a proof that someone holds the spending keys of a Spark transaction"));
+    // Verifying reads chain state, so setClientModel enables this only while the node is up.
+    verifySpendProofAction->setEnabled(false);
 
     openRPCConsoleAction = new QAction(tr("&Debug window"), this);
     openRPCConsoleAction->setStatusTip(tr("Open debugging and diagnostic console"));
@@ -473,6 +479,7 @@ void BitcoinGUI::createActions()
     GUIUtil::setThemedIcon(backupWalletAction, QStringLiteral(":/icons/archive"));
     GUIUtil::setThemedIcon(signMessageAction, QStringLiteral(":/icons/pen"));
     GUIUtil::setThemedIcon(verifyMessageAction, QStringLiteral(":/icons/shield"));
+    GUIUtil::setThemedIcon(verifySpendProofAction, QStringLiteral(":/icons/shield"));
     GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
     GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
@@ -497,6 +504,12 @@ void BitcoinGUI::createActions()
     connect(quitAction, &QAction::triggered, rpcConsole, &QWidget::hide);
 
 #ifdef ENABLE_WALLET
+    // Verifying needs only this node's chain, so it is offered with -disablewallet too.
+    connect(verifySpendProofAction, &QAction::triggered, this, [this]{
+        SpendProofDialog *dialog = new SpendProofDialog(this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+    });
     if(walletFrame)
     {
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
@@ -534,6 +547,7 @@ void BitcoinGUI::createMenuBar()
         file->addAction(backupWalletAction);
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
+        file->addAction(verifySpendProofAction);
         file->addAction(exportViewKeyAction);
         file->addSeparator();
         file->addAction(usedSendingAddressesAction);
@@ -541,6 +555,13 @@ void BitcoinGUI::createMenuBar()
         file->addAction(consolidateOutputsAction);
         file->addSeparator();
     }
+#ifdef ENABLE_WALLET
+    else
+    {
+        file->addAction(verifySpendProofAction);
+        file->addSeparator();
+    }
+#endif
     file->addAction(quitAction);
 
     QMenu *settings = appMenuBar->addMenu(tr("&Settings"));
@@ -1407,6 +1428,10 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         // Propagate cleared model to child objects
         rpcConsole->setClientModel(nullptr);
 #ifdef ENABLE_WALLET
+        // Hiding the main window leaves these open, and they would act on chain
+        // state and a wallet model that shutdown is about to delete.
+        for (SpendProofDialog* dialog : findChildren<SpendProofDialog*>())
+            dialog->close();
         if (walletFrame)
         {
             walletFrame->setClientModel(nullptr);
@@ -1414,6 +1439,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(nullptr);
     }
+    verifySpendProofAction->setEnabled(_clientModel != nullptr);
     updateConsolidationAction();
 }
 
