@@ -722,12 +722,6 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
 {
     Initialize(1000);   // stay below HF block number for a time being
 
-    // This lifecycle test creates several large name payments. Exercise it
-    // with V2 enabled so the single-input rule does not make its legacy
-    // multi-input wallet setup fail before the Spark Names assertions run.
-    mutableConsensus.nSparkSingleInputStartBlock = 1;
-    mutableConsensus.nSparkChaumV2StartBlock = 1;
-
     // Push V2.1 activation past the end of the graceful period so fee-tag
     // requirements don't interfere with the address-transition test below.
     mutableConsensus.nSparkNamesV21StartBlock = INT_MAX;
@@ -1172,6 +1166,120 @@ BOOST_AUTO_TEST_CASE(extension_mempool_uses_next_block_height)
     BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("nextheight"), originalExpiration + 1);
 }
 
+BOOST_AUTO_TEST_CASE(v2_mempool_spark_name_parse_failure_does_not_score_peer)
+{
+    constexpr int nBlockPerYear = 365 * 24 * 24;
+
+    Initialize(510);
+    mutableConsensus.nSparkNamesStartBlock = 1;
+    mutableConsensus.nSparkNamesV2StartBlock = 1;
+    mutableConsensus.nSparkNamesV21StartBlock = 1;
+
+    CSparkNameTxData nameData;
+    nameData.name = "v2boundary";
+    nameData.nVersion = 1;
+    nameData.sparkAddress = GenerateSparkAddress();
+    nameData.sparkNameValidityBlocks = nBlockPerYear;
+
+    // Regtest activates Chaum V2 at height 1. Hold it back so this spend is V1.
+    const int deferredHeight = chainActive.Height() + 20;
+    mutableConsensus.nSparkSingleInputStartBlock = deferredHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = deferredHeight;
+
+    // Construct a valid pre-activation V1 Spark Name spend, then remove its
+    // optional metadata suffix while retaining the tagged name-fee output. This form is
+    // accepted below activation but becomes noncanonical at the boundary.
+    CMutableTransaction tx = CreateSparkNameTx(nameData, false);
+    spark::SpendTransaction parsedSpend(spark::Params::get_default());
+    CSparkNameTxData parsedNameData;
+    size_t sparkNameDataPos;
+    BOOST_REQUIRE(sparkNameManager->ParseSparkNameTxData(
+        tx, parsedSpend, parsedNameData, sparkNameDataPos));
+    BOOST_REQUIRE_LT(sparkNameDataPos, tx.vExtraPayload.size());
+    tx.vExtraPayload.erase(
+        tx.vExtraPayload.begin() + sparkNameDataPos,
+        tx.vExtraPayload.end());
+
+    mutableConsensus.nSparkSingleInputStartBlock =
+        chainActive.Height() + 1;
+    const int activationHeight = chainActive.Height() + 2;
+    mutableConsensus.nSparkChaumV2StartBlock = activationHeight;
+
+    bool missingInputs = false;
+    CValidationState preActivationState;
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool,
+            preActivationState,
+            MakeTransactionRef(tx),
+            false,
+            &missingInputs));
+    }
+    BOOST_CHECK(!missingInputs);
+
+    // Keep the transaction out of the block so it can be relayed again by an
+    // honest node whose next-block height is now the activation boundary.
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({}));
+    BOOST_REQUIRE_EQUAL(chainActive.Height() + 1, activationHeight);
+
+    missingInputs = false;
+    CValidationState mempoolState;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            mempoolState,
+            MakeTransactionRef(tx),
+            false,
+            &missingInputs));
+    }
+    int mempoolDoS = -1;
+    BOOST_REQUIRE(mempoolState.IsInvalid(mempoolDoS));
+    BOOST_CHECK_EQUAL(mempoolDoS, 0);
+
+    // The generic transaction path reaches the second Spark Name check using
+    // INT_MAX as its mempool-height sentinel and must be non-punitive too.
+    CValidationState genericMempoolState;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!CheckTransaction(
+            CTransaction(tx),
+            genericMempoolState,
+            false,
+            tx.GetHash(),
+            false,
+            INT_MAX,
+            false,
+            true,
+            nullptr));
+    }
+    int genericMempoolDoS = -1;
+    BOOST_REQUIRE(genericMempoolState.IsInvalid(genericMempoolDoS));
+    BOOST_CHECK_EQUAL(genericMempoolDoS, 0);
+
+    // The same encoding in an authoritative post-activation block remains
+    // consensus-invalid and receives the ordinary invalid-block score.
+    CValidationState blockState;
+    spark::CSparkTxInfo blockInfo;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!spark::CheckSparkTransaction(
+            tx,
+            blockState,
+            tx.GetHash(),
+            false,
+            activationHeight,
+            false,
+            true,
+            &blockInfo));
+    }
+    int blockDoS = 0;
+    BOOST_REQUIRE(blockState.IsInvalid(blockDoS));
+    BOOST_CHECK_EQUAL(blockDoS, 100);
+}
+
 BOOST_AUTO_TEST_CASE(premature_v2_name_failure_does_not_score_peer)
 {
     Initialize(510);
@@ -1224,6 +1332,11 @@ BOOST_AUTO_TEST_CASE(v2_mempool_nested_name_proof_failure_does_not_score_peer)
     nameData.nVersion = 1;
     nameData.sparkAddress = GenerateSparkAddress();
     nameData.sparkNameValidityBlocks = nBlockPerYear;
+
+    // Regtest activates Chaum V2 at height 1. Hold it back so this spend is V1.
+    const int deferredHeight = chainActive.Height() + 20;
+    mutableConsensus.nSparkSingleInputStartBlock = deferredHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = deferredHeight;
 
     // A V1 ownership-proof vector may contain an ignored suffix. Keep that
     // historically valid encoding non-punitive when next-block policy first
