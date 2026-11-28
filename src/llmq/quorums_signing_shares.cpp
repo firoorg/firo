@@ -538,9 +538,35 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
     }
     auto& nodeState = it->second;
     for (auto& s : sigShares) {
-        nodeState.pendingIncomingSigShares.Add(s.GetKey(), s);
+        TryAddPendingIncomingSigShare(pfrom->id, nodeState, s);
     }
     return true;
+}
+
+bool CSigSharesManager::TryAddPendingIncomingSigShare(NodeId nodeId, CSigSharesNodeState& nodeState, const CSigShare& sigShare)
+{
+    AssertLockHeld(cs);
+
+    if (nodeState.banned) {
+        return false;
+    }
+    if (nodeState.pendingIncomingSigShares.Size() >= MAX_PENDING_SIG_SHARES_PER_NODE) {
+        LogPrint("llmq-sigs", "CSigSharesManager::%s -- per-node pending sig shares cap reached (%d), dropping sigShare. node=%d\n",
+            __func__, MAX_PENDING_SIG_SHARES_PER_NODE, nodeId);
+        return false;
+    }
+
+    size_t total{0};
+    for (const auto& p : nodeStates) {
+        total += p.second.pendingIncomingSigShares.Size();
+    }
+    if (total >= MAX_PENDING_SIG_SHARES_TOTAL) {
+        LogPrint("llmq-sigs", "CSigSharesManager::%s -- global pending sig shares cap reached (%d), dropping sigShare. node=%d\n",
+            __func__, MAX_PENDING_SIG_SHARES_TOTAL, nodeId);
+        return false;
+    }
+
+    return nodeState.pendingIncomingSigShares.Add(sigShare.GetKey(), sigShare);
 }
 
 bool CSigSharesManager::PreVerifyBatchedSigShares(NodeId nodeId, const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan)
