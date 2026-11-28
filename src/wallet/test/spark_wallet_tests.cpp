@@ -11,7 +11,10 @@
 
 #include <algorithm>
 #include <boost/test/unit_test.hpp>
+#include <condition_variable>
 #include <limits>
+#include <mutex>
+#include <thread>
 
 static std::vector<unsigned char> random_char_vector()
 {                                                    
@@ -386,6 +389,239 @@ BOOST_AUTO_TEST_CASE(list_spark_mints)
 
     auto sparkState = spark::CSparkState::GetState();
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(confirm_cached_mints_after_restart)
+{
+    // TestChain100Setup pays its coinbases to a key outside this wallet.
+    // Mine far enough past Spark activation for a wallet coinbase to mature.
+    GenerateBlocks(101);
+    std::vector<CMutableTransaction> txs;
+    const auto created = GenerateMints({2 * COIN}, txs);
+    BOOST_REQUIRE_EQUAL(created.size(), 1U);
+    auto* wallet = pwalletMain->sparkWallet.get();
+    wallet->FinishTasks();
+
+    const uint256 txid = created.front().txid;
+    const CAmount amount = created.front().v;
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), amount);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 0);
+
+    // A restart while the mint is still unconfirmed must leave it pending.
+    ReloadSparkWallet();
+    wallet = pwalletMain->sparkWallet.get();
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), amount);
+    BOOST_CHECK(wallet->getMintMeta(created.front().k).nHeight < 1);
+
+    const CBlockIndex* index = GenerateBlock(txs);
+    BOOST_REQUIRE(index);
+    wallet->FinishTasks();
+    const int height = wallet->getMintMeta(created.front().k).nHeight;
+    BOOST_CHECK_EQUAL(height, index->nHeight);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), amount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+
+    uint256 lTagHash;
+    for (const auto& entry : wallet->getMintMap()) {
+        if (entry.second.txid == txid)
+            lTagHash = entry.first;
+    }
+    BOOST_REQUIRE(!lTagHash.IsNull());
+
+    CWalletTx confirmed;
+    {
+        const CWalletTx* wtx = pwalletMain->GetWalletTx(txid);
+        BOOST_REQUIRE(wtx);
+        confirmed = *wtx;
+    }
+
+    auto stickPending = [&]() {
+        CSparkMintMeta stuck = wallet->getMintMeta(created.front().k);
+        stuck.nHeight = -1;
+        stuck.nId = -1;
+        stuck.isUsed = false;
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        wallet->addOrUpdateMint(stuck, lTagHash, walletdb);
+        BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), amount);
+        BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 0);
+    };
+
+    // Confirming the wallet transaction has to refresh the stored height.
+    stickPending();
+    {
+        LOCK(pwalletMain->cs_wallet);
+        pwalletMain->mapWallet.at(txid).hashBlock.SetNull();
+    }
+    BOOST_CHECK(pwalletMain->AddToWallet(confirmed));
+    BOOST_CHECK_EQUAL(wallet->getMintMeta(created.front().k).nHeight, height);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), amount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+
+    // A later startup must do the same when the block is already connected.
+    stickPending();
+    ReloadSparkWallet();
+    wallet = pwalletMain->sparkWallet.get();
+    BOOST_CHECK_EQUAL(wallet->getMintMeta(created.front().k).nHeight, height);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), amount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+    CSparkMintMeta persisted;
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        BOOST_REQUIRE(walletdb.ReadSparkMint(lTagHash, persisted));
+    }
+    BOOST_CHECK_EQUAL(persisted.nHeight, height);
+    BOOST_CHECK(!persisted.isUsed);
+
+    // A busy chain lock must leave the coin pending so a later pass can see spends.
+    stickPending();
+    {
+        std::mutex waitMutex;
+        std::condition_variable waitCv;
+        bool fHeld = false;
+        bool fRelease = false;
+        std::thread holder([&]() {
+            LOCK(cs_main);
+            {
+                std::lock_guard<std::mutex> lock(waitMutex);
+                fHeld = true;
+            }
+            waitCv.notify_one();
+            std::unique_lock<std::mutex> lock(waitMutex);
+            waitCv.wait(lock, [&]() { return fRelease; });
+        });
+        {
+            std::unique_lock<std::mutex> lock(waitMutex);
+            waitCv.wait(lock, [&]() { return fHeld; });
+        }
+        wallet->ConfirmCachedMints();
+        BOOST_CHECK(wallet->getMintMeta(created.front().k).nHeight < 1);
+        BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 0);
+        BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), amount);
+        {
+            std::lock_guard<std::mutex> lock(waitMutex);
+            fRelease = true;
+        }
+        waitCv.notify_one();
+        holder.join();
+    }
+    wallet->ConfirmCachedMints();
+    BOOST_CHECK_EQUAL(wallet->getMintMeta(created.front().k).nHeight, height);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), amount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+
+    // Spark spends are version 3, so they need DIP0003. The cover set also
+    // needs a second confirmed coin; this one is not ours.
+    const int blocksUntilDip3 = ::Params().GetConsensus().DIP0003Height - chainActive.Height();
+    if (blocksUntilDip3 > 0)
+        GenerateBlocks(static_cast<size_t>(blocksUntilDip3));
+    const spark::SpendKey foreignSpendKey(params);
+    const spark::FullViewKey foreignFullViewKey(foreignSpendKey);
+    const spark::IncomingViewKey foreignViewKey(foreignFullViewKey);
+    std::vector<std::pair<CWalletTx, CAmount>> coverMint;
+    BOOST_REQUIRE_EQUAL(pwalletMain->MintAndStoreSpark(
+        {{spark::Address(foreignViewKey, 0), COIN, "cover"}},
+        coverMint, false, true), "");
+    BOOST_REQUIRE_EQUAL(coverMint.size(), 1);
+    wallet->FinishTasks();
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(*coverMint[0].first.tx)}));
+    wallet->FinishTasks();
+
+    // A spend still in the mempool has to mark the minted coin spent when its
+    // height is filled in. The chain spend set does not contain that tag yet.
+    const CTransaction spend = GenerateSparkSpend({COIN}, {}, nullptr);
+    wallet->FinishTasks();
+    const auto spentTags = spark::GetSparkUsedTags(spend);
+    BOOST_REQUIRE_EQUAL(spentTags.size(), 1);
+    const uint256 spentHash = primitives::GetLTagHash(spentTags[0]);
+    BOOST_CHECK(spentHash == lTagHash);
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        walletdb.EraseSparkSpendEntry(spentTags[0]);
+        CSparkMintMeta stuck = wallet->getMintMeta(created.front().k);
+        stuck.nHeight = -1;
+        stuck.nId = -1;
+        stuck.isUsed = false;
+        wallet->addOrUpdateMint(stuck, spentHash, walletdb);
+    }
+    wallet->ConfirmCachedMints();
+    const CSparkMintMeta mempoolSpent = wallet->getMintMeta(created.front().k);
+    BOOST_CHECK(mempoolSpent.isUsed);
+    BOOST_CHECK_EQUAL(mempoolSpent.nHeight, height);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 0);
+    CSparkSpendEntry mempoolEntry;
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        BOOST_REQUIRE(walletdb.ReadSparkSpendEntry(spentTags[0], mempoolEntry));
+    }
+    BOOST_CHECK(mempoolEntry.hashTx == spend.GetHash());
+    BOOST_CHECK_EQUAL(mempoolEntry.amount, amount);
+
+    const CBlockIndex* spendIndex = GenerateBlock({CMutableTransaction(spend)});
+    BOOST_REQUIRE(spendIndex);
+    wallet->FinishTasks();
+
+    // A Spark change output is the same kind of cached coin.
+    uint256 changeHash;
+    Scalar changeNonce;
+    CAmount changeAmount = 0;
+    int changeHeight = -1;
+    for (const auto& entry : wallet->getMintMap()) {
+        if (entry.second.txid == spend.GetHash() && entry.second.type == spark::COIN_TYPE_SPEND && !entry.second.isUsed) {
+            changeHash = entry.first;
+            changeNonce = entry.second.k;
+            changeAmount = entry.second.v;
+            changeHeight = entry.second.nHeight;
+        }
+    }
+    BOOST_REQUIRE(!changeHash.IsNull());
+    BOOST_REQUIRE_GT(changeAmount, 0);
+    BOOST_CHECK_EQUAL(changeHeight, spendIndex->nHeight);
+    {
+        CSparkMintMeta stuck = wallet->getMintMeta(changeNonce);
+        stuck.nHeight = -1;
+        stuck.nId = -1;
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        wallet->addOrUpdateMint(stuck, changeHash, walletdb);
+    }
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 0);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), changeAmount);
+    ReloadSparkWallet();
+    wallet = pwalletMain->sparkWallet.get();
+    BOOST_CHECK_EQUAL(wallet->getMintMeta(changeNonce).nHeight, changeHeight);
+    BOOST_CHECK(!wallet->getMintMeta(changeNonce).isUsed);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), changeAmount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+
+    // The spend is in a block and the pools are empty. Force the input pending
+    // so a restart heals it from the chain spend set alone.
+    txpools.clear();
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        walletdb.EraseSparkSpendEntry(spentTags[0]);
+        CSparkMintMeta stuck = wallet->getMintMeta(created.front().k);
+        stuck.nHeight = -1;
+        stuck.nId = -1;
+        stuck.isUsed = false;
+        wallet->addOrUpdateMint(stuck, spentHash, walletdb);
+    }
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), changeAmount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), amount);
+    ReloadSparkWallet();
+    wallet = pwalletMain->sparkWallet.get();
+    const CSparkMintMeta chainSpent = wallet->getMintMeta(created.front().k);
+    BOOST_CHECK(chainSpent.isUsed);
+    BOOST_CHECK_EQUAL(chainSpent.nHeight, height);
+    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), changeAmount);
+    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+    CSparkSpendEntry spendEntry;
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        BOOST_REQUIRE(walletdb.ReadSparkSpendEntry(spentTags[0], spendEntry));
+    }
+    BOOST_CHECK(spendEntry.hashTx == spend.GetHash());
+    BOOST_CHECK_EQUAL(spendEntry.amount, amount);
+
+    spark::CSparkState::GetState()->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
