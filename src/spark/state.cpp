@@ -1461,7 +1461,8 @@ bool CheckSparkTransaction(
                 return false;
             }
 
-            if (!isVerifyDB || activeVerifyDBContext) {
+            // Name validation needs the parent registry, which is rebuilt when blocks connect.
+            if (fStatefulSigmaCheck && (!isVerifyDB || activeVerifyDBContext)) {
                 CSparkNameManager *sparkNameManager =
                     SparkNameManagerForValidation(isVerifyDB);
                 CSparkNameTxData sparkTxData;
