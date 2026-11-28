@@ -3424,7 +3424,8 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     std::vector<COutput> vCoins(vAvailableCoins);
     FIRO_UNUSED CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
 
-    // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
+    // coin control -> return all selected outputs (we want all selected to go into the transaction for sure),
+    // or, with fRequireAllInputs off, only as many of them as the target needs
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
     {
         BOOST_FOREACH(const COutput& out, vCoins)
@@ -3433,6 +3434,11 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
                  continue;
             nValueRet += out.tx->tx->vout[out.i].nValue;
             setCoinsRet.insert(std::make_pair(out.tx, out.i));
+
+            if (!coinControl->fRequireAllInputs && nValueRet >= nTargetValue) {
+                // stop when we added at least one input and enough inputs to have at least nTargetValue funds
+                return true;
+            }
         }
         return (nValueRet >= nTargetValue);
     }
