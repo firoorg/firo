@@ -194,6 +194,8 @@ testScripts = [
 
     # bip47
     'bip47-walletrestore.py',
+    'bip47-listaddresses.py',
+    'bip47-sweep.py',
 
     'sendtoaddress.py',
     'sendmany.py',
