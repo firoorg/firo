@@ -146,7 +146,8 @@ public:
             std::string& strFailReason,
             bool fSplit,
             const CCoinControl *coinControl,
-            bool autoMintAll = false);
+            bool autoMintAll = false,
+            const std::vector<CRecipient>* transparentRecipients = nullptr);
 
     /**
      * Build a Spark spend. Chaum V2 is selected when the next block is at or

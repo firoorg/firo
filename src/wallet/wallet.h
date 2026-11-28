@@ -1024,7 +1024,8 @@ public:
         std::string& strFailReason,
         bool fSplit,
         const CCoinControl *coinControl,
-        bool autoMintAll = false);
+        bool autoMintAll = false,
+        const std::vector<CRecipient>* transparentRecipients = nullptr);
 
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);

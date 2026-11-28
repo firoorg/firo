@@ -1315,36 +1315,59 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
     }
 
     QSet<QString> setAddress; // Used to detect duplicates
-    int nAddresses = 0;
     std::vector<spark::MintedCoinData> outputs;
+    std::vector<CRecipient> transparentOutputs;
+    bool hasRosenMetadata = false;
     const spark::Params* params = spark::Params::get_default();
     // Pre-check input data for validity
     Q_FOREACH (const SendCoinsRecipient& rcp, recipients) {
         if (rcp.fSubtractFeeFromAmount)
             fSubtractFeeFromAmount = true;
 
-        { // User-entered Firo address / amount:
-            if (!validateSparkAddress(rcp.address)) {
+        if (rcp.amount <= 0 || !MoneyRange(rcp.amount) ||
+            total > MAX_MONEY - rcp.amount) {
+            return InvalidAmount;
+        }
+        setAddress.insert(rcp.address);
+        total += rcp.amount;
+
+        if (validateAddress(rcp.address)) {
+            const CScript scriptPubKey = GetScriptForDestination(
+                CBitcoinAddress(rcp.address.toStdString()).Get());
+            transparentOutputs.push_back({
+                scriptPubKey,
+                rcp.amount,
+                rcp.fSubtractFeeFromAmount});
+            if (!rcp.opReturnData.empty()) {
+                if (!RosenBridge::Parse(rcp.opReturnData)) {
+                    return InvalidRosenBridgeData;
+                }
+                hasRosenMetadata = true;
+                transparentOutputs.push_back({
+                    RosenBridge::BuildOpReturnScript(rcp.opReturnData),
+                    0,
+                    false});
+            }
+        } else if (validateSparkAddress(rcp.address)) {
+            spark::Address address(params);
+            try {
+                address.decode(rcp.address.toStdString());
+            } catch (const std::exception&) {
                 return InvalidAddress;
             }
-            if (rcp.amount <= 0 || !MoneyRange(rcp.amount) ||
-                total > MAX_MONEY - rcp.amount) {
-                return InvalidAmount;
-            }
-            setAddress.insert(rcp.address);
-            ++nAddresses;
-
-            spark::Address address(params);
-            address.decode(rcp.address.toStdString());
             spark::MintedCoinData data;
             data.address = address;
             data.memo = rcp.message.toStdString();
             data.v = rcp.amount;
             outputs.push_back(data);
-            total += rcp.amount;
+        } else {
+            return InvalidAddress;
         }
     }
-    if (setAddress.size() != nAddresses) {
+    if (hasRosenMetadata && fSubtractFeeFromAmount) {
+        return InvalidRosenBridgeData;
+    }
+    if (setAddress.size() != recipients.size()) {
         return DuplicateAddress;
     }
 
@@ -1361,27 +1384,69 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         int nChangePosRet = -1;
 
         std::string strFailReason;
-        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, optionsModel->getfSplit(), coinControl, false);
+        const bool hasTransparentOutputs = !transparentOutputs.empty();
+        bool fCreated = wallet->CreateSparkMintTransactions(
+            outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet,
+            fSubtractFeeFromAmount, strFailReason,
+            hasTransparentOutputs ? false : optionsModel->getfSplit(),
+            coinControl, false, &transparentOutputs);
+        if (!fCreated && hasTransparentOutputs && !hasRosenMetadata) {
+            transactions.clear();
+            wtxAndFees.clear();
+            reservekeys.clear();
+            nFeeRequired = 0;
+            nChangePosRet = -1;
+            strFailReason.clear();
+            fCreated = wallet->CreateSparkMintTransactions(
+                outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet,
+                fSubtractFeeFromAmount, strFailReason, true, coinControl, false,
+                &transparentOutputs);
+        }
+
         transactions.clear();
         transactions.reserve(wtxAndFees.size());
         for (auto &wtxAndFee : wtxAndFees) {
-            auto &wtx = wtxAndFee.first;
-            auto fee = wtxAndFee.second;
+            CWalletTx& wtx = wtxAndFee.first;
+            QList<SendCoinsRecipient> transactionRecipients;
+            for (const SendCoinsRecipient& recipient : recipients) {
+                if (validateSparkAddress(recipient.address)) {
+                    const auto output = std::find_if(
+                        wtx.pendingSparkOutputRecords.begin(),
+                        wtx.pendingSparkOutputRecords.end(),
+                        [&recipient](const auto& record) {
+                            return record.second.address == recipient.address.toStdString();
+                        });
+                    if (output != wtx.pendingSparkOutputRecords.end()) {
+                        SendCoinsRecipient prepared = recipient;
+                        prepared.amount = output->second.amount;
+                        prepared.message = QString::fromStdString(output->second.memo);
+                        transactionRecipients.append(std::move(prepared));
+                    }
+                    continue;
+                }
 
-            int changePos = -1;
-            for (size_t i = 0; i != wtx.tx->vout.size(); i++) {
-                if (!wtx.tx->vout[i].scriptPubKey.IsMint()) changePos = i;
+                const CScript scriptPubKey = GetScriptForDestination(
+                    CBitcoinAddress(recipient.address.toStdString()).Get());
+                for (size_t i = 0; i < wtx.tx->vout.size(); ++i) {
+                    if (wtx.changes.count(i) == 0 &&
+                        wtx.tx->vout[i].scriptPubKey == scriptPubKey) {
+                        SendCoinsRecipient prepared = recipient;
+                        prepared.amount = wtx.tx->vout[i].nValue;
+                        transactionRecipients.append(std::move(prepared));
+                        break;
+                    }
+                }
             }
 
-            transactions.emplace_back(recipients);
+            transactions.emplace_back(transactionRecipients);
             auto &tx = transactions.back();
 
             *tx.getTransaction() = wtx;
-            tx.setTransactionFee(fee);
-            tx.reassignAmounts(changePos);
+            tx.setTransactionFee(wtxAndFee.second);
         }
         
         if (!fCreated) {
+            transactions.clear();
             return SendCoinsReturn(TransactionCreationFailed, QString::fromStdString(strFailReason));
         }
 
@@ -1979,18 +2044,22 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
 
             Q_FOREACH(const SendCoinsRecipient &rcp, transactions[i].getRecipients())
             {
-                {
-                    std::string strAddress = rcp.address.toStdString();
-                    std::string strLabel = rcp.label.toStdString();
-                    {
-                        std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
-
-                        // Check if we have a new address or an updated label
-                        if (mi == wallet->mapSparkAddressBook.end()) {
-                            wallet->SetSparkAddressBook(strAddress, strLabel, "send");
-                        } else if (mi->second.name != strLabel) {
-                            wallet->SetSparkAddressBook(strAddress, strLabel, ""); // "" means don't change purpose
-                        }
+                const std::string strAddress = rcp.address.toStdString();
+                const std::string strLabel = rcp.label.toStdString();
+                if (validateAddress(rcp.address)) {
+                    const CTxDestination destination = CBitcoinAddress(strAddress).Get();
+                    const auto item = wallet->mapAddressBook.find(destination);
+                    if (item == wallet->mapAddressBook.end()) {
+                        wallet->SetAddressBook(destination, strLabel, "send");
+                    } else if (item->second.name != strLabel) {
+                        wallet->SetAddressBook(destination, strLabel, "");
+                    }
+                } else {
+                    const auto item = wallet->mapSparkAddressBook.find(strAddress);
+                    if (item == wallet->mapSparkAddressBook.end()) {
+                        wallet->SetSparkAddressBook(strAddress, strLabel, "send");
+                    } else if (item->second.name != strLabel) {
+                        wallet->SetSparkAddressBook(strAddress, strLabel, "");
                     }
                 }
                 pendingCoinsSent.emplace_back(rcp, transaction_array);
